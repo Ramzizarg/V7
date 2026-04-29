@@ -391,7 +391,7 @@ export default function CollectionView() {
                             fetchPriority={index < 2 ? "high" : "auto"}
                             unoptimized={isRemote}
                             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                            className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
+                            className="object-contain object-center transition duration-500 group-hover:scale-[1.02]"
                           />
                           {cardOos ? <OutOfStockImageBadge /> : null}
                         </div>
@@ -621,7 +621,7 @@ export default function CollectionView() {
                   src={wishlistToast.image}
                   alt=""
                   fill
-                  className="object-cover"
+                  className="object-contain"
                   sizes="44px"
                   unoptimized={wishlistToast.image.startsWith("http")}
                 />

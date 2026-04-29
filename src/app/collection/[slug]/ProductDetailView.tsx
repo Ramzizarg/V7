@@ -46,6 +46,118 @@ function formatPrice(n: number) {
   }).format(n);
 }
 
+type Swatch = { label: string; hex: string | null };
+
+/**
+ * − / quantité / + (fond blanc, bordures légères). Désactivé si rupture ou max stock atteint.
+ */
+function QuantityStepper({
+  value,
+  onChange,
+  min,
+  max,
+  disabled,
+  compact,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  min: number;
+  max: number;
+  disabled: boolean;
+  /** Hauteur légèrement réduite pour la feuille mobile */
+  compact?: boolean;
+}) {
+  const h = compact ? "h-9" : "h-10";
+  const w = compact ? "w-9" : "w-10";
+  const atMin = value <= min;
+  const atMax = value >= max;
+  return (
+    <div
+      className={`inline-flex max-w-full border border-zinc-300 bg-white ${disabled ? "opacity-50" : ""}`}
+      role="group"
+      aria-label="Quantité"
+    >
+      <button
+        type="button"
+        disabled={disabled || atMin}
+        aria-label="Diminuer la quantité"
+        onClick={() => onChange(value - 1)}
+        className={`flex ${h} ${w} shrink-0 items-center justify-center border-r border-zinc-300 bg-white text-base font-light text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40`}
+      >
+        −
+      </button>
+      <div
+        className={`flex ${h} min-w-[2.75rem] grow items-center justify-center border-r border-zinc-300 bg-white text-sm font-medium tabular-nums text-zinc-900 sm:min-w-[3rem]`}
+        aria-live="polite"
+      >
+        {value}
+      </div>
+      <button
+        type="button"
+        disabled={disabled || atMax}
+        aria-label="Augmenter la quantité"
+        onClick={() => onChange(value + 1)}
+        className={`flex ${h} ${w} shrink-0 items-center justify-center bg-white text-base font-light text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40`}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Deux couleurs sur un même produit (ex. Noir + Blanc) : pastilles cliquables,
+ * style proche d’un anneau noir + décalage blanc pour l’option sélectionnée.
+ */
+function ColorSwatchList({
+  swatches,
+  valueIndex,
+  onChange,
+  namePrefix,
+  className = "mt-3",
+}: {
+  swatches: Swatch[];
+  valueIndex: number;
+  onChange: (index: number) => void;
+  namePrefix: string;
+  className?: string;
+}) {
+  if (swatches.length === 0) return null;
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-3 ${className}`}
+      role="listbox"
+      aria-label="Couleurs"
+    >
+      {swatches.map((c, i) => {
+        const selected = valueIndex === i;
+        return (
+          <button
+            key={`${namePrefix}-${c.label}-${i}`}
+            type="button"
+            id={`${namePrefix}-swatch-${i}`}
+            role="option"
+            title={c.label}
+            aria-label={`Choisir ${c.label}`}
+            aria-selected={selected}
+            onClick={() => onChange(i)}
+            className={
+              selected
+                ? "h-10 w-10 shrink-0 cursor-pointer rounded-sm ring-2 ring-black ring-offset-2 ring-offset-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
+                : "h-10 w-10 shrink-0 cursor-pointer rounded-sm border border-zinc-300 transition hover:border-zinc-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
+            }
+            style={
+              c.hex
+                ? { backgroundColor: c.hex }
+                : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
+            }
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 type Props = { product: Product };
 
 export default function ProductDetailView({ product }: Props) {
@@ -65,6 +177,7 @@ export default function ProductDetailView({ product }: Props) {
   const [mobileQuickAddOpen, setMobileQuickAddOpen] = useState(false);
   const [mobileQuickSize, setMobileQuickSize] = useState<string | null>(null);
   const [colorPickIndex, setColorPickIndex] = useState(0);
+  const [addQty, setAddQty] = useState(1);
   const favBtnRef = useRef<HTMLButtonElement>(null);
   const mainAddBtnRef = useRef<HTMLButtonElement>(null);
   const sizeSectionRef = useRef<HTMLDivElement>(null);
@@ -92,21 +205,48 @@ export default function ProductDetailView({ product }: Props) {
     : null;
 
   const colorChoices = useMemo(() => {
-    const out: { label: string; hex: string | null }[] = [];
-    if (product.color?.trim()) out.push({ label: product.color.trim(), hex: colorHex ?? null });
-    if (product.color_2?.trim()) out.push({ label: product.color_2.trim(), hex: colorHex2 ?? null });
+    const out: Swatch[] = [];
+    const seen = new Set<string>();
+    const push = (raw: string | null | undefined, hex: string | null) => {
+      const t = raw?.trim();
+      if (!t) return;
+      const key = t.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ label: t, hex });
+    };
+    push(product.color, colorHex ?? null);
+    push(product.color_2, colorHex2 ?? null);
     return out;
   }, [product.color, product.color_2, colorHex, colorHex2]);
 
   useEffect(() => {
     setColorPickIndex(0);
+    setActive(0);
+    setAddQty(1);
   }, [product.id]);
+
+  useEffect(() => {
+    if (outOfStock) return;
+    if (stockQty < 1) return;
+    setAddQty((q) => {
+      if (q < 1) return 1;
+      if (q > stockQty) return stockQty;
+      return q;
+    });
+  }, [outOfStock, stockQty, product.id]);
 
   useEffect(() => {
     setColorPickIndex((i) => (i < colorChoices.length ? i : 0));
   }, [colorChoices.length]);
 
   const selectedColorForCart = colorChoices[colorPickIndex]?.label?.trim() || product.color?.trim() || undefined;
+
+  useEffect(() => {
+    if (colorChoices.length !== 2) return;
+    if (images.length !== 2) return;
+    setActive(colorPickIndex);
+  }, [colorPickIndex, colorChoices.length, images.length]);
 
   useEffect(() => {
     setSelectedSize(firstAvailableSize(sizeOptions));
@@ -245,6 +385,7 @@ export default function ProductDetailView({ product }: Props) {
   }, [selectedSize, sizeOptions]);
 
   const addToCartWithFeedback = (originEl: HTMLElement | null, size: string) => {
+    const q = Math.min(Math.max(1, addQty), stockQty);
     addToCart({
       productId: product.id,
       name: product.name,
@@ -253,10 +394,11 @@ export default function ProductDetailView({ product }: Props) {
       image: product.images[0],
       size,
       color: selectedColorForCart,
-      quantity: 1,
+      quantity: q,
     });
     dispatchCartAdded();
     flyProductThumbnailToCart(originEl, product.images[0] ?? mainSrc);
+    setAddQty(1);
   };
 
   return (
@@ -287,13 +429,13 @@ export default function ProductDetailView({ product }: Props) {
                     loading={i === 0 ? "eager" : "lazy"}
                     priority={i === 0}
                     unoptimized={isRemote(src)}
-                    className="object-cover object-center"
+                    className="object-contain object-center"
                   />
                   {outOfStock ? <OutOfStockImageBadge compact /> : null}
                 </button>
               ))}
             </div>
-            <div className="relative order-1 aspect-[3/4] w-full min-h-[280px] overflow-hidden bg-zinc-100 sm:min-h-[360px] lg:order-2 lg:min-h-[420px]">
+            <div className="relative order-1 aspect-[3/4] w-full min-h-[280px] overflow-hidden bg-black sm:min-h-[360px] lg:order-2 lg:min-h-[420px]">
               <Image
                 src={mainSrc}
                 alt={product.name}
@@ -303,7 +445,7 @@ export default function ProductDetailView({ product }: Props) {
                 fetchPriority="high"
                 sizes="(max-width: 1024px) 100vw, 55vw"
                 unoptimized={isRemote(mainSrc)}
-                className="object-cover object-center"
+                className="object-contain object-center"
               />
               {outOfStock ? (
                 <OutOfStockImageBadge
@@ -404,33 +546,20 @@ export default function ProductDetailView({ product }: Props) {
                   {selectedColorForCart || "Unique"}
                 </span>
               </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {colorChoices.length > 0 ? (
-                  colorChoices.map((c, i) => (
-                    <button
-                      key={`${c.label}-${i}`}
-                      type="button"
-                      onClick={() => setColorPickIndex(i)}
-                      aria-pressed={colorPickIndex === i}
-                      title={c.label}
-                      className={`inline-flex h-10 w-10 border-2 shadow-inner transition ${
-                        colorPickIndex === i ? "ring-2 ring-offset-1 ring-black border-black" : "border-zinc-300"
-                      }`}
-                      style={
-                        c.hex
-                          ? { backgroundColor: c.hex }
-                          : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
-                      }
-                    />
-                  ))
-                ) : (
-                  <span
-                    className="inline-block h-10 w-10 border-2 border-zinc-300 shadow-inner"
-                    style={{ background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }}
-                    aria-hidden
-                  />
-                )}
-              </div>
+              {colorChoices.length > 0 ? (
+                <ColorSwatchList
+                  swatches={colorChoices}
+                  valueIndex={colorPickIndex}
+                  onChange={setColorPickIndex}
+                  namePrefix="product-detail"
+                />
+              ) : (
+                <span
+                  className="mt-3 inline-block h-10 w-10 rounded-sm border border-zinc-300"
+                  style={{ background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }}
+                  aria-hidden
+                />
+              )}
             </div>
 
             <div ref={sizeSectionRef} className="mt-10">
@@ -518,19 +647,36 @@ export default function ProductDetailView({ product }: Props) {
                 RUPTURE DE STOCK
               </button>
             ) : (
-              <button
-                ref={mainAddBtnRef}
-                type="button"
-                onClick={() => {
-                  const size = resolveAddToCartSize();
-                  if (!size) return;
-                  setSelectedSize(size);
-                  addToCartWithFeedback(mainAddBtnRef.current, size);
-                }}
-                className="mt-10 w-full border border-black bg-black py-3.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800"
-              >
-                Ajouter au panier
-              </button>
+              <>
+                <div className="mt-8">
+                  <p className="text-sm font-semibold text-black">Quantité</p>
+                  <div className="mt-2">
+                    <QuantityStepper
+                      value={addQty}
+                      onChange={setAddQty}
+                      min={1}
+                      max={Math.max(1, stockQty)}
+                      disabled={stockQty < 1}
+                    />
+                  </div>
+                  {stockQty > 0 ? (
+                    <p className="mt-1.5 text-xs text-zinc-500">Maximum {stockQty} en stock</p>
+                  ) : null}
+                </div>
+                <button
+                  ref={mainAddBtnRef}
+                  type="button"
+                  onClick={() => {
+                    const size = resolveAddToCartSize();
+                    if (!size) return;
+                    setSelectedSize(size);
+                    addToCartWithFeedback(mainAddBtnRef.current, size);
+                  }}
+                  className="mt-4 w-full border border-black bg-black py-3.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800"
+                >
+                  Ajouter au panier
+                </button>
+              </>
             )}
 
             {product.description?.trim() ? (
@@ -573,7 +719,7 @@ export default function ProductDetailView({ product }: Props) {
                         fetchPriority={idx < 2 ? "high" : "auto"}
                         unoptimized={isRemote(src)}
                         sizes="(max-width: 768px) 50vw, 25vw"
-                        className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
+                        className="object-contain object-center transition duration-500 group-hover:scale-[1.02]"
                       />
                       {suggestedOos ? <OutOfStockImageBadge /> : null}
                     </Link>
@@ -740,6 +886,22 @@ export default function ProductDetailView({ product }: Props) {
               </p>
             ) : null}
 
+            {colorChoices.length > 1 ? (
+              <div className="mt-5">
+                <p className="text-sm font-semibold text-black">
+                  Couleur :{" "}
+                  <span className="font-medium text-zinc-700">{selectedColorForCart || "—"}</span>
+                </p>
+                <ColorSwatchList
+                  swatches={colorChoices}
+                  valueIndex={colorPickIndex}
+                  onChange={setColorPickIndex}
+                  namePrefix="mobile-quick"
+                  className="mt-2"
+                />
+              </div>
+            ) : null}
+
             <div className="mt-5">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-sm font-semibold text-black">Taille</p>
@@ -781,6 +943,23 @@ export default function ProductDetailView({ product }: Props) {
               </div>
             </div>
 
+            <div className="mt-5">
+              <p className="text-sm font-semibold text-black">Quantité</p>
+              <div className="mt-2">
+                <QuantityStepper
+                  value={addQty}
+                  onChange={setAddQty}
+                  min={1}
+                  max={Math.max(1, stockQty)}
+                  disabled={stockQty < 1}
+                  compact
+                />
+              </div>
+              {stockQty > 0 ? (
+                <p className="mt-1 text-xs text-zinc-500">Maximum {stockQty} en stock</p>
+              ) : null}
+            </div>
+
             <button
               type="button"
               disabled={
@@ -790,6 +969,7 @@ export default function ProductDetailView({ product }: Props) {
               onClick={() => {
                 if (!mobileQuickSize) return;
                 if (!sizeOptions.find((o) => o.label === mobileQuickSize && o.available)) return;
+                const q = Math.min(Math.max(1, addQty), stockQty);
                 addToCart({
                   productId: product.id,
                   name: product.name,
@@ -798,14 +978,15 @@ export default function ProductDetailView({ product }: Props) {
                   image: product.images[0],
                   size: mobileQuickSize,
                   color: selectedColorForCart,
-                  quantity: 1,
+                  quantity: q,
                 });
                 dispatchCartAdded();
                 flyProductThumbnailToCart(sizeSectionRef.current, product.images[0] ?? mainSrc);
                 setSelectedSize(mobileQuickSize);
+                setAddQty(1);
                 setMobileQuickAddOpen(false);
               }}
-              className="mt-5 w-full border border-black bg-black py-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+              className="mt-4 w-full border border-black bg-black py-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
             >
               Ajouter au panier
             </button>
@@ -869,13 +1050,13 @@ export default function ProductDetailView({ product }: Props) {
                   src={mainSrc}
                   alt=""
                   fill
-                  className="object-cover"
+                  className="object-contain"
                   sizes="44px"
                   unoptimized={isRemote(mainSrc)}
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-black">AjoutÃ© aux favoris</p>
+                <p className="text-sm font-semibold text-black">Ajouté aux favoris</p>
                 <Link
                   href="/favoris"
                   className="text-xs font-medium text-zinc-600 underline underline-offset-2 transition hover:text-black"
@@ -885,7 +1066,7 @@ export default function ProductDetailView({ product }: Props) {
               </div>
             </>
           ) : (
-            <p className="pr-1 text-sm font-medium text-black">RetirÃ© de vos favoris</p>
+            <p className="pr-1 text-sm font-medium text-black">Retiré de vos favoris</p>
           )}
         </div>
       ) : null}

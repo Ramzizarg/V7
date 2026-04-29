@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { OutOfStockImageBadge } from "@/components/shop/OutOfStockImageBadge";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
@@ -35,30 +35,70 @@ export default function Home() {
     { id: "f7", src: "/V7/3.jpeg", alt: "Maillot jersey bordeaux" },
   ] as const;
 
-  const featuredVedettes =
-    collectionProducts !== undefined && collectionProducts.length > 0
-      ? collectionProducts.slice(0, 12).map((p) => ({
-          key: `db-${p.id}`,
-          href: `/collection/${encodeURIComponent(productPathSlug(p))}` as const,
-          src: p.images[0] || "/V7/1.jpg",
-          alt: p.name,
-          oos: isProductOutOfStock(p),
-        }))
-      : collectionProducts === undefined
-        ? featuredFallback.map((item) => ({
-            key: item.id,
-            href: "/collection" as const,
-            src: item.src,
-            alt: item.alt,
-            oos: false,
-          }))
-        : featuredFallback.map((item) => ({
-            key: item.id,
-            href: "/collection" as const,
-            src: item.src,
-            alt: item.alt,
-            oos: false,
-          }));
+  const featuredVedettes = useMemo(() => {
+    const hexOk = (h: string | null | undefined) =>
+      typeof h === "string" && /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(h);
+    const mapProduct = (p: Product) => {
+      const oos = isProductOutOfStock(p);
+      const list =
+        p.discount_price != null && p.discount_price < p.price ? p.price : null;
+      const sale =
+        p.discount_price != null && p.discount_price < p.price
+          ? p.discount_price
+          : p.price;
+      const discountPercent =
+        list != null && list > 0 ? Math.max(1, Math.round(((list - sale) / list) * 100)) : null;
+      const colors: { label: string; hex: string | null }[] = [];
+      if (p.color?.trim()) {
+        colors.push({ label: p.color.trim(), hex: hexOk(p.color_hex) ? p.color_hex : null });
+      }
+      if (p.color_2?.trim()) {
+        colors.push({ label: p.color_2.trim(), hex: hexOk(p.color_2_hex) ? p.color_2_hex : null });
+      }
+      return {
+        key: `db-${p.id}`,
+        href: `/collection/${encodeURIComponent(productPathSlug(p))}` as const,
+        src: p.images[0] || "/V7/1.jpg",
+        alt: p.name,
+        name: p.name,
+        oos,
+        listPrice: list,
+        price: sale,
+        discountPercent,
+        colors,
+      };
+    };
+    if (collectionProducts !== undefined && collectionProducts.length > 0) {
+      return collectionProducts.slice(0, 12).map(mapProduct);
+    }
+    const fallbackColors: { label: string; hex: string | null }[][] = [
+      [{ label: "Rouge", hex: "#9f1239" }, { label: "Marine", hex: "#1e3a5f" }],
+      [{ label: "Bordeaux", hex: "#7c2d12" }, { label: "Blanc", hex: "#f4f4f5" }],
+      [{ label: "Noir", hex: "#1c1917" }],
+      [{ label: "Rouge", hex: "#b91c1c" }, { label: "Blanc", hex: "#fafafa" }],
+      [{ label: "Rayé", hex: null }],
+      [{ label: "Rouge", hex: "#9f1239" }, { label: "Marine", hex: "#1e3a5f" }],
+      [{ label: "Bordeaux", hex: "#7c2d12" }],
+    ];
+    return featuredFallback.map((item, i) => {
+      const onSale = i % 2 === 0;
+      const list = onSale ? 120 : null;
+      const price = onSale ? 89 - (i % 3) : 72 + (i * 4) % 28;
+      return {
+        key: item.id,
+        href: "/collection" as const,
+        src: item.src,
+        alt: item.alt,
+        name: item.alt,
+        oos: false,
+        listPrice: list,
+        price,
+        discountPercent:
+          onSale && list != null ? Math.max(1, Math.round(((list - price) / list) * 100)) : null,
+        colors: fallbackColors[i] ?? [{ label: "—", hex: null }],
+      };
+    });
+  }, [collectionProducts]);
 
   const scrollFeatured = (dir: "prev" | "next") => {
     const el = featuredRef.current;
@@ -320,21 +360,72 @@ export default function Home() {
                     <Link
                       key={`${copy}-${item.key}`}
                       href={item.href}
-                      className="group relative flex h-[260px] w-[200px] shrink-0 flex-col items-center justify-center bg-[#e8e8e8] sm:h-[280px] sm:w-[228px]"
+                      className="group flex w-[200px] shrink-0 flex-col overflow-hidden border border-zinc-200/80 bg-white shadow-sm transition duration-200 hover:shadow-md sm:w-[240px]"
                     >
-                      <div className="relative h-[200px] w-[160px] sm:h-[220px] sm:w-[180px]">
-                        <Image
-                          src={item.src}
-                          alt={item.alt}
-                          fill
-                          priority={isFirstFeatured}
-                          loading={isFirstFeatured ? "eager" : "lazy"}
-                          fetchPriority={isFirstFeatured ? "high" : "auto"}
-                          unoptimized={isRemote}
-                          sizes="(max-width: 640px) 160px, 180px"
-                          className="object-contain object-center transition duration-300 group-hover:scale-[1.03]"
-                        />
+                      <div className="relative flex h-[200px] w-full items-center justify-center bg-[#e8e8e8] sm:h-[230px]">
+                        <div className="relative h-full w-full max-w-[190px] px-2 sm:max-w-[210px]">
+                          <Image
+                            src={item.src}
+                            alt={item.alt}
+                            fill
+                            priority={isFirstFeatured}
+                            loading={isFirstFeatured ? "eager" : "lazy"}
+                            fetchPriority={isFirstFeatured ? "high" : "auto"}
+                            unoptimized={isRemote}
+                            sizes="(max-width: 640px) 200px, 220px"
+                            className="object-contain object-center transition duration-300 group-hover:scale-[1.03]"
+                          />
+                        </div>
                         {item.oos ? <OutOfStockImageBadge compact /> : null}
+                      </div>
+                      <div className="flex flex-1 flex-col gap-1.5 border-t border-zinc-100 px-2.5 pb-3 pt-2.5 text-left">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="line-clamp-2 min-h-0 flex-1 text-xs font-medium leading-snug text-black sm:text-[13px]">
+                            {item.name}
+                          </h3>
+                          {item.discountPercent != null && item.discountPercent > 0 ? (
+                            <span className="shrink-0 text-xs font-bold text-red-600">
+                              -{item.discountPercent}%
+                            </span>
+                          ) : null}
+                        </div>
+                        {item.discountPercent != null && item.discountPercent > 0 ? (
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-600">Solde</p>
+                        ) : null}
+                        <p className="flex min-h-[1.25rem] items-baseline justify-between gap-2 text-sm">
+                          {item.listPrice != null ? (
+                            <span className="whitespace-nowrap text-zinc-400 line-through tabular-nums">
+                              {item.listPrice.toFixed(2)} DT
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+                          <span className="ml-auto font-semibold tabular-nums text-black">
+                            {item.price.toFixed(2)} DT
+                          </span>
+                        </p>
+                        {item.colors.length > 0 ? (
+                          <div
+                            className="flex flex-wrap items-center gap-1 pt-0.5"
+                            aria-label="Options de couleur"
+                          >
+                            {item.colors.map((c, idx) => (
+                              <span
+                                key={`${item.key}-swatch-${idx}`}
+                                className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
+                                style={
+                                  c.hex
+                                    ? { backgroundColor: c.hex }
+                                    : {
+                                        background:
+                                          "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))",
+                                      }
+                                }
+                                title={c.label}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     </Link>
                   );
