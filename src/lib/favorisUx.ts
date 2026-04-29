@@ -8,10 +8,27 @@ export function dispatchFavorisAdded(): void {
   window.dispatchEvent(new Event(FAVORIS_ADDED_EVENT));
 }
 
+let cartSidebarOpenTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Annule l'ouverture automatique du panier (ex. l'utilisateur l'a deja ouvert). */
+export function cancelPendingCartSidebarOpen(): void {
+  if (cartSidebarOpenTimer == null) return;
+  clearTimeout(cartSidebarOpenTimer);
+  cartSidebarOpenTimer = null;
+}
+
+/** Notifie l'ajout panier immédiatement ; ouvre le panier latéral ~2 s après (ou 2 s après le dernier ajout). */
 export function dispatchCartAdded(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(CART_ADDED_EVENT));
-  window.dispatchEvent(new Event(CART_SIDEBAR_OPEN_EVENT));
+  if (cartSidebarOpenTimer != null) {
+    clearTimeout(cartSidebarOpenTimer);
+    cartSidebarOpenTimer = null;
+  }
+  cartSidebarOpenTimer = setTimeout(() => {
+    cartSidebarOpenTimer = null;
+    window.dispatchEvent(new Event(CART_SIDEBAR_OPEN_EVENT));
+  }, 2000);
 }
 
 /**

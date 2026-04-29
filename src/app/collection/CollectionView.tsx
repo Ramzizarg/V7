@@ -476,6 +476,11 @@ export default function CollectionView() {
                           )}
                           <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
                         </p>
+                        {!cardOos && product.stock > 0 ? (
+                          <p className="text-[11px] text-zinc-500">
+                            Qté : <span className="font-medium tabular-nums text-zinc-700">{product.stock}</span>
+                          </p>
+                        ) : null}
                         {product.color || product.color2 ? (
                           <div className="flex items-center gap-1 pt-0.5" aria-hidden>
                             {product.color ? (

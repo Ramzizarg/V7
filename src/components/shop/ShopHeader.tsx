@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CartSidebar } from "@/components/shop/CartSidebar";
-import { CART_SIDEBAR_OPEN_EVENT } from "@/lib/favorisUx";
-import { getCartItemCount } from "@/lib/shopClientStorage";
+import { CART_SIDEBAR_OPEN_EVENT, cancelPendingCartSidebarOpen } from "@/lib/favorisUx";
+import { getCartItemCount, getWishlistCount } from "@/lib/shopClientStorage";
 
 type Active = "favoris" | "panier" | "none";
 
@@ -40,10 +40,14 @@ function HeartIcon({ className, filled }: { className?: string; filled?: boolean
 
 export function ShopHeader({ active = "none", breadcrumb }: Props) {
   const [cartCount, setCartCount] = useState(0);
+  const [favCount, setFavCount] = useState(0);
   const [cartSidebarOpen, setCartSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const sync = () => setCartCount(getCartItemCount());
+    const sync = () => {
+      setCartCount(getCartItemCount());
+      setFavCount(getWishlistCount());
+    };
     sync();
     window.addEventListener("vero7-storage", sync);
     return () => window.removeEventListener("vero7-storage", sync);
@@ -54,6 +58,10 @@ export function ShopHeader({ active = "none", breadcrumb }: Props) {
     window.addEventListener(CART_SIDEBAR_OPEN_EVENT, onOpenCartSidebar);
     return () => window.removeEventListener(CART_SIDEBAR_OPEN_EVENT, onOpenCartSidebar);
   }, []);
+
+  useEffect(() => {
+    if (cartSidebarOpen) cancelPendingCartSidebarOpen();
+  }, [cartSidebarOpen]);
 
   return (
     <header className="sticky top-0 z-30 border-b border-black/10 bg-white">
@@ -98,12 +106,18 @@ export function ShopHeader({ active = "none", breadcrumb }: Props) {
 
         <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
           <Link
+            id="site-header-favoris"
             href="/favoris"
-            className={iconBtn}
-            aria-label="Favoris"
+            className={`${iconBtn} relative isolate`}
+            aria-label={favCount > 0 ? `Favoris, ${favCount} article${favCount > 1 ? "s" : ""}` : "Favoris"}
             aria-current={active === "favoris" ? "page" : undefined}
           >
             <HeartIcon className="h-5 w-5" filled={active === "favoris"} />
+            {favCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-white">
+                {favCount}
+              </span>
+            ) : null}
           </Link>
           <button
             className={`${iconBtn} relative isolate`}

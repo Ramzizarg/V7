@@ -6,9 +6,14 @@ import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { CartSidebar } from "@/components/shop/CartSidebar";
-import { CART_ADDED_EVENT, CART_SIDEBAR_OPEN_EVENT, FAVORIS_ADDED_EVENT } from "@/lib/favorisUx";
+import {
+  CART_ADDED_EVENT,
+  CART_SIDEBAR_OPEN_EVENT,
+  cancelPendingCartSidebarOpen,
+  FAVORIS_ADDED_EVENT,
+} from "@/lib/favorisUx";
 import { productPathSlug } from "@/lib/productUrl";
-import { getCartItemCount } from "@/lib/shopClientStorage";
+import { getCartItemCount, getWishlistCount } from "@/lib/shopClientStorage";
 import type { Product } from "@/lib/types";
 
 const promoMessages = [
@@ -26,6 +31,7 @@ export default function SiteHeader() {
   const [favIconBump, setFavIconBump] = useState(false);
   const [cartIconBump, setCartIconBump] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [favCount, setFavCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchClosing, setSearchClosing] = useState(false);
@@ -90,10 +96,13 @@ export default function SiteHeader() {
   }, [searchOpen, searchClosing, closeSearch]);
 
   useEffect(() => {
-    const syncCart = () => setCartCount(getCartItemCount());
-    syncCart();
-    window.addEventListener("vero7-storage", syncCart);
-    return () => window.removeEventListener("vero7-storage", syncCart);
+    const sync = () => {
+      setCartCount(getCartItemCount());
+      setFavCount(getWishlistCount());
+    };
+    sync();
+    window.addEventListener("vero7-storage", sync);
+    return () => window.removeEventListener("vero7-storage", sync);
   }, []);
 
   useEffect(() => {
@@ -101,6 +110,10 @@ export default function SiteHeader() {
     window.addEventListener(CART_SIDEBAR_OPEN_EVENT, onOpenCartSidebar);
     return () => window.removeEventListener(CART_SIDEBAR_OPEN_EVENT, onOpenCartSidebar);
   }, []);
+
+  useEffect(() => {
+    if (cartSidebarOpen) cancelPendingCartSidebarOpen();
+  }, [cartSidebarOpen]);
 
   useEffect(() => {
     const onFavAdded = () => {
@@ -215,10 +228,10 @@ export default function SiteHeader() {
           <Link
             id="site-header-favoris"
             href="/favoris"
-            className={`rounded-full p-2 transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
+            className={`relative isolate rounded-full p-2 transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
               favIconBump ? "favorite-pop" : ""
             }`}
-            aria-label="Favoris"
+            aria-label={favCount > 0 ? `Favoris, ${favCount} article${favCount > 1 ? "s" : ""}` : "Favoris"}
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path
@@ -227,6 +240,11 @@ export default function SiteHeader() {
                 strokeLinejoin="round"
               />
             </svg>
+            {favCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-white">
+                {favCount}
+              </span>
+            ) : null}
           </Link>
           <button
             id="site-header-cart"

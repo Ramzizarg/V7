@@ -84,6 +84,8 @@ export default function ProductDetailView({ product }: Props) {
       ? Math.max(1, Math.round(((compareAt - displayPrice) / compareAt) * 100))
       : null;
 
+  const stockQty = Math.max(0, Math.floor(Number(product.stock ?? 0)));
+
   const colorHex = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(product.color_hex ?? "") ? product.color_hex : null;
   const colorHex2 = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(product.color_2_hex ?? "")
     ? product.color_2_hex
@@ -388,6 +390,12 @@ export default function ProductDetailView({ product }: Props) {
                 <span />
               )}
             </div>
+            {stockQty > 0 && !outOfStock ? (
+              <p className="mt-2 text-sm text-zinc-600">
+                Quantité en stock :{" "}
+                <span className="font-medium tabular-nums text-black">{stockQty}</span>
+              </p>
+            ) : null}
 
             <div className="mt-10">
               <p className="text-sm font-semibold text-black">
@@ -548,6 +556,7 @@ export default function ProductDetailView({ product }: Props) {
               const isSuggestedFav = getWishlistIds().includes(p.id);
               const suggestedSizeOpts = getSizeOptionsForProduct(p);
               const suggestedOos = isProductOutOfStock(p);
+              const suggestedStock = Math.max(0, Math.floor(Number(p.stock ?? 0)));
               return (
                 <article key={p.id} className="group text-left">
                   <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100">
@@ -668,6 +677,11 @@ export default function ProductDetailView({ product }: Props) {
                         )}
                         <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
                       </p>
+                      {!suggestedOos && suggestedStock > 0 ? (
+                        <p className="text-[11px] text-zinc-500">
+                          Qté : <span className="font-medium tabular-nums text-zinc-700">{suggestedStock}</span>
+                        </p>
+                      ) : null}
                     </div>
                   </Link>
                 </article>
@@ -719,6 +733,12 @@ export default function ProductDetailView({ product }: Props) {
               </button>
             </div>
             <p className="text-lg font-semibold text-black">{formatPrice(displayPrice)}</p>
+            {stockQty > 0 && !outOfStock ? (
+              <p className="mt-1 text-sm text-zinc-600">
+                Quantité en stock :{" "}
+                <span className="font-medium tabular-nums text-black">{stockQty}</span>
+              </p>
+            ) : null}
 
             <div className="mt-5">
               <div className="flex items-baseline justify-between gap-2">

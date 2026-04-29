@@ -32,6 +32,10 @@ export function getWishlistIds(): number[] {
   return readWishlist();
 }
 
+export function getWishlistCount(): number {
+  return getWishlistIds().length;
+}
+
 export function setWishlistIds(ids: number[]) {
   writeWishlistIds(ids);
 }
