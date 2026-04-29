@@ -16,3 +16,12 @@ COMMENT ON TABLE backoffice_users IS 'Dashboard login; password_hash format pbkd
 -- Example (replace hash with output of: npm run hash:backoffice-password -- "YourPassword"):
 -- INSERT INTO backoffice_users (email, password_hash)
 -- VALUES ('admin@example.com', 'pbkdf2$210000$................$................................');
+
+-- Compte backoffice (mot de passe: défini quand la ligne a été insérée; regénérer le hash et UPDATE pour changer)
+INSERT INTO backoffice_users (email, password_hash)
+SELECT
+  'ramzi@gmail.com',
+  'pbkdf2$210000$695bc3d7d6d452369488677c066ff0b9$b714d048cb416dbeec779be1a021055b22ec24f03e806b8fa77dfdeec5ebf1e4'
+WHERE NOT EXISTS (
+  SELECT 1 FROM backoffice_users b WHERE lower(trim(b.email)) = lower(trim('ramzi@gmail.com'))
+);
