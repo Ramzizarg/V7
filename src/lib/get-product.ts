@@ -1,5 +1,6 @@
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
 import { slugifyProductName } from "@/lib/productUrl";
+import { findDemoProductBySlug } from "@/lib/storefrontDemoCatalog";
 import type { Product } from "@/lib/types";
 
 function parseImages(raw: unknown): string[] {
@@ -194,7 +195,7 @@ async function fetchOne(whereSql: string, params: unknown[]): Promise<Product | 
  * Correspondance : `id-{id}` (legacy), slug DB, puis slug calculé depuis `name`.
  */
 export async function getProductBySlug(rawSlug: string): Promise<Product | null> {
-  if (!resolveDatabaseUrl()) return null;
+  if (!resolveDatabaseUrl()) return findDemoProductBySlug(rawSlug);
   const slug = decodeURIComponent(rawSlug).trim();
   if (!slug) return null;
   const productCols = await getTableColumns("products");

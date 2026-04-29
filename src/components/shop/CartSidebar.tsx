@@ -98,7 +98,7 @@ export function CartSidebar({ open, onClose }: Props) {
         onClick={onClose}
       />
       <aside
-        className={`fixed right-0 top-0 z-[121] flex h-dvh w-full max-w-[480px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-out ${
+        className={`fixed right-0 top-0 z-[121] flex h-dvh w-[80vw] max-w-[480px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-out sm:w-full ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
         role="dialog"
