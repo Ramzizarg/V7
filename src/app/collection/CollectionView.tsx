@@ -72,6 +72,18 @@ function HeartIcon({ filled, className }: { filled?: boolean; className?: string
   );
 }
 
+function TechnicalIssueIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path
+        d="M12 9v3.75m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function GridDensityIcon({ cols }: { cols: 2 | 4 | 5 }) {
   const w = 22;
   const h = 16;
@@ -127,7 +139,11 @@ export default function CollectionView() {
       if (!res.ok) throw new Error("fetch failed");
       const data: { products?: Product[]; categories?: StorefrontCategory[]; error?: string } = await res.json();
       if (typeof data.error === "string" && data.error.trim()) {
-        setApiErrorMessage(data.error.trim());
+        const msg = data.error.trim();
+        setApiErrorMessage(msg);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[collection]", msg);
+        }
       }
       const list = (data.products ?? []).map(toGridProduct);
       setProducts(list);
@@ -171,6 +187,8 @@ export default function CollectionView() {
     }
     return Array.from(new Set(products.map((p) => p.category))).sort((a, b) => a.localeCompare(b, "fr"));
   }, [storefrontCategories, products]);
+
+  const collectionLoadFailed = loadError || Boolean(apiErrorMessage);
 
   const gridClass = useMemo(() => {
     if (gridCols === 2) return "grid-cols-2 lg:grid-cols-2";
@@ -298,19 +316,6 @@ export default function CollectionView() {
           </div>
         ) : null}
 
-        {loadError ? (
-          <p className="mt-5 text-sm text-red-600" role="alert">
-            Impossible de charger la collection.{" "}
-            <button type="button" className="underline" onClick={() => void loadProducts()}>
-              Reessayer
-            </button>
-          </p>
-        ) : apiErrorMessage ? (
-          <p className="mt-5 max-w-2xl text-sm leading-relaxed text-amber-900" role="status">
-            {apiErrorMessage}
-          </p>
-        ) : null}
-
         {loading ? (
           <div
             className="flex min-h-[calc(100vh-12rem)] flex-col items-center justify-center gap-4 py-16 sm:min-h-[calc(100vh-11rem)]"
@@ -324,6 +329,29 @@ export default function CollectionView() {
             />
             <p className="text-sm font-medium tracking-wide text-zinc-600">Chargement…</p>
           </div>
+        ) : collectionLoadFailed ? (
+          <div
+            className="flex min-h-[calc(100vh-14rem)] flex-col items-center justify-center px-6 py-16 text-center sm:min-h-[calc(100vh-12rem)]"
+            role="alert"
+            aria-live="polite"
+          >
+            <div className="flex max-w-sm flex-col items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 text-zinc-600">
+                <TechnicalIssueIcon className="h-8 w-8" />
+              </div>
+              <h2 className="text-lg font-bold uppercase tracking-tight text-black">Problème technique</h2>
+              <p className="text-sm leading-relaxed text-zinc-600">
+                Nous ne pouvons pas afficher la collection pour le moment. Merci de réessayer dans quelques instants.
+              </p>
+              <button
+                type="button"
+                onClick={() => void loadProducts()}
+                className="mt-2 rounded-full border border-black bg-black px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-zinc-900"
+              >
+                Réessayer
+              </button>
+            </div>
+          </div>
         ) : (
           <>
             <p className="mt-5 text-sm text-zinc-500">
@@ -332,10 +360,7 @@ export default function CollectionView() {
 
             {products.length === 0 ? (
               <p className="mt-4 max-w-lg text-sm leading-relaxed text-zinc-600">
-                Aucun produit pour le moment. Les articles affichés viennent uniquement de la table{" "}
-                <code className="rounded bg-zinc-100 px-1 py-0.5 text-xs">products</code> sur Neon. Ajoutez des
-                produits depuis le tableau de bord ou verifiez{" "}
-                <code className="rounded bg-zinc-100 px-1 py-0.5 text-xs">DATABASE_URL</code>.
+                Aucun produit pour le moment. Revenez bientôt ou élargissez vos filtres.
               </p>
             ) : null}
 
