@@ -3,9 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { OutOfStockImageBadge } from "@/components/shop/OutOfStockImageBadge";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
-import type { StorefrontCategory } from "@/lib/types";
+import { isProductOutOfStock } from "@/lib/productSizesDisplay";
+import { productPathSlug } from "@/lib/productUrl";
+import type { Product, StorefrontCategory } from "@/lib/types";
 
 /** Accueil si la table `categories` est vide ou indisponible. */
 const CAROUSEL_STATIC_FALLBACK: StorefrontCategory[] = [
@@ -19,8 +22,10 @@ export default function Home() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const featuredRef = useRef<HTMLDivElement>(null);
   const [dbCategories, setDbCategories] = useState<StorefrontCategory[]>([]);
+  /** `undefined` = not loaded yet; then API products or empty. */
+  const [collectionProducts, setCollectionProducts] = useState<Product[] | undefined>(undefined);
 
-  const featuredItems = [
+  const featuredFallback = [
     { id: "f1", src: "/V7/2.jpeg", alt: "Maillot jersey rouge" },
     { id: "f2", src: "/V7/3.jpeg", alt: "Maillot jersey bordeaux" },
     { id: "f3", src: "/V7/4.jpeg", alt: "Maillot jersey raye" },
@@ -28,7 +33,32 @@ export default function Home() {
     { id: "f5", src: "/V7/img-1.jpg", alt: "Maillots duo lifestyle" },
     { id: "f6", src: "/V7/2.jpeg", alt: "Maillot jersey rouge" },
     { id: "f7", src: "/V7/3.jpeg", alt: "Maillot jersey bordeaux" },
-  ];
+  ] as const;
+
+  const featuredVedettes =
+    collectionProducts !== undefined && collectionProducts.length > 0
+      ? collectionProducts.slice(0, 12).map((p) => ({
+          key: `db-${p.id}`,
+          href: `/collection/${encodeURIComponent(productPathSlug(p))}` as const,
+          src: p.images[0] || "/V7/1.jpg",
+          alt: p.name,
+          oos: isProductOutOfStock(p),
+        }))
+      : collectionProducts === undefined
+        ? featuredFallback.map((item) => ({
+            key: item.id,
+            href: "/collection" as const,
+            src: item.src,
+            alt: item.alt,
+            oos: false,
+          }))
+        : featuredFallback.map((item) => ({
+            key: item.id,
+            href: "/collection" as const,
+            src: item.src,
+            alt: item.alt,
+            oos: false,
+          }));
 
   const scrollFeatured = (dir: "prev" | "next") => {
     const el = featuredRef.current;
@@ -50,11 +80,16 @@ export default function Home() {
     let cancelled = false;
     fetch("/api/products", { cache: "no-store" })
       .then((r) => r.json())
-      .then((d: { categories?: StorefrontCategory[] }) => {
-        if (!cancelled) setDbCategories(Array.isArray(d.categories) ? d.categories : []);
+      .then((d: { categories?: StorefrontCategory[]; products?: Product[] }) => {
+        if (cancelled) return;
+        setDbCategories(Array.isArray(d.categories) ? d.categories : []);
+        setCollectionProducts(Array.isArray(d.products) ? d.products : []);
       })
       .catch(() => {
-        if (!cancelled) setDbCategories([]);
+        if (!cancelled) {
+          setDbCategories([]);
+          setCollectionProducts([]);
+        }
       });
     return () => {
       cancelled = true;
@@ -278,12 +313,13 @@ export default function Home() {
               className="no-scrollbar flex gap-2 overflow-x-auto overflow-y-hidden px-12 py-1 sm:gap-2.5 sm:px-16"
             >
               {[0, 1].map((copy) =>
-                featuredItems.map((item, itemIdx) => {
+                featuredVedettes.map((item, itemIdx) => {
                   const isFirstFeatured = copy === 0 && itemIdx === 0;
+                  const isRemote = item.src.startsWith("http");
                   return (
-                    <a
-                      key={`${copy}-${item.id}`}
-                      href="/collection"
+                    <Link
+                      key={`${copy}-${item.key}`}
+                      href={item.href}
                       className="group relative flex h-[260px] w-[200px] shrink-0 flex-col items-center justify-center bg-[#e8e8e8] sm:h-[280px] sm:w-[228px]"
                     >
                       <div className="relative h-[200px] w-[160px] sm:h-[220px] sm:w-[180px]">
@@ -294,11 +330,13 @@ export default function Home() {
                           priority={isFirstFeatured}
                           loading={isFirstFeatured ? "eager" : "lazy"}
                           fetchPriority={isFirstFeatured ? "high" : "auto"}
+                          unoptimized={isRemote}
                           sizes="(max-width: 640px) 160px, 180px"
                           className="object-contain object-center transition duration-300 group-hover:scale-[1.03]"
                         />
+                        {item.oos ? <OutOfStockImageBadge compact /> : null}
                       </div>
-                    </a>
+                    </Link>
                   );
                 })
               )}

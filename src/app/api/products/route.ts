@@ -143,6 +143,9 @@ type DbRow = {
   color?: string | null;
   color_id?: unknown;
   color_hex?: string | null;
+  color_2?: string | null;
+  color_id_2?: unknown;
+  color_2_hex?: string | null;
 };
 
 function rowToProduct(r: DbRow & { category_name?: string | null }): Product {
@@ -168,6 +171,9 @@ function rowToProduct(r: DbRow & { category_name?: string | null }): Product {
     color: r.color != null ? String(r.color) : null,
     color_id: r.color_id != null ? num(r.color_id) : null,
     color_hex: r.color_hex != null ? String(r.color_hex) : null,
+    color_2: r.color_2 != null ? String(r.color_2) : null,
+    color_2_id: r.color_id_2 != null ? num(r.color_id_2) : null,
+    color_2_hex: r.color_2_hex != null ? String(r.color_2_hex) : null,
   };
 }
 
@@ -184,10 +190,15 @@ async function fetchProductRows(): Promise<(DbRow & { category_name: string | nu
     productCols.has("category_id") && categoryCols.has("id") && categoryCols.has("name");
   const canJoinColors =
     productCols.has("color_id") && colorCols.has("id") && colorCols.has("name");
+  const canJoinColors2 =
+    productCols.has("color_id_2") && colorCols.has("id") && colorCols.has("name");
   const productColorExpr = productCols.has("color") ? "NULLIF(TRIM(p.color), '')" : "NULL::text";
   const colorExpr = canJoinColors
     ? `COALESCE(NULLIF(TRIM(clr.name), ''), ${productColorExpr}) AS color`
     : `${productColorExpr} AS color`;
+  const color2Expr = canJoinColors2
+    ? "NULLIF(TRIM(clr2.name), '') AS color_2"
+    : "NULL::text AS color_2";
 
   const selectSql = [
     pExpr("id", "0::int"),
@@ -203,13 +214,17 @@ async function fetchProductRows(): Promise<(DbRow & { category_name: string | nu
     canJoinCategories ? "c.name AS category_name" : "NULL::text AS category_name",
     pExpr("sizes", "NULL::jsonb"),
     pExpr("color_id", "NULL::int"),
+    pExpr("color_id_2", "NULL::int"),
     colorExpr,
     canJoinColors && colorCols.has("hex") ? "clr.hex AS color_hex" : "NULL::text AS color_hex",
+    color2Expr,
+    canJoinColors2 && colorCols.has("hex") ? "clr2.hex AS color_2_hex" : "NULL::text AS color_2_hex",
   ].join(", ");
 
   const categoryJoinSql = canJoinCategories ? " LEFT JOIN categories c ON c.id = p.category_id" : "";
   const colorJoinSql = canJoinColors ? " LEFT JOIN colors clr ON clr.id = p.color_id" : "";
-  const joinSql = `${categoryJoinSql}${colorJoinSql}`;
+  const color2JoinSql = canJoinColors2 ? " LEFT JOIN colors clr2 ON clr2.id = p.color_id_2" : "";
+  const joinSql = `${categoryJoinSql}${colorJoinSql}${color2JoinSql}`;
 
   const orderSql = productCols.has("created_at")
     ? "p.created_at DESC NULLS LAST, p.id DESC"

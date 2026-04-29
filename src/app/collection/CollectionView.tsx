@@ -11,6 +11,8 @@ import {
   flyProductThumbnailToFavorites,
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
+import { OutOfStockImageBadge } from "@/components/shop/OutOfStockImageBadge";
+import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { productPathSlug } from "@/lib/productUrl";
 import type { Product, StorefrontCategory } from "@/lib/types";
 
@@ -27,7 +29,10 @@ type GridProduct = {
   createdAt: string;
   color: string | null;
   colorHex: string | null;
+  color2: string | null;
+  color2Hex: string | null;
   sizes: string[];
+  stock: number;
 };
 
 function toGridProduct(p: Product): GridProduct {
@@ -43,12 +48,14 @@ function toGridProduct(p: Product): GridProduct {
     createdAt: p.created_at,
     color: p.color?.trim() || null,
     colorHex: /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(p.color_hex ?? "") ? p.color_hex ?? null : null,
+    color2: p.color_2?.trim() || null,
+    color2Hex: /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(p.color_2_hex ?? "") ? p.color_2_hex ?? null : null,
     sizes: Array.isArray(p.sizes) ? p.sizes.filter((s) => typeof s === "string" && s.trim().length > 0) : [],
+    stock: Number(p.stock ?? 0),
   };
 }
 
 type SortKey = "featured" | "price-asc" | "price-desc" | "name";
-const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
 
 type WishlistToast = { kind: "added"; name: string; image: string } | { kind: "removed" };
 
@@ -222,20 +229,6 @@ export default function CollectionView() {
   };
 
   const clearFilters = () => setSelectedCategories([]);
-  const sortedSizesFor = (p: GridProduct) => {
-    if (!p.sizes || p.sizes.length === 0) return ["STANDARD"];
-    const order = new Map<string, number>(SIZE_ORDER.map((v, i) => [v, i]));
-    return [...p.sizes].sort((a, b) => {
-      const aa = a.trim().toUpperCase();
-      const bb = b.trim().toUpperCase();
-      const ia = order.get(aa);
-      const ib = order.get(bb);
-      if (ia != null && ib != null) return ia - ib;
-      if (ia != null) return -1;
-      if (ib != null) return 1;
-      return aa.localeCompare(bb, "fr");
-    });
-  };
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -378,6 +371,8 @@ export default function CollectionView() {
                   list != null && list > 0 ? Math.round(((list - sale) / list) * 100) : null;
                 const isRemote = product.image.startsWith("http");
                 const href = `/collection/${encodeURIComponent(product.slug)}`;
+                const quickAddSizes = getSizeOptionsForProduct({ sizes: product.sizes, stock: product.stock });
+                const cardOos = isProductOutOfStock({ sizes: product.sizes, stock: product.stock });
                 return (
                   <article
                     id={`collection-product-${product.id}`}
@@ -398,7 +393,10 @@ export default function CollectionView() {
                             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
                             className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                           />
+                          {cardOos ? <OutOfStockImageBadge /> : null}
                         </div>
+                        {!cardOos ? (
+                          <>
                         <button
                           type="button"
                           aria-label="Ajouter au panier"
@@ -423,11 +421,13 @@ export default function CollectionView() {
                               Taille du produit
                             </p>
                             <div className="flex flex-wrap gap-1.5">
-                              {sortedSizesFor(product).map((sz) => (
+                              {quickAddSizes.map(({ label, available }) => (
                                 <button
-                                  key={`${product.id}-${sz}`}
+                                  key={`${product.id}-${label}`}
                                   type="button"
+                                  disabled={!available}
                                   onClick={() => {
+                                    if (!available) return;
                                     const fromCard = document.getElementById(`collection-product-${product.id}`);
                                     const imgSrc = product.image || PLACEHOLDER_IMAGE;
                                     addToCart({
@@ -436,21 +436,27 @@ export default function CollectionView() {
                                       price: product.price,
                                       discountPrice: product.discountPrice,
                                       image: imgSrc,
-                                      size: sz,
-                                      color: product.color ?? undefined,
+                                      size: label,
+                                      color: product.color?.trim() || product.color2?.trim() || undefined,
                                       quantity: 1,
                                     });
                                     dispatchCartAdded();
                                     flyProductThumbnailToCart(fromCard, imgSrc);
                                     setQuickAddProductId(null);
                                   }}
-                                  className="min-w-[2.2rem] border border-black/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
+                                  className={
+                                    !available
+                                      ? "min-w-[2.2rem] cursor-not-allowed border border-zinc-200 bg-zinc-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400"
+                                      : "min-w-[2.2rem] border border-black/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
+                                  }
                                 >
-                                  {sz}
+                                  {label}
                                 </button>
                               ))}
                             </div>
                           </div>
+                        ) : null}
+                          </>
                         ) : null}
                       </div>
                       <div className="mt-3 space-y-1">
@@ -470,18 +476,30 @@ export default function CollectionView() {
                           )}
                           <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
                         </p>
-                        {product.color ? (
-                          <div className="pt-0.5">
-                            <span
-                              className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
-                              style={
-                                product.colorHex
-                                  ? { backgroundColor: product.colorHex }
-                                  : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
-                              }
-                              title={product.color}
-                              aria-hidden
-                            />
+                        {product.color || product.color2 ? (
+                          <div className="flex items-center gap-1 pt-0.5" aria-hidden>
+                            {product.color ? (
+                              <span
+                                className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
+                                style={
+                                  product.colorHex
+                                    ? { backgroundColor: product.colorHex }
+                                    : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
+                                }
+                                title={product.color}
+                              />
+                            ) : null}
+                            {product.color2 ? (
+                              <span
+                                className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
+                                style={
+                                  product.color2Hex
+                                    ? { backgroundColor: product.color2Hex }
+                                    : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
+                                }
+                                title={product.color2}
+                              />
+                            ) : null}
                           </div>
                         ) : null}
                       </div>

@@ -13,11 +13,11 @@ import {
   flyProductThumbnailToFavorites,
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
+import { OutOfStockImageBadge } from "@/components/shop/OutOfStockImageBadge";
+import { firstAvailableSize, getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
 import type { Product } from "@/lib/types";
 
 const PLACEHOLDER = "/V7/1.jpg";
-const DEFAULT_SIZES = ["XS", "S", "M", "L", "XL", "XXL"] as const;
-const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
 
 function HeartIcon({ filled, className }: { filled?: boolean; className?: string }) {
   return (
@@ -64,26 +64,14 @@ export default function ProductDetailView({ product }: Props) {
   const [showMobileStickyCart, setShowMobileStickyCart] = useState(false);
   const [mobileQuickAddOpen, setMobileQuickAddOpen] = useState(false);
   const [mobileQuickSize, setMobileQuickSize] = useState<string | null>(null);
+  const [colorPickIndex, setColorPickIndex] = useState(0);
   const favBtnRef = useRef<HTMLButtonElement>(null);
   const mainAddBtnRef = useRef<HTMLButtonElement>(null);
   const sizeSectionRef = useRef<HTMLDivElement>(null);
   const favToastTimerRef = useRef<number | null>(null);
 
-  const sizes = useMemo(() => {
-    const input = product.sizes?.filter((x) => typeof x === "string" && x.trim().length > 0);
-    const base = input && input.length > 0 ? input : [...DEFAULT_SIZES];
-    const order = new Map<string, number>(SIZE_ORDER.map((v, i) => [v, i]));
-    return [...base].sort((a, b) => {
-      const aa = a.trim().toUpperCase();
-      const bb = b.trim().toUpperCase();
-      const ia = order.get(aa);
-      const ib = order.get(bb);
-      if (ia != null && ib != null) return ia - ib;
-      if (ia != null) return -1;
-      if (ib != null) return 1;
-      return aa.localeCompare(bb, "fr");
-    });
-  }, [product.sizes]);
+  const sizeOptions = useMemo(() => getSizeOptionsForProduct(product), [product]);
+  const outOfStock = !sizeOptions.some((o) => o.available);
 
   const displayPrice =
     product.discount_price != null && product.discount_price < product.price
@@ -96,8 +84,31 @@ export default function ProductDetailView({ product }: Props) {
       ? Math.max(1, Math.round(((compareAt - displayPrice) / compareAt) * 100))
       : null;
 
-  const outOfStock = Number(product.stock ?? 0) <= 0;
   const colorHex = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(product.color_hex ?? "") ? product.color_hex : null;
+  const colorHex2 = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(product.color_2_hex ?? "")
+    ? product.color_2_hex
+    : null;
+
+  const colorChoices = useMemo(() => {
+    const out: { label: string; hex: string | null }[] = [];
+    if (product.color?.trim()) out.push({ label: product.color.trim(), hex: colorHex ?? null });
+    if (product.color_2?.trim()) out.push({ label: product.color_2.trim(), hex: colorHex2 ?? null });
+    return out;
+  }, [product.color, product.color_2, colorHex, colorHex2]);
+
+  useEffect(() => {
+    setColorPickIndex(0);
+  }, [product.id]);
+
+  useEffect(() => {
+    setColorPickIndex((i) => (i < colorChoices.length ? i : 0));
+  }, [colorChoices.length]);
+
+  const selectedColorForCart = colorChoices[colorPickIndex]?.label?.trim() || product.color?.trim() || undefined;
+
+  useEffect(() => {
+    setSelectedSize(firstAvailableSize(sizeOptions));
+  }, [product.id, sizeOptions]);
 
   const syncFav = useCallback(() => {
     setFav(getWishlistIds().includes(product.id));
@@ -223,36 +234,14 @@ export default function ProductDetailView({ product }: Props) {
   const hasMultipleImages = images.length > 1;
   const showPrevImage = () => setActive((prev) => (prev - 1 + images.length) % images.length);
   const showNextImage = () => setActive((prev) => (prev + 1) % images.length);
-  const sortedSizesFor = (p: Product) => {
-    const input = p.sizes?.filter((x) => typeof x === "string" && x.trim().length > 0);
-    const base = input && input.length > 0 ? input : [...DEFAULT_SIZES];
-    const order = new Map<string, number>(SIZE_ORDER.map((v, i) => [v, i]));
-    return [...base].sort((a, b) => {
-      const aa = a.trim().toUpperCase();
-      const bb = b.trim().toUpperCase();
-      const ia = order.get(aa);
-      const ib = order.get(bb);
-      if (ia != null && ib != null) return ia - ib;
-      if (ia != null) return -1;
-      if (ib != null) return 1;
-      return aa.localeCompare(bb, "fr");
-    });
-  };
-  const quickAddSizesFor = (p: Product) => {
-    const input = p.sizes?.filter((x) => typeof x === "string" && x.trim().length > 0);
-    if (!input || input.length === 0) return ["STANDARD"];
-    const order = new Map<string, number>(SIZE_ORDER.map((v, i) => [v, i]));
-    return [...input].sort((a, b) => {
-      const aa = a.trim().toUpperCase();
-      const bb = b.trim().toUpperCase();
-      const ia = order.get(aa);
-      const ib = order.get(bb);
-      if (ia != null && ib != null) return ia - ib;
-      if (ia != null) return -1;
-      if (ib != null) return 1;
-      return aa.localeCompare(bb, "fr");
-    });
-  };
+  const resolveAddToCartSize = useCallback(() => {
+    if (selectedSize) {
+      const o = sizeOptions.find((x) => x.label === selectedSize);
+      if (o?.available) return selectedSize;
+    }
+    return firstAvailableSize(sizeOptions);
+  }, [selectedSize, sizeOptions]);
+
   const addToCartWithFeedback = (originEl: HTMLElement | null, size: string) => {
     addToCart({
       productId: product.id,
@@ -261,7 +250,7 @@ export default function ProductDetailView({ product }: Props) {
       discountPrice: product.discount_price,
       image: product.images[0],
       size,
-      color: product.color ?? undefined,
+      color: selectedColorForCart,
       quantity: 1,
     });
     dispatchCartAdded();
@@ -298,6 +287,7 @@ export default function ProductDetailView({ product }: Props) {
                     unoptimized={isRemote(src)}
                     className="object-cover object-center"
                   />
+                  {outOfStock ? <OutOfStockImageBadge compact /> : null}
                 </button>
               ))}
             </div>
@@ -313,6 +303,11 @@ export default function ProductDetailView({ product }: Props) {
                 unoptimized={isRemote(mainSrc)}
                 className="object-cover object-center"
               />
+              {outOfStock ? (
+                <OutOfStockImageBadge
+                  className={hasMultipleImages ? "!top-12 sm:!top-2" : ""}
+                />
+              ) : null}
               {hasMultipleImages ? (
                 <div className="absolute left-2 top-2 z-20 flex items-center gap-2 lg:hidden">
                   <button
@@ -397,63 +392,129 @@ export default function ProductDetailView({ product }: Props) {
             <div className="mt-10">
               <p className="text-sm font-semibold text-black">
                 Couleur :{" "}
-                <span className="font-medium text-zinc-700">{product.color?.trim() || "Unique"}</span>
+                <span className="font-medium text-zinc-700">
+                  {selectedColorForCart || "Unique"}
+                </span>
               </p>
-              <div className="mt-3">
-                <span
-                  className="inline-block h-10 w-10 border-2 border-black shadow-inner"
-                  style={
-                    colorHex
-                      ? { backgroundColor: colorHex }
-                      : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
-                  }
-                  title={product.color || "Unique"}
-                  aria-hidden
-                />
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {colorChoices.length > 0 ? (
+                  colorChoices.map((c, i) => (
+                    <button
+                      key={`${c.label}-${i}`}
+                      type="button"
+                      onClick={() => setColorPickIndex(i)}
+                      aria-pressed={colorPickIndex === i}
+                      title={c.label}
+                      className={`inline-flex h-10 w-10 border-2 shadow-inner transition ${
+                        colorPickIndex === i ? "ring-2 ring-offset-1 ring-black border-black" : "border-zinc-300"
+                      }`}
+                      style={
+                        c.hex
+                          ? { backgroundColor: c.hex }
+                          : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
+                      }
+                    />
+                  ))
+                ) : (
+                  <span
+                    className="inline-block h-10 w-10 border-2 border-zinc-300 shadow-inner"
+                    style={{ background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }}
+                    aria-hidden
+                  />
+                )}
               </div>
             </div>
 
             <div ref={sizeSectionRef} className="mt-10">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="text-sm font-semibold text-black">Taille</p>
-                {product.size_guide_image ? (
-                  <button
-                    type="button"
-                    onClick={() => setSizeGuideOpen(true)}
-                    className="text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
-                  >
-                    Guide des tailles
-                  </button>
-                ) : null}
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-                {sizes.map((sz) => (
-                  <button
-                    key={sz}
-                    type="button"
-                    onClick={() => setSelectedSize(sz)}
-                    aria-pressed={selectedSize === sz}
-                    className={`w-full border px-3 py-2 text-xs font-semibold uppercase tracking-wide transition sm:w-auto sm:min-w-[2.75rem] sm:text-sm ${
-                      selectedSize === sz
-                        ? "border-black bg-black text-white"
-                        : "border-black/15 bg-white text-black hover:border-black/40"
-                    }`}
-                  >
-                    {sz}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-4 text-xs text-zinc-500">Le mannequin mesure 187 cm et porte du M.</p>
+              {outOfStock ? (
+                <>
+                  <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                    {sizeOptions.map(({ label }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled
+                        aria-disabled
+                        className="w-full cursor-not-allowed border border-zinc-300 bg-zinc-100 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400 [text-decoration-thickness:1px] sm:w-auto sm:min-w-[2.75rem] sm:py-2 sm:text-sm"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-4 flex items-center gap-2 text-sm font-medium text-red-600" role="status">
+                    <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-600" aria-hidden />
+                    Rupture de stock — commande impossible
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-sm font-semibold text-zinc-700">Taille :</p>
+                    {product.size_guide_image ? (
+                      <button
+                        type="button"
+                        onClick={() => setSizeGuideOpen(true)}
+                        className="text-xs font-semibold uppercase tracking-wider text-zinc-600 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
+                      >
+                        Guide des tailles
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-sm font-semibold text-black">Taille</p>
+                    {product.size_guide_image ? (
+                      <button
+                        type="button"
+                        onClick={() => setSizeGuideOpen(true)}
+                        className="text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
+                      >
+                        Guide des tailles
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                    {sizeOptions.map(({ label, available }) => {
+                      const selected = selectedSize === label;
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          disabled={!available}
+                          onClick={() => available && setSelectedSize(label)}
+                          aria-pressed={selected && available}
+                          aria-disabled={!available}
+                          className={
+                            !available
+                              ? "w-full cursor-not-allowed border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400 sm:w-auto sm:min-w-[2.75rem] sm:text-sm"
+                              : selected
+                                ? "w-full border border-black bg-black px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition sm:w-auto sm:min-w-[2.75rem] sm:text-sm"
+                                : "w-full border border-black/15 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-black transition hover:border-black/40 sm:w-auto sm:min-w-[2.75rem] sm:text-sm"
+                          }
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-4 text-xs text-zinc-500">Le mannequin mesure 187 cm et porte du M.</p>
+                </>
+              )}
             </div>
 
             {outOfStock ? (
-              <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-red-700">Rupture de stock</p>
+              <button
+                type="button"
+                disabled
+                className="mt-10 w-full cursor-not-allowed border-0 bg-zinc-400 py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white"
+              >
+                RUPTURE DE STOCK
+              </button>
             ) : (
               <button
                 ref={mainAddBtnRef}
                 type="button"
                 onClick={() => {
-                  const size = selectedSize ?? sizes[0];
+                  const size = resolveAddToCartSize();
                   if (!size) return;
                   setSelectedSize(size);
                   addToCartWithFeedback(mainAddBtnRef.current, size);
@@ -485,7 +546,8 @@ export default function ProductDetailView({ product }: Props) {
               const discountPercent =
                 list != null && list > 0 ? Math.round(((list - sale) / list) * 100) : null;
               const isSuggestedFav = getWishlistIds().includes(p.id);
-              const suggestedSizes = quickAddSizesFor(p);
+              const suggestedSizeOpts = getSizeOptionsForProduct(p);
+              const suggestedOos = isProductOutOfStock(p);
               return (
                 <article key={p.id} className="group text-left">
                   <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100">
@@ -504,6 +566,7 @@ export default function ProductDetailView({ product }: Props) {
                         sizes="(max-width: 768px) 50vw, 25vw"
                         className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                       />
+                      {suggestedOos ? <OutOfStockImageBadge /> : null}
                     </Link>
                     <button
                       type="button"
@@ -525,6 +588,8 @@ export default function ProductDetailView({ product }: Props) {
                     >
                       <HeartIcon filled={isSuggestedFav} className="h-4 w-4" />
                     </button>
+                    {!suggestedOos ? (
+                      <>
                     <button
                       type="button"
                       aria-label="Ajouter au panier"
@@ -549,18 +614,20 @@ export default function ProductDetailView({ product }: Props) {
                           Taille du produit
                         </p>
                         <div className="flex flex-wrap gap-1.5">
-                          {suggestedSizes.map((sz) => (
+                          {suggestedSizeOpts.map(({ label, available }) => (
                             <button
-                              key={`${p.id}-${sz}`}
+                              key={`${p.id}-${label}`}
                               type="button"
+                              disabled={!available}
                               onClick={() => {
+                                if (!available) return;
                                 addToCart({
                                   productId: p.id,
                                   name: p.name,
                                   price: p.price,
                                   discountPrice: p.discount_price,
                                   image: p.images[0],
-                                  size: sz,
+                                  size: label,
                                   color: p.color ?? undefined,
                                   quantity: 1,
                                 });
@@ -568,13 +635,19 @@ export default function ProductDetailView({ product }: Props) {
                                 flyProductThumbnailToCart(sizeSectionRef.current, p.images[0] ?? PLACEHOLDER);
                                 setQuickAddProductId(null);
                               }}
-                              className="min-w-[2.2rem] border border-black/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
+                              className={
+                                !available
+                                  ? "min-w-[2.2rem] cursor-not-allowed border border-zinc-200 bg-zinc-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400"
+                                  : "min-w-[2.2rem] border border-black/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
+                              }
                             >
-                              {sz}
+                              {label}
                             </button>
                           ))}
                         </div>
                       </div>
+                    ) : null}
+                      </>
                     ) : null}
                   </div>
                   <Link href={`/collection/${encodeURIComponent(productPathSlug(p))}`} className="block">
@@ -609,7 +682,10 @@ export default function ProductDetailView({ product }: Props) {
           <button
             type="button"
             onClick={() => {
-              setMobileQuickSize(selectedSize);
+              setMobileQuickSize(
+                sizeOptions.find((o) => o.label === selectedSize && o.available)?.label ??
+                  firstAvailableSize(sizeOptions)
+              );
               setMobileQuickAddOpen(true);
             }}
             className="flex w-full items-center justify-between bg-[#1a2b74] px-4 py-3 text-sm font-bold uppercase tracking-[0.08em] text-white shadow-2xl"
@@ -620,7 +696,7 @@ export default function ProductDetailView({ product }: Props) {
         </div>
       ) : null}
 
-      {mobileQuickAddOpen ? (
+      {mobileQuickAddOpen && !outOfStock ? (
         <div className="fixed inset-0 z-[130] sm:hidden">
           <button
             type="button"
@@ -661,29 +737,39 @@ export default function ProductDetailView({ product }: Props) {
                 ) : null}
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
-                {sizes.map((sz) => (
-                  <button
-                    key={`mobile-quick-${sz}`}
-                    type="button"
-                    onClick={() => setMobileQuickSize(sz)}
-                    aria-pressed={mobileQuickSize === sz}
-                    className={`w-full border px-3 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-                      mobileQuickSize === sz
-                        ? "border-black bg-black text-white"
-                        : "border-black/15 bg-white text-black hover:border-black/40"
-                    }`}
-                  >
-                    {sz}
-                  </button>
-                ))}
+                {sizeOptions.map(({ label, available }) => {
+                  const picked = mobileQuickSize === label;
+                  return (
+                    <button
+                      key={`mobile-quick-${label}`}
+                      type="button"
+                      disabled={!available}
+                      onClick={() => available && setMobileQuickSize(label)}
+                      aria-pressed={picked && available}
+                      className={
+                        !available
+                          ? "w-full cursor-not-allowed border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400"
+                          : picked
+                            ? "w-full border border-black bg-black px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white"
+                            : "w-full border border-black/15 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
+                      }
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <button
               type="button"
-              disabled={!mobileQuickSize}
+              disabled={
+                !mobileQuickSize ||
+                !sizeOptions.find((o) => o.label === mobileQuickSize && o.available)
+              }
               onClick={() => {
                 if (!mobileQuickSize) return;
+                if (!sizeOptions.find((o) => o.label === mobileQuickSize && o.available)) return;
                 addToCart({
                   productId: product.id,
                   name: product.name,
@@ -691,7 +777,7 @@ export default function ProductDetailView({ product }: Props) {
                   discountPrice: product.discount_price,
                   image: product.images[0],
                   size: mobileQuickSize,
-                  color: product.color ?? undefined,
+                  color: selectedColorForCart,
                   quantity: 1,
                 });
                 dispatchCartAdded();

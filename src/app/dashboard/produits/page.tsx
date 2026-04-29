@@ -116,6 +116,16 @@ function normalizeProductImages(raw: unknown): string[] {
   return [t];
 }
 
+function formatColorPair(p: Product, palette: Color[]): string {
+  const a = palette.find((c) => c.id === p.color_id)?.name?.trim() || p.color?.trim();
+  const b =
+    p.color_2_id != null
+      ? palette.find((c) => c.id === p.color_2_id)?.name?.trim() || p.color_2?.trim()
+      : null;
+  if (a && b) return `${a} + ${b}`;
+  return a || b || "—";
+}
+
 export default function DashboardProduitsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -139,6 +149,7 @@ export default function DashboardProduitsPage() {
   const [discountPrice, setDiscountPrice] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [colorId, setColorId] = useState<string>("");
+  const [colorId2, setColorId2] = useState<string>("");
   const [imagesStr, setImagesStr] = useState("");
   const [sizeGuideUrl, setSizeGuideUrl] = useState("");
   const [measurementRows, setMeasurementRows] = useState<string[][]>([
@@ -216,6 +227,7 @@ export default function DashboardProduitsPage() {
     setDiscountPrice("");
     setCategoryId("");
     setColorId("");
+    setColorId2("");
     setImagesStr("");
     setSizeGuideUrl("");
     setMeasurementRows([["Taille", "Mesure 1", "Mesure 2"], ["XS", "", ""], ["S", "", ""], ["M", "", ""]]);
@@ -234,6 +246,7 @@ export default function DashboardProduitsPage() {
     setDiscountPrice(p.discount_price != null ? String(p.discount_price) : "");
     setCategoryId(p.category_id ? String(p.category_id) : "");
     setColorId(p.color_id ? String(p.color_id) : "");
+    setColorId2(p.color_2_id ? String(p.color_2_id) : "");
     setImagesStr("");
     setSizeGuideUrl(p.size_guide_image ?? "");
     setMeasurementRows(parseMeasurementTable(p.measurement_table as unknown));
@@ -287,6 +300,7 @@ export default function DashboardProduitsPage() {
         stock: parseInt(stock, 10) || 0,
         category_id: categoryId ? parseInt(categoryId, 10) : null,
         color_id: colorId ? parseInt(colorId, 10) : null,
+        color_id_2: colorId2 ? parseInt(colorId2, 10) : null,
         images: allImages,
         discount_price: discountPrice ? parseFloat(discountPrice) : null,
         size_guide_image: sizeGuideUrl || null,
@@ -1236,7 +1250,11 @@ export default function DashboardProduitsPage() {
               <label className="block text-xs font-medium text-black mb-1.5">Couleur</label>
               <select
                 value={colorId}
-                onChange={(e) => setColorId(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setColorId(v);
+                  if (v && v === colorId2) setColorId2("");
+                }}
                 className="w-full bg-white text-black text-xs border border-zinc-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-400"
               >
                 <option value="">Selectionner une couleur</option>
@@ -1246,6 +1264,22 @@ export default function DashboardProduitsPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-black mb-1.5">Couleur 2 (optionnel)</label>
+              <select
+                value={colorId2}
+                onChange={(e) => setColorId2(e.target.value)}
+                className="w-full bg-white text-black text-xs border border-zinc-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+              >
+                <option value="">Aucune</option>
+                {colors.map((c) => (
+                  <option key={`c2-${c.id}`} value={c.id} disabled={colorId === String(c.id)}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-zinc-500">Deuxième teinte (ex. bicolore) ; sur le site le client en choisit une.</p>
             </div>
 
             {/* Description */}
@@ -1678,7 +1712,9 @@ export default function DashboardProduitsPage() {
                     {categories.find((c) => c.id === p.category_id)?.name ?? "—"}
                   </td>
                   <td className="px-2 sm:px-4 py-2 sm:py-3 text-zinc-700 hidden md:table-cell">
-                    {colors.find((c) => c.id === p.color_id)?.name ?? (p.color ?? "—")}
+                    <span className="inline-block max-w-[8rem] truncate align-middle" title={formatColorPair(p, colors)}>
+                      {formatColorPair(p, colors)}
+                    </span>
                   </td>
                   <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
                     <div className="flex items-center justify-end gap-0.5 sm:gap-1 shrink-0">

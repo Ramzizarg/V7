@@ -40,6 +40,10 @@ export type Product = {
   color?: string | null;
   color_id?: number | null;
   color_hex?: string | null;
+  /** Second color (see `color_id_2` in DB). */
+  color_2?: string | null;
+  color_2_id?: number | null;
+  color_2_hex?: string | null;
 };
 
 export type ShopFilters = {
