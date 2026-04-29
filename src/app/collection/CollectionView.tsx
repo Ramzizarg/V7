@@ -4,7 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
-import { dispatchFavorisAdded, flyProductThumbnailToFavorites } from "@/lib/favorisUx";
+import {
+  dispatchCartAdded,
+  dispatchFavorisAdded,
+  flyProductThumbnailToCart,
+  flyProductThumbnailToFavorites,
+} from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
 import { productPathSlug } from "@/lib/productUrl";
 import type { Product, StorefrontCategory } from "@/lib/types";
@@ -20,6 +25,9 @@ type GridProduct = {
   category: string;
   image: string;
   createdAt: string;
+  color: string | null;
+  colorHex: string | null;
+  sizes: string[];
 };
 
 function toGridProduct(p: Product): GridProduct {
@@ -33,10 +41,14 @@ function toGridProduct(p: Product): GridProduct {
     category: p.category_name?.trim() || "Autres",
     image,
     createdAt: p.created_at,
+    color: p.color?.trim() || null,
+    colorHex: /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(p.color_hex ?? "") ? p.color_hex ?? null : null,
+    sizes: Array.isArray(p.sizes) ? p.sizes.filter((s) => typeof s === "string" && s.trim().length > 0) : [],
   };
 }
 
 type SortKey = "featured" | "price-asc" | "price-desc" | "name";
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
 
 type WishlistToast = { kind: "added"; name: string; image: string } | { kind: "removed" };
 
@@ -92,6 +104,7 @@ export default function CollectionView() {
   const [loadError, setLoadError] = useState(false);
   const [apiErrorMessage, setApiErrorMessage] = useState<string | null>(null);
   const [favoriteFx, setFavoriteFx] = useState<Record<string, boolean>>({});
+  const [quickAddProductId, setQuickAddProductId] = useState<number | null>(null);
   const [wishlistToast, setWishlistToast] = useState<WishlistToast | null>(null);
   const wishlistToastTimerRef = useRef<number | null>(null);
 
@@ -191,6 +204,20 @@ export default function CollectionView() {
   };
 
   const clearFilters = () => setSelectedCategories([]);
+  const sortedSizesFor = (p: GridProduct) => {
+    if (!p.sizes || p.sizes.length === 0) return ["STANDARD"];
+    const order = new Map<string, number>(SIZE_ORDER.map((v, i) => [v, i]));
+    return [...p.sizes].sort((a, b) => {
+      const aa = a.trim().toUpperCase();
+      const bb = b.trim().toUpperCase();
+      const ia = order.get(aa);
+      const ib = order.get(bb);
+      if (ia != null && ib != null) return ia - ib;
+      if (ia != null) return -1;
+      if (ib != null) return 1;
+      return aa.localeCompare(bb, "fr");
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -322,6 +349,8 @@ export default function CollectionView() {
                   product.discountPrice != null && product.discountPrice < product.price
                     ? product.discountPrice
                     : product.price;
+                const discountPercent =
+                  list != null && list > 0 ? Math.round(((list - sale) / list) * 100) : null;
                 const isRemote = product.image.startsWith("http");
                 const href = `/collection/${encodeURIComponent(product.slug)}`;
                 return (
@@ -337,25 +366,99 @@ export default function CollectionView() {
                             src={product.image}
                             alt={product.name}
                             fill
-                            priority={index === 0}
-                            loading={index === 0 ? "eager" : "lazy"}
-                            fetchPriority={index === 0 ? "high" : "auto"}
+                            priority={index < 4}
+                            loading={index < 4 ? "eager" : "lazy"}
+                            fetchPriority={index < 2 ? "high" : "auto"}
                             unoptimized={isRemote}
                             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
                             className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                           />
                         </div>
+                        <button
+                          type="button"
+                          aria-label="Ajouter au panier"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setQuickAddProductId((prev) => (prev === product.id ? null : product.id));
+                          }}
+                          className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center border border-black/10 bg-white text-lg font-light leading-none text-black shadow-sm transition hover:bg-zinc-50"
+                        >
+                          +
+                        </button>
+                        {quickAddProductId === product.id ? (
+                          <div
+                            className="absolute inset-x-2 bottom-12 z-20 rounded-md border border-black/10 bg-white p-2 shadow-lg"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                          >
+                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                              Taille du produit
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {sortedSizesFor(product).map((sz) => (
+                                <button
+                                  key={`${product.id}-${sz}`}
+                                  type="button"
+                                  onClick={() => {
+                                    const fromCard = document.getElementById(`collection-product-${product.id}`);
+                                    const imgSrc = product.image || PLACEHOLDER_IMAGE;
+                                    addToCart({
+                                      productId: product.id,
+                                      name: product.name,
+                                      price: product.price,
+                                      discountPrice: product.discountPrice,
+                                      image: imgSrc,
+                                      size: sz,
+                                      color: product.color ?? undefined,
+                                      quantity: 1,
+                                    });
+                                    dispatchCartAdded();
+                                    flyProductThumbnailToCart(fromCard, imgSrc);
+                                    setQuickAddProductId(null);
+                                  }}
+                                  className="min-w-[2.2rem] border border-black/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
+                                >
+                                  {sz}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                       <div className="mt-3 space-y-1">
-                        <h2 className="text-sm font-medium leading-snug text-black sm:text-[15px]">{product.name}</h2>
-                        <p className="text-sm text-zinc-500">
-                          {list != null ? (
-                            <>
-                              <span className="text-zinc-400 line-through">{list.toFixed(2)}</span>{" "}
-                            </>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <h2 className="min-w-0 flex-1 line-clamp-2 text-sm font-medium leading-snug text-black sm:text-[15px]">
+                            {product.name}
+                          </h2>
+                          {discountPercent != null && discountPercent > 0 ? (
+                            <span className="ml-auto shrink-0 text-sm font-bold text-red-600">-{discountPercent}%</span>
                           ) : null}
-                          {sale.toFixed(2)} <span className="text-zinc-400">DT</span>
+                        </div>
+                        <p className="flex items-baseline justify-between gap-2 text-sm text-zinc-500">
+                          {list != null ? (
+                            <span className="text-zinc-400 line-through">{list.toFixed(2)} DT</span>
+                          ) : (
+                            <span />
+                          )}
+                          <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
                         </p>
+                        {product.color ? (
+                          <div className="pt-0.5">
+                            <span
+                              className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
+                              style={
+                                product.colorHex
+                                  ? { backgroundColor: product.colorHex }
+                                  : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
+                              }
+                              title={product.color}
+                              aria-hidden
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     </Link>
                     <button
@@ -378,30 +481,13 @@ export default function CollectionView() {
                           showWishlistToast({ kind: "removed" });
                         }
                       }}
-                      className={`absolute right-2 top-2 z-10 rounded-full bg-white/90 p-1.5 text-black shadow-sm backdrop-blur-sm transition hover:bg-white ${
+                      className={`absolute right-2 top-2 z-10 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition hover:bg-white ${
+                        wishlist[String(product.id)] ? "text-red-600" : "text-black"
+                      } ${
                         favoriteFx[String(product.id)] ? "favorite-pop" : ""
                       }`}
                     >
                       <HeartIcon filled={wishlist[String(product.id)]} className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Ajouter au panier"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        addToCart({
-                          productId: product.id,
-                          name: product.name,
-                          price: product.price,
-                          discountPrice: product.discountPrice,
-                          image: product.image,
-                          quantity: 1,
-                        });
-                      }}
-                      className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center border border-black/10 bg-white text-lg font-light leading-none text-black shadow-sm transition hover:bg-zinc-50"
-                    >
-                      +
                     </button>
                   </article>
                 );
@@ -511,4 +597,5 @@ export default function CollectionView() {
     </div>
   );
 }
+
 

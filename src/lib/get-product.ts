@@ -3,13 +3,24 @@ import { slugifyProductName } from "@/lib/productUrl";
 import type { Product } from "@/lib/types";
 
 function parseImages(raw: unknown): string[] {
-  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string");
+  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
   if (typeof raw === "string") {
+    const t = raw.trim();
+    // Handle Postgres array literal format: {"a","b"}.
+    if (t.startsWith("{") && t.endsWith("}")) {
+      const inner = t.slice(1, -1).trim();
+      if (!inner) return [];
+      const parts = inner
+        .split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+        .map((s) => s.trim().replace(/^"(.*)"$/, "$1").replace(/\\"/g, '"'))
+        .filter((s) => s.length > 0);
+      if (parts.length > 0) return parts;
+    }
     try {
-      const parsed = JSON.parse(raw) as unknown;
+      const parsed = JSON.parse(t) as unknown;
       if (Array.isArray(parsed)) return parsed.filter((x): x is string => typeof x === "string");
     } catch {
-      if (raw.trim()) return [raw];
+      if (t) return [t];
     }
   }
   return [];
@@ -218,6 +229,27 @@ export async function getProductBySlug(rawSlug: string): Promise<Product | null>
         if (byNameSlug) return byNameSlug;
       }
     }
+  }
+
+  // Defensive fallback when column introspection is stale/partial:
+  // try matching against product names directly without relying on productCols.
+  try {
+    const { rows } = await neonQuery<{ id: unknown; name: string | null }>(
+      `SELECT p.id, p.name
+       FROM products p
+       WHERE p.name IS NOT NULL
+       LIMIT 5000`
+    );
+    const byFallbackName = rows.find((row) => slugifyProductName(row.name) === slug);
+    if (byFallbackName) {
+      const id = Number(byFallbackName.id);
+      if (Number.isFinite(id) && id > 0) {
+        const byNameSlug = await fetchOne(`WHERE p.id = $1 LIMIT 1`, [id]);
+        if (byNameSlug) return byNameSlug;
+      }
+    }
+  } catch {
+    // ignore and continue with legacy numeric fallback
   }
 
   if (/^\d+$/.test(slug)) {

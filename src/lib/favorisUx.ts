@@ -1,9 +1,17 @@
 /** Dispatched when a product is added to the wishlist (header can react). */
 export const FAVORIS_ADDED_EVENT = "vero7-favoris-added";
+export const CART_ADDED_EVENT = "vero7-cart-added";
+export const CART_SIDEBAR_OPEN_EVENT = "vero7-cart-sidebar-open";
 
 export function dispatchFavorisAdded(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(FAVORIS_ADDED_EVENT));
+}
+
+export function dispatchCartAdded(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(CART_ADDED_EVENT));
+  window.dispatchEvent(new Event(CART_SIDEBAR_OPEN_EVENT));
 }
 
 /**
@@ -14,7 +22,17 @@ export function flyProductThumbnailToFavorites(originEl: HTMLElement | null, ima
   if (typeof document === "undefined" || !originEl || !imageSrc) return;
   const target = document.getElementById("site-header-favoris");
   if (!target) return;
+  flyProductThumbnailToTarget(originEl, imageSrc, target);
+}
 
+export function flyProductThumbnailToCart(originEl: HTMLElement | null, imageSrc: string): void {
+  if (typeof document === "undefined" || !originEl || !imageSrc) return;
+  const target = document.getElementById("site-header-cart");
+  if (!target) return;
+  flyProductThumbnailToTarget(originEl, imageSrc, target);
+}
+
+function flyProductThumbnailToTarget(originEl: HTMLElement, imageSrc: string, target: HTMLElement): void {
   const from = originEl.getBoundingClientRect();
   const to = target.getBoundingClientRect();
   const size = 44;

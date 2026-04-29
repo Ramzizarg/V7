@@ -2,11 +2,21 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ShopEmptyState } from "@/components/shop/ShopEmptyState";
 import { ShopHeader } from "@/components/shop/ShopHeader";
-import type { CartItem } from "@/lib/types";
-import { getCart, removeFromCartLine, setCart, updateCartQuantity } from "@/lib/shopClientStorage";
+import { productPathSlug } from "@/lib/productUrl";
+import { supabaseBrowserClient } from "@/lib/supabaseClient";
+import type { CartItem, Coupon, Product } from "@/lib/types";
+import { addToCart, getCart, removeFromCartLine, setCart, updateCartQuantity } from "@/lib/shopClientStorage";
+
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
+const TUNISIA_GOVERNORATES = [
+  "Ariana", "Beja", "Ben Arous", "Bizerte", "Gabes", "Gafsa", "Jendouba",
+  "Kairouan", "Kasserine", "Kebili", "Le Kef", "Mahdia", "Manouba", "Medenine",
+  "Monastir", "Nabeul", "Sfax", "Sidi Bouzid", "Siliana", "Sousse", "Tataouine",
+  "Tozeur", "Tunis", "Zaghouan",
+];
 
 function useStorageTick() {
   const [n, setN] = useState(0);
@@ -31,160 +41,510 @@ function lineSubtotal(c: CartItem) {
 export default function PanierClient() {
   const tick = useStorageTick();
   const [items, setItems] = useState<CartItem[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [quickAddProductId, setQuickAddProductId] = useState<number | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [governorate, setGovernorate] = useState("");
+  const [city, setCity] = useState("");
+  const [address, setAddress] = useState("");
+  const [saveInfo, setSaveInfo] = useState(false);
+  const [governorateOpen, setGovernorateOpen] = useState(false);
+  const [governorateQuery, setGovernorateQuery] = useState("");
+  const governorateRef = useRef<HTMLDivElement>(null);
+  const [coupon, setCoupon] = useState("");
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [orderSuccess, setOrderSuccess] = useState(false);
 
   useEffect(() => {
     setItems(getCart());
   }, [tick]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/products", { cache: "no-store" })
+      .then((r) => r.json() as Promise<{ products?: Product[] }>)
+      .then((d) => {
+        if (cancelled) return;
+        setProducts(Array.isArray(d.products) ? d.products : []);
+      })
+      .catch(() => {
+        if (!cancelled) setProducts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const { subtotal, count } = useMemo(() => {
     const s = items.reduce((a, b) => a + lineSubtotal(b), 0);
     const c = items.reduce((a, b) => a + b.quantity, 0);
     return { subtotal: s, count: c };
   }, [items]);
+  const shipping = subtotal >= 200 ? 0 : 8;
+  const discountAmount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    const now = new Date().toISOString();
+    if (appliedCoupon.starts_at && appliedCoupon.starts_at > now) return 0;
+    if (appliedCoupon.expires_at && appliedCoupon.expires_at < now) return 0;
+    if (!appliedCoupon.active) return 0;
+    const applicableItems = appliedCoupon.product_id
+      ? items.filter((i) => i.productId === appliedCoupon.product_id)
+      : items;
+    const applicableSubtotal = applicableItems.reduce((s, i) => s + (i.discountPrice ?? i.price) * i.quantity, 0);
+    if (applicableSubtotal <= 0) return 0;
+    if (appliedCoupon.discount_type === "percent") {
+      return Math.min((applicableSubtotal * appliedCoupon.discount_value) / 100, applicableSubtotal);
+    }
+    return Math.min(appliedCoupon.discount_value, applicableSubtotal);
+  }, [appliedCoupon, items]);
+  const total = subtotal + shipping - discountAmount;
 
   const clear = useCallback(() => {
     setCart([]);
   }, []);
 
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (governorateRef.current && !governorateRef.current.contains(e.target as Node)) {
+        setGovernorateOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const suggestionProducts = useMemo(() => {
+    const inCart = new Set(items.map((x) => x.productId));
+    return products.filter((p) => !inCart.has(p.id)).slice(0, 8);
+  }, [products, items]);
+
+  const sortedSizesFor = (p: Product) => {
+    const input = p.sizes?.filter((x) => typeof x === "string" && x.trim().length > 0);
+    if (!input || input.length === 0) return ["STANDARD"];
+    const order = new Map<string, number>(SIZE_ORDER.map((v, i) => [v, i]));
+    return [...input].sort((a, b) => {
+      const aa = a.trim().toUpperCase();
+      const bb = b.trim().toUpperCase();
+      const ia = order.get(aa);
+      const ib = order.get(bb);
+      if (ia != null && ib != null) return ia - ib;
+      if (ia != null) return -1;
+      if (ib != null) return 1;
+      return aa.localeCompare(bb, "fr");
+    });
+  };
+
+  const handlePlaceOrder = async () => {
+    setOrderError(null);
+    const fn = fullName.trim();
+    const em = email.trim();
+    const ph = phone.trim();
+    const gov = governorate.trim();
+    const ct = city.trim();
+    const addr = address.trim();
+    if (!fn || !em || !ph || !gov || !ct || !addr) {
+      setOrderError("Remplissez tous les champs requis.");
+      return;
+    }
+    if (items.length === 0) {
+      setOrderError("Votre panier est vide.");
+      return;
+    }
+    setPlacingOrder(true);
+    try {
+      const supabase = supabaseBrowserClient();
+      const { data: orderData, error: orderErr } = await supabase
+        .from("orders")
+        .insert({
+          full_name: fn,
+          email: em,
+          phone_number: ph,
+          address: addr,
+          city: ct,
+          governorate: gov,
+          coupon_code: appliedCoupon ? coupon.trim() || null : null,
+          discount_amount: discountAmount > 0 ? discountAmount : 0,
+          total_price: total,
+          status: "pending",
+        });
+      if (orderErr) throw new Error(orderErr.message);
+      const inserted = Array.isArray(orderData) ? orderData[0] : null;
+      const orderId = inserted?.id;
+      if (!orderId) throw new Error("Commande non creee.");
+
+      const payload = items.map((it) => ({
+        order_id: orderId,
+        product_id: it.productId,
+        product_name: it.name,
+        quantity: it.quantity,
+        price: it.discountPrice ?? it.price,
+        size: it.size ?? null,
+        color: it.color ?? null,
+      }));
+      const { error: itemsErr } = await supabase.from("order_items").insert(payload);
+      if (itemsErr) throw new Error(itemsErr.message);
+
+      setCart([]);
+      setOrderSuccess(true);
+      setFullName("");
+      setEmail("");
+      setPhone("");
+      setGovernorate("");
+      setGovernorateQuery("");
+      setCity("");
+      setAddress("");
+      setCoupon("");
+      setAppliedCoupon(null);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      setOrderError(e instanceof Error ? e.message : "Impossible de confirmer la commande.");
+    } finally {
+      setPlacingOrder(false);
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    const code = coupon.trim().toUpperCase();
+    if (!code) return;
+    setCouponError(null);
+    setAppliedCoupon(null);
+    try {
+      const supabase = supabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("code", code)
+        .eq("active", true)
+        .maybeSingle();
+      if (error) throw error;
+      const c = (data ?? null) as Coupon | null;
+      if (!c) {
+        setCouponError("Code invalide ou expire.");
+        return;
+      }
+      const now = new Date().toISOString();
+      if (c.starts_at && c.starts_at > now) {
+        setCouponError("Ce code n'est pas encore actif.");
+        return;
+      }
+      if (c.expires_at && c.expires_at < now) {
+        setCouponError("Ce code a expire.");
+        return;
+      }
+      if (c.product_id && !items.some((i) => i.productId === c.product_id)) {
+        setCouponError("Ce code ne s'applique a aucun produit du panier.");
+        return;
+      }
+      setAppliedCoupon(c);
+    } catch {
+      setCouponError("Impossible de verifier le code.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-black">
       <ShopHeader active="panier" breadcrumb={[{ label: "Panier" }]} />
-      <main className="mx-auto w-full max-w-[1600px] px-2 pb-20 pt-8 sm:px-5 lg:px-8">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Panier</h1>
-        {count > 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">
-            {count} article{count > 1 ? "s" : ""} sur cet appareil
-          </p>
-        ) : null}
+      <main className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-10 sm:pb-14">
+        <div className="mb-4 sm:mb-5">
+          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Panier</p>
+          <h1 className="text-xl sm:text-3xl font-semibold mt-0.5 sm:mt-1 text-black">Confirmation commande</h1>
+        </div>
 
         {items.length === 0 ? (
           <ShopEmptyState variant="panier" />
         ) : (
-          <div className="mx-auto mt-10 max-w-3xl">
-            <ul className="divide-y divide-black/10 border-t border-black/10">
-              {items.map((row, index) => {
-                const key = `${row.productId}-${row.size ?? ""}-${row.color ?? ""}`;
-                const src = row.image ?? "/vero7-logo.png";
-                const unit = lineUnit(row);
-                return (
-                  <li key={key} className="flex gap-4 py-5">
-                    <div className="relative h-28 w-20 flex-shrink-0 overflow-hidden bg-zinc-100 sm:h-32 sm:w-24">
-                      <Image
-                        src={src}
-                        alt={row.name}
-                        fill
-                        priority={index === 0}
-                        loading={index === 0 ? "eager" : "lazy"}
-                        fetchPriority={index === 0 ? "high" : "auto"}
-                        sizes="96px"
-                        className="object-cover object-center"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h2 className="text-sm font-medium leading-snug sm:text-base">{row.name}</h2>
-                      <p className="mt-1 text-sm text-zinc-500">
-                        {unit.toFixed(2)} <span className="text-zinc-400">DT</span>
-                        {row.discountPrice != null && row.discountPrice < row.price ? (
-                          <span className="ml-2 text-xs text-zinc-400 line-through">
-                            {row.price.toFixed(2)} DT
-                          </span>
+          <div className="grid gap-6 sm:gap-10 lg:grid-cols-[1fr_420px] lg:gap-16 min-w-0">
+            <section className="space-y-4 sm:space-y-6 bg-white min-w-0">
+              <form className="space-y-3 sm:space-y-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Nom complet</label>
+                  <input
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Ex. Ahmed Ben Ali"
+                    className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">
+                    Email <span className="text-zinc-400 font-normal">(confirmation de commande)</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="exemple@email.com"
+                    className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Numero de telephone</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+216 12345678"
+                    className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                  />
+                </div>
+                <div ref={governorateRef} className="relative">
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Gouvernorat</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={governorateOpen ? governorateQuery : governorate}
+                      onChange={(e) => {
+                        setGovernorateQuery(e.target.value);
+                        setGovernorateOpen(true);
+                        if (!e.target.value) setGovernorate("");
+                      }}
+                      onFocus={() => {
+                        setGovernorateOpen(true);
+                        setGovernorateQuery(governorate);
+                      }}
+                      placeholder="Rechercher ou selectionner un gouvernorat"
+                      className="w-full bg-white border border-zinc-300 rounded-lg pl-3 pr-10 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">⌄</span>
+                  </div>
+                  {governorateOpen ? (
+                    <ul className="absolute z-10 mt-1 left-0 right-0 max-h-56 overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
+                      {TUNISIA_GOVERNORATES.filter((g) =>
+                        g.toLowerCase().includes(governorateQuery.toLowerCase().trim())
+                      ).map((g) => (
+                        <li
+                          key={g}
+                          onClick={() => {
+                            setGovernorate(g);
+                            setGovernorateQuery("");
+                            setGovernorateOpen(false);
+                          }}
+                          className={`cursor-pointer px-3 py-2.5 text-sm hover:bg-zinc-100 ${
+                            governorate === g ? "bg-zinc-50 font-medium text-black" : "text-black"
+                          }`}
+                        >
+                          {g}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Ville</label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="e.g. Tunis, Sfax"
+                    className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Adresse</label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Rue, numero, code postal"
+                    className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                  />
+                </div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={saveInfo}
+                    onChange={(e) => setSaveInfo(e.target.checked)}
+                    className="h-5 w-5 shrink-0 rounded border-2 border-zinc-300 bg-white accent-black"
+                  />
+                  <span className="text-xs sm:text-sm text-black">Enregistrer ces informations pour la prochaine fois</span>
+                </label>
+              </form>
+            </section>
+
+            <aside className="lg:sticky lg:top-24 h-fit">
+              <div className="border border-zinc-200 rounded-xl p-5 sm:p-6" style={{ backgroundColor: "#f5f5f5" }}>
+                <h2 className="text-lg font-semibold text-black mb-4">Recapitulatif commande</h2>
+                <ul className="space-y-3 mb-4 pb-4 border-b border-zinc-200">
+                  {items.map((item, index) => (
+                    <li key={`${item.productId}-${item.size ?? ""}-${index}`} className="flex gap-3">
+                      <div className="w-14 h-14 rounded border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0">
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-zinc-400 text-xs">—</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-black truncate">{item.name}</p>
+                        {(item.size || item.color) ? (
+                          <p className="text-xs text-zinc-500">{[item.size, item.color].filter(Boolean).join(" / ")}</p>
                         ) : null}
-                      </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center border border-black/15">
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-medium text-black">
+                          {((item.discountPrice ?? item.price) * item.quantity).toFixed(2)} DT
+                        </p>
+                        <p className="text-xs text-zinc-500">× {item.quantity}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mb-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={coupon}
+                      onChange={(e) => {
+                        setCoupon(e.target.value);
+                        setCouponError(null);
+                      }}
+                      placeholder="Code promo"
+                      className="flex-1 bg-white border border-zinc-300 rounded-lg px-3 py-2 text-sm text-black placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      className="px-4 py-2 border border-zinc-300 rounded-lg text-sm font-medium text-black hover:bg-zinc-50 shrink-0"
+                    >
+                      Appliquer
+                    </button>
+                  </div>
+                  {couponError ? <p className="text-xs text-red-600 mt-1">{couponError}</p> : null}
+                  {appliedCoupon ? (
+                    <p className="text-xs text-green-600 mt-1">Code {appliedCoupon.code} applied (−{discountAmount.toFixed(2)} DT)</p>
+                  ) : null}
+                </div>
+
+                <div className="space-y-2 text-sm mb-4">
+                  <div className="flex justify-between"><span className="text-zinc-600">Sous-total</span><span className="text-black">{subtotal.toFixed(2)} DT</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-600">Livraison</span><span className="text-black">{shipping.toFixed(2)} DT</span></div>
+                  {discountAmount > 0 ? (
+                    <div className="flex justify-between text-green-600"><span>Remise</span><span>−{discountAmount.toFixed(2)} DT</span></div>
+                  ) : null}
+                  <div className="flex justify-between font-semibold text-black pt-2 border-t border-zinc-200">
+                    <span>Total</span><span>{total.toFixed(2)} DT</span>
+                  </div>
+                </div>
+
+                {orderError ? <p className="text-sm text-red-600 mb-3">{orderError}</p> : null}
+                <button
+                  type="button"
+                  onClick={handlePlaceOrder}
+                  disabled={placingOrder}
+                  className="w-full py-4 sm:py-3.5 bg-black text-white text-sm font-semibold uppercase tracking-wider rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {placingOrder ? "Envoi..." : "PAYER EN ESPECES"}
+                </button>
+                <p className="text-xs text-zinc-500 mt-2 text-center px-1">
+                  Paiement a la livraison (especes uniquement). Pas de PayPal.
+                </p>
+                <div className="mt-4 pt-4 border-t border-zinc-200 flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-500 justify-center sm:justify-start">
+                  <Link href="/refund-policy" className="hover:text-black py-1">Politique de remboursement</Link>
+                  <Link href="/shipping-terms" className="hover:text-black py-1">Livraison</Link>
+                  <Link href="/privacy-policy" className="hover:text-black py-1">Confidentialite</Link>
+                  <Link href="/terms-of-service" className="hover:text-black py-1">Conditions de service</Link>
+                </div>
+              </div>
+            </aside>
+          </div>
+        )}
+        {orderSuccess ? (
+          <p className="mx-auto mt-6 max-w-5xl rounded bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
+            Commande envoyee avec succes. Nous vous contacterons bientot.
+          </p>
+        ) : null}
+
+        {suggestionProducts.length > 0 ? (
+          <section className="mt-14">
+            <h2 className="text-4xl font-black tracking-tight text-black">Vous aimerez aussi</h2>
+            <div className="mt-6 overflow-x-auto">
+              <div className="flex min-w-max gap-3 sm:gap-4">
+                {suggestionProducts.map((p) => {
+                  const src = p.images[0] ?? "/vero7-logo.png";
+                  const list = p.discount_price != null && p.discount_price < p.price ? p.price : null;
+                  const sale = p.discount_price != null && p.discount_price < p.price ? p.discount_price : p.price;
+                  return (
+                    <article key={p.id} className="group relative w-[145px] text-left sm:w-[180px]">
+                      <Link href={`/collection/${encodeURIComponent(productPathSlug(p))}`} className="block">
+                        <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100">
+                          <Image
+                            src={src}
+                            alt={p.name}
+                            fill
+                            sizes="180px"
+                            className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
+                          />
                           <button
                             type="button"
-                            className="px-2.5 py-1 text-sm transition hover:bg-black/5"
-                            onClick={() =>
-                              updateCartQuantity(
-                                { productId: row.productId, size: row.size, color: row.color },
-                                row.quantity - 1
-                              )
-                            }
-                            aria-label="Diminuer"
-                          >
-                            -
-                          </button>
-                          <span className="min-w-[2rem] text-center text-sm tabular-nums">
-                            {row.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            className="px-2.5 py-1 text-sm transition hover:bg-black/5"
-                            onClick={() =>
-                              updateCartQuantity(
-                                { productId: row.productId, size: row.size, color: row.color },
-                                row.quantity + 1
-                              )
-                            }
-                            aria-label="Augmenter"
+                            aria-label="Ajouter au panier"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setQuickAddProductId((prev) => (prev === p.id ? null : p.id));
+                            }}
+                            className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center border border-black/10 bg-white text-lg font-light leading-none text-black shadow-sm transition hover:bg-zinc-50"
                           >
                             +
                           </button>
+                          {quickAddProductId === p.id ? (
+                            <div
+                              className="absolute inset-x-2 bottom-12 z-20 rounded-md border border-black/10 bg-white p-2 shadow-lg"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                            >
+                              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                                Taille du produit
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {sortedSizesFor(p).map((sz) => (
+                                  <button
+                                    key={`${p.id}-${sz}`}
+                                    type="button"
+                                    onClick={() => {
+                                      addToCart({
+                                        productId: p.id,
+                                        name: p.name,
+                                        price: p.price,
+                                        discountPrice: p.discount_price,
+                                        image: src,
+                                        size: sz,
+                                        color: p.color ?? undefined,
+                                        quantity: 1,
+                                      });
+                                      setQuickAddProductId(null);
+                                    }}
+                                    className="min-w-[2.2rem] border border-black/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
+                                  >
+                                    {sz}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            removeFromCartLine({
-                              productId: row.productId,
-                              size: row.size,
-                              color: row.color,
-                            })
-                          }
-                          className="text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
-                        >
-                          Retirer
-                        </button>
-                      </div>
-                    </div>
-                    <div className="text-right text-sm font-medium tabular-nums sm:text-base">
-                      {lineSubtotal(row).toFixed(2)} <span className="text-zinc-400">DT</span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="relative mt-8 overflow-hidden rounded-2xl border border-black/[0.08] bg-gradient-to-b from-zinc-50/80 to-white p-5 shadow-[0_1px_0_0_rgba(0,0,0,0.04)] sm:p-6">
-              <div
-                className="pointer-events-none absolute inset-0 opacity-[0.35]"
-                style={{
-                  backgroundImage: `repeating-linear-gradient(
-                    -18deg,
-                    transparent,
-                    transparent 10px,
-                    rgba(0, 0, 0, 0.02) 10px,
-                    rgba(0, 0, 0, 0.02) 11px
-                  )`,
-                }}
-                aria-hidden
-              />
-              <div className="relative space-y-4">
-                <div className="flex items-center justify-between text-sm sm:text-base">
-                  <span className="font-medium text-zinc-700">Sous-total</span>
-                  <span className="text-lg font-semibold tabular-nums tracking-tight">
-                    {subtotal.toFixed(2)} <span className="text-sm font-medium text-zinc-500">DT</span>
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-500">Livraison calculee a l&apos;etape suivante.</p>
-                <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:justify-between">
-                  <button
-                    type="button"
-                    onClick={clear}
-                    className="order-2 rounded-full border border-black/15 px-5 py-2.5 text-sm font-medium transition hover:border-black/35 hover:bg-white sm:order-1"
-                  >
-                    Vider le panier
-                  </button>
-                  <Link
-                    href="/collection"
-                    className="order-1 inline-flex items-center justify-center rounded-full bg-black px-6 py-2.5 text-center text-sm font-semibold uppercase tracking-[0.08em] text-white transition hover:bg-zinc-800 sm:order-2"
-                  >
-                    Continuer les achats
-                  </Link>
-                </div>
+                        <p className="mt-3 text-[30px] leading-none text-black">
+                          {sale.toFixed(2)} DT
+                        </p>
+                        {list != null ? (
+                          <p className="mt-1 text-xs text-zinc-400 line-through">{list.toFixed(2)} DT</p>
+                        ) : null}
+                      </Link>
+                    </article>
+                  );
+                })}
               </div>
             </div>
-          </div>
-        )}
+          </section>
+        ) : null}
       </main>
     </div>
   );

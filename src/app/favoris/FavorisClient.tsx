@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -115,9 +115,9 @@ export default function FavorisClient() {
                         src={src}
                         alt={p.name}
                         fill
-                        priority={index === 0}
-                        loading={index === 0 ? "eager" : "lazy"}
-                        fetchPriority={index === 0 ? "high" : "auto"}
+                        priority={index < 4}
+                        loading={index < 4 ? "eager" : "lazy"}
+                        fetchPriority={index < 2 ? "high" : "auto"}
                         sizes="(max-width: 640px) 50vw, 25vw"
                         className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                       />
@@ -127,10 +127,10 @@ export default function FavorisClient() {
                       onClick={() => {
                         removeFavorite(p.id);
                       }}
-                      className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-black shadow-sm backdrop-blur-sm transition hover:bg-white"
+                      className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md border border-black/15 bg-white/95 font-semibold text-black shadow-sm backdrop-blur-sm transition hover:bg-white"
                       aria-label="Retirer des favoris"
                     >
-                      <HeartIcon className="h-4 w-4" filled />
+                      <span className="text-base leading-none">×</span>
                     </button>
                   </div>
                   <div className="mt-3 space-y-1">
@@ -179,3 +179,5 @@ export default function FavorisClient() {
     </div>
   );
 }
+
+

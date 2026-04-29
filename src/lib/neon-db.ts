@@ -1,6 +1,5 @@
-﻿import { Pool, type QueryResultRow } from "pg";
-
-let pool: Pool | null = null;
+﻿import { neon } from "@neondatabase/serverless";
+import type { QueryResultRow } from "pg";
 
 /** Neon / Postgres URL: primary env + common alternates; strips wrapping quotes from `.env`. */
 export function resolveDatabaseUrl(): string | null {
@@ -16,34 +15,16 @@ export function resolveDatabaseUrl(): string | null {
   return s || null;
 }
 
-function shouldUseSsl(connectionString: string) {
-  const lower = connectionString.toLowerCase();
-  if (lower.includes("localhost") || lower.includes("127.0.0.1")) return false;
-  if (/sslmode=disable/i.test(lower)) return false;
-  return true;
-}
-
 function getPool() {
-  if (!pool) {
-    const connectionString = resolveDatabaseUrl();
-    if (!connectionString) {
-      throw new Error("DATABASE_URL is not set");
-    }
-    const ssl = shouldUseSsl(connectionString)
-      ? { rejectUnauthorized: false as const }
-      : undefined;
-    pool = new Pool({
-      connectionString,
-      max: 10,
-      connectionTimeoutMillis: 15_000,
-      ...(ssl ? { ssl } : {}),
-    });
+  const connectionString = resolveDatabaseUrl();
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not set");
   }
-  return pool;
+  return neon(connectionString);
 }
 
 export async function neonQuery<T extends QueryResultRow = QueryResultRow>(text: string, params: unknown[] = []) {
-  const p = getPool();
-  const result = await p.query<T>(text, params);
-  return result;
+  const sql = getPool();
+  const rows = (await sql.query(text, params)) as T[];
+  return { rows };
 }

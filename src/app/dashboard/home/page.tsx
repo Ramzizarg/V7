@@ -359,7 +359,7 @@ export default function DashboardHomePage() {
                   {heroUploading ? "Upload…" : "Choisir une image"}
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    accept="image/*"
                     className="sr-only"
                     disabled={heroUploading}
                     onChange={async (e) => {
@@ -771,7 +771,7 @@ export default function DashboardHomePage() {
                       {cat1Uploading ? "Upload…" : "Choisir une image"}
                       <input
                         type="file"
-                        accept="image/jpeg,image/png,image/webp"
+                        accept="image/*"
                         className="hidden"
                         disabled={cat1Uploading}
                         onChange={async (e) => {
@@ -833,7 +833,7 @@ export default function DashboardHomePage() {
                       {cat2Uploading ? "Upload…" : "Choisir une image"}
                       <input
                         type="file"
-                        accept="image/jpeg,image/png,image/webp"
+                        accept="image/*"
                         className="hidden"
                         disabled={cat2Uploading}
                         onChange={async (e) => {
@@ -1053,7 +1053,7 @@ export default function DashboardHomePage() {
                   {comingSoonUploading ? "Upload…" : "Choose image"}
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    accept="image/*"
                     className="sr-only"
                     disabled={comingSoonUploading}
                     onChange={async (e) => {

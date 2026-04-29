@@ -5,8 +5,10 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { FAVORIS_ADDED_EVENT } from "@/lib/favorisUx";
+import { CartSidebar } from "@/components/shop/CartSidebar";
+import { CART_ADDED_EVENT, CART_SIDEBAR_OPEN_EVENT, FAVORIS_ADDED_EVENT } from "@/lib/favorisUx";
 import { productPathSlug } from "@/lib/productUrl";
+import { getCartItemCount } from "@/lib/shopClientStorage";
 import type { Product } from "@/lib/types";
 
 const promoMessages = [
@@ -22,6 +24,8 @@ const promoMessages = [
  */
 export default function SiteHeader() {
   const [favIconBump, setFavIconBump] = useState(false);
+  const [cartIconBump, setCartIconBump] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchClosing, setSearchClosing] = useState(false);
@@ -29,6 +33,7 @@ export default function SiteHeader() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchProducts, setSearchProducts] = useState<Product[]>([]);
   const [searchProductsLoading, setSearchProductsLoading] = useState(false);
+  const [cartSidebarOpen, setCartSidebarOpen] = useState(false);
 
   const closeSearch = useCallback(() => {
     setSearchClosing(true);
@@ -85,12 +90,33 @@ export default function SiteHeader() {
   }, [searchOpen, searchClosing, closeSearch]);
 
   useEffect(() => {
+    const syncCart = () => setCartCount(getCartItemCount());
+    syncCart();
+    window.addEventListener("vero7-storage", syncCart);
+    return () => window.removeEventListener("vero7-storage", syncCart);
+  }, []);
+
+  useEffect(() => {
+    const onOpenCartSidebar = () => setCartSidebarOpen(true);
+    window.addEventListener(CART_SIDEBAR_OPEN_EVENT, onOpenCartSidebar);
+    return () => window.removeEventListener(CART_SIDEBAR_OPEN_EVENT, onOpenCartSidebar);
+  }, []);
+
+  useEffect(() => {
     const onFavAdded = () => {
       setFavIconBump(true);
       window.setTimeout(() => setFavIconBump(false), 520);
     };
+    const onCartAdded = () => {
+      setCartIconBump(true);
+      window.setTimeout(() => setCartIconBump(false), 520);
+    };
     window.addEventListener(FAVORIS_ADDED_EVENT, onFavAdded);
-    return () => window.removeEventListener(FAVORIS_ADDED_EVENT, onFavAdded);
+    window.addEventListener(CART_ADDED_EVENT, onCartAdded);
+    return () => {
+      window.removeEventListener(FAVORIS_ADDED_EVENT, onFavAdded);
+      window.removeEventListener(CART_ADDED_EVENT, onCartAdded);
+    };
   }, []);
 
   return (
@@ -202,15 +228,24 @@ export default function SiteHeader() {
               />
             </svg>
           </Link>
-          <Link
-            href="/panier"
-            className="rounded-full p-2 transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+          <button
+            id="site-header-cart"
+            className={`relative isolate rounded-full p-2 transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
+              cartIconBump ? "favorite-pop" : ""
+            }`}
             aria-label="Panier"
+            type="button"
+            onClick={() => setCartSidebarOpen(true)}
           >
             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12l-1 11H7L6 7Zm3 0a3 3 0 1 1 6 0" />
             </svg>
-          </Link>
+            {cartCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-white">
+                {cartCount}
+              </span>
+            ) : null}
+          </button>
         </div>
       </div>
       {mobileMenuOpen ? (
@@ -366,6 +401,7 @@ export default function SiteHeader() {
           </>,
           document.body
         )}
+      <CartSidebar open={cartSidebarOpen} onClose={() => setCartSidebarOpen(false)} />
     </header>
   );
 }

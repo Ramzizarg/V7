@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
+import { productPathSlug } from "@/lib/productUrl";
 import type { Product, Category, Color, Coupon } from "@/lib/types";
 import { uploadSizeGuideImage, uploadProductImage } from "@/lib/uploadProductImage";
 import Link from "next/link";
@@ -83,6 +84,36 @@ function parseMeasurementTable(raw: string | null | undefined | unknown): string
   }
   const rows = trimmed.split(/\r?\n/).map((line) => line.split(",").map((c) => c.trim()));
   return rows.length > 0 ? rows : fallback();
+}
+
+function normalizeProductImages(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw
+      .map((x) => String(x ?? "").trim())
+      .filter((x) => x.length > 0);
+  }
+  if (typeof raw !== "string") return [];
+  const t = raw.trim();
+  if (!t) return [];
+  if (t.startsWith("{") && t.endsWith("}")) {
+    const inner = t.slice(1, -1).trim();
+    if (!inner) return [];
+    return inner
+      .split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+      .map((s) => s.trim().replace(/^"(.*)"$/, "$1").replace(/\\"/g, '"'))
+      .filter(Boolean);
+  }
+  try {
+    const parsed = JSON.parse(t) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((x) => String(x ?? "").trim())
+        .filter((x) => x.length > 0);
+    }
+  } catch {
+    // keep plain URL fallback
+  }
+  return [t];
 }
 
 export default function DashboardProduitsPage() {
@@ -207,7 +238,7 @@ export default function DashboardProduitsPage() {
     setSizeGuideUrl(p.size_guide_image ?? "");
     setMeasurementRows(parseMeasurementTable(p.measurement_table as unknown));
     setSizes(Array.isArray(p.sizes) ? p.sizes : []);
-    setProductImageUrls(Array.isArray(p.images) ? p.images : []);
+    setProductImageUrls(normalizeProductImages(p.images));
     setShowUrlImages(false);
     setFormOpen(true);
   };
@@ -242,9 +273,12 @@ export default function DashboardProduitsPage() {
         .split("\n")
         .map((s) => s.trim())
         .filter(Boolean);
-      const allImages = [...productImageUrls, ...urlImages].filter(
-        (u) => typeof u === "string" && u.trim().length > 0
-      );
+      const allImages = [...normalizeProductImages(productImageUrls), ...urlImages]
+        .map((u) => String(u ?? "").trim())
+        .filter((u) => u.length > 0);
+      if (allImages.length === 0) {
+        throw new Error("Ajoutez au moins une image produit avant de sauvegarder.");
+      }
 
       const payload: Record<string, unknown> = {
         name: name.trim(),
@@ -280,12 +314,14 @@ export default function DashboardProduitsPage() {
     }
   };
 
+  const isInStock = (p: Product) => Number(p.stock ?? 0) > 0;
+
   const handleToggleStock = async (p: Product) => {
     setTogglingStockId(p.id);
     setError(null);
     try {
       const supabase = supabaseBrowserClient();
-      const newStock = p.stock > 0 ? 0 : 100;
+      const newStock = isInStock(p) ? 0 : 100;
       const { error: err } = await supabase.from("products").update({ stock: newStock }).eq("id", p.id);
       if (err) throw err;
       setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, stock: newStock } : x)));
@@ -909,7 +945,7 @@ export default function DashboardProduitsPage() {
                     All products
                   </button>
                   {products.map((p) => {
-                    const img = Array.isArray(p.images) && p.images[0] ? p.images[0] : null;
+                    const img = normalizeProductImages(p.images)[0] ?? null;
                     const selected = couponProductId === String(p.id);
                     return (
                       <button
@@ -1235,7 +1271,7 @@ export default function DashboardProduitsPage() {
                 </span>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/*"
                   className="sr-only"
                   disabled={sizeGuideUploading}
                   onChange={async (e) => {
@@ -1380,7 +1416,7 @@ export default function DashboardProduitsPage() {
                 </span>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/*"
                   multiple
                   className="sr-only"
                   disabled={productImagesUploading}
@@ -1518,8 +1554,8 @@ export default function DashboardProduitsPage() {
                 className="rounded-lg border border-zinc-200 bg-white p-3 flex items-center gap-3"
               >
                 <div className="h-14 w-14 rounded border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0">
-                  {Array.isArray(p.images) && p.images[0] ? (
-                    <img src={p.images[0]} alt="" className="h-full w-full object-cover" />
+                  {normalizeProductImages(p.images)[0] ? (
+                    <img src={normalizeProductImages(p.images)[0]} alt="" className="h-full w-full object-cover" />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center text-zinc-400 text-xs">—</div>
                   )}
@@ -1543,10 +1579,10 @@ export default function DashboardProduitsPage() {
                     onClick={() => handleToggleStock(p)}
                     disabled={togglingStockId === p.id}
                     className={`relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50 ${
-                      p.stock > 0 ? "bg-green-500" : "bg-red-500"
+                      isInStock(p) ? "bg-green-500" : "bg-red-500"
                     }`}
-                    title={p.stock > 0 ? "In stock" : "Out of stock"}
-                    aria-label={p.stock > 0 ? "In stock" : "Out of stock"}
+                    title={isInStock(p) ? "In stock" : "Out of stock"}
+                    aria-label={isInStock(p) ? "In stock" : "Out of stock"}
                   >
                     {togglingStockId === p.id ? (
                       <span className="absolute inset-0 flex items-center justify-center">
@@ -1555,13 +1591,13 @@ export default function DashboardProduitsPage() {
                     ) : (
                       <span
                         className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                          p.stock > 0 ? "left-5" : "left-1"
+                          isInStock(p) ? "left-5" : "left-1"
                         }`}
                       />
                     )}
                   </button>
                   <Link
-                    href={`/shop/${p.id}`}
+                    href={`/collection/${encodeURIComponent(productPathSlug(p))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-2 text-zinc-500 hover:text-black rounded"
@@ -1618,8 +1654,8 @@ export default function DashboardProduitsPage() {
                   <td className="px-2 sm:px-4 py-2 sm:py-3 min-w-0">
                     <div className="flex items-center gap-2 sm:gap-3">
                       <div className="h-10 w-10 sm:h-12 sm:w-12 rounded border border-zinc-200 overflow-hidden bg-zinc-100 flex-shrink-0">
-                        {Array.isArray(p.images) && p.images[0] ? (
-                          <img src={p.images[0]} alt="" className="h-full w-full object-cover" />
+                        {normalizeProductImages(p.images)[0] ? (
+                          <img src={normalizeProductImages(p.images)[0]} alt="" className="h-full w-full object-cover" />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-zinc-400 text-xs">—</div>
                         )}
@@ -1651,10 +1687,10 @@ export default function DashboardProduitsPage() {
                         onClick={() => handleToggleStock(p)}
                         disabled={togglingStockId === p.id}
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                          p.stock > 0 ? "bg-green-500" : "bg-red-500"
+                          isInStock(p) ? "bg-green-500" : "bg-red-500"
                         }`}
-                        title={p.stock > 0 ? "In stock (click to set out of stock)" : "Out of stock (click to set in stock)"}
-                        aria-label={p.stock > 0 ? "In stock" : "Out of stock"}
+                        title={isInStock(p) ? "In stock (click to set out of stock)" : "Out of stock (click to set in stock)"}
+                        aria-label={isInStock(p) ? "In stock" : "Out of stock"}
                       >
                         {togglingStockId === p.id ? (
                           <span className="absolute inset-0 flex items-center justify-center">
@@ -1663,13 +1699,13 @@ export default function DashboardProduitsPage() {
                         ) : (
                           <span
                             className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                              p.stock > 0 ? "left-4" : "left-0.5"
+                              isInStock(p) ? "left-4" : "left-0.5"
                             }`}
                           />
                         )}
                       </button>
                       <Link
-                        href={`/shop/${p.id}`}
+                        href={`/collection/${encodeURIComponent(productPathSlug(p))}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex p-1.5 text-zinc-500 hover:text-black transition-colors"

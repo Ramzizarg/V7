@@ -7,13 +7,24 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function parseImages(raw: unknown): string[] {
-  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string");
+  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
   if (typeof raw === "string") {
+    const t = raw.trim();
+    // Handle Postgres array literal format: {"a","b"}.
+    if (t.startsWith("{") && t.endsWith("}")) {
+      const inner = t.slice(1, -1).trim();
+      if (!inner) return [];
+      const parts = inner
+        .split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+        .map((s) => s.trim().replace(/^"(.*)"$/, "$1").replace(/\\"/g, '"'))
+        .filter((s) => s.length > 0);
+      if (parts.length > 0) return parts;
+    }
     try {
-      const parsed = JSON.parse(raw) as unknown;
+      const parsed = JSON.parse(t) as unknown;
       if (Array.isArray(parsed)) return parsed.filter((x): x is string => typeof x === "string");
     } catch {
-      if (raw.trim()) return [raw];
+      if (t) return [t];
     }
   }
   return [];
@@ -40,6 +51,26 @@ function normalizeDescription(d: unknown): string | null {
     }
   }
   return String(d);
+}
+
+function parseSizes(raw: unknown): string[] | undefined {
+  if (raw == null) return undefined;
+  if (Array.isArray(raw)) {
+    const arr = raw.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+    return arr.length ? arr : undefined;
+  }
+  if (typeof raw === "string") {
+    try {
+      const j = JSON.parse(raw) as unknown;
+      if (Array.isArray(j)) {
+        const arr = j.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+        return arr.length ? arr : undefined;
+      }
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 const CATEGORY_COVER_FALLBACKS = ["/V7/2.jpeg", "/V7/3.jpeg", "/V7/4.jpeg", "/V7/1.jpg", "/V7/img-1.jpg"] as const;
@@ -108,6 +139,7 @@ type DbRow = {
   images: unknown;
   discount_price: unknown;
   created_at: unknown;
+  sizes?: unknown;
   color?: string | null;
   color_id?: unknown;
   color_hex?: string | null;
@@ -132,6 +164,7 @@ function rowToProduct(r: DbRow & { category_name?: string | null }): Product {
     images: parseImages(r.images),
     created_at: created,
     discount_price: r.discount_price != null && r.discount_price !== "" ? num(r.discount_price) : null,
+    sizes: parseSizes(r.sizes),
     color: r.color != null ? String(r.color) : null,
     color_id: r.color_id != null ? num(r.color_id) : null,
     color_hex: r.color_hex != null ? String(r.color_hex) : null,
@@ -168,6 +201,7 @@ async function fetchProductRows(): Promise<(DbRow & { category_name: string | nu
     pExpr("discount_price", "NULL::numeric"),
     pExpr("created_at", "NOW()"),
     canJoinCategories ? "c.name AS category_name" : "NULL::text AS category_name",
+    pExpr("sizes", "NULL::jsonb"),
     pExpr("color_id", "NULL::int"),
     colorExpr,
     canJoinColors && colorCols.has("hex") ? "clr.hex AS color_hex" : "NULL::text AS color_hex",

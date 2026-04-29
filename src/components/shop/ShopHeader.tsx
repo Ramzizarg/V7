@@ -2,6 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { CartSidebar } from "@/components/shop/CartSidebar";
+import { CART_SIDEBAR_OPEN_EVENT } from "@/lib/favorisUx";
+import { getCartItemCount } from "@/lib/shopClientStorage";
 
 type Active = "favoris" | "panier" | "none";
 
@@ -35,6 +39,22 @@ function HeartIcon({ className, filled }: { className?: string; filled?: boolean
 }
 
 export function ShopHeader({ active = "none", breadcrumb }: Props) {
+  const [cartCount, setCartCount] = useState(0);
+  const [cartSidebarOpen, setCartSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setCartCount(getCartItemCount());
+    sync();
+    window.addEventListener("vero7-storage", sync);
+    return () => window.removeEventListener("vero7-storage", sync);
+  }, []);
+
+  useEffect(() => {
+    const onOpenCartSidebar = () => setCartSidebarOpen(true);
+    window.addEventListener(CART_SIDEBAR_OPEN_EVENT, onOpenCartSidebar);
+    return () => window.removeEventListener(CART_SIDEBAR_OPEN_EVENT, onOpenCartSidebar);
+  }, []);
+
   return (
     <header className="sticky top-0 z-30 border-b border-black/10 bg-white">
       <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between px-2 sm:px-5 lg:px-8">
@@ -85,11 +105,12 @@ export function ShopHeader({ active = "none", breadcrumb }: Props) {
           >
             <HeartIcon className="h-5 w-5" filled={active === "favoris"} />
           </Link>
-          <Link
-            href="/panier"
-            className={iconBtn}
+          <button
+            className={`${iconBtn} relative isolate`}
             aria-label="Panier"
             aria-current={active === "panier" ? "page" : undefined}
+            type="button"
+            onClick={() => setCartSidebarOpen(true)}
           >
             <svg
               viewBox="0 0 24 24"
@@ -105,9 +126,15 @@ export function ShopHeader({ active = "none", breadcrumb }: Props) {
                 className={active === "panier" ? "text-black" : ""}
               />
             </svg>
-          </Link>
+            {cartCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-white">
+                {cartCount}
+              </span>
+            ) : null}
+          </button>
         </div>
       </div>
+      <CartSidebar open={cartSidebarOpen} onClose={() => setCartSidebarOpen(false)} />
     </header>
   );
 }
