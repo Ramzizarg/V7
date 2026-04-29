@@ -94,16 +94,25 @@ async function pbkdf2Hex(password: string, saltHex: string, iterations: number) 
   return toHex(new Uint8Array(bits));
 }
 
+/** Verify against `pbkdf2$<iter>$<saltHex>$<hashHex>` (same format as env / DB). */
+export async function verifyPasswordStoredHash(
+  candidatePassword: string,
+  storedHash: string
+): Promise<boolean> {
+  const trimmed = storedHash.trim();
+  if (!trimmed.startsWith("pbkdf2$")) return false;
+  const [, iterRaw, saltHex, expectedHex] = trimmed.split("$");
+  const iterations = Number.parseInt(iterRaw ?? "", 10);
+  const derivedHex = await pbkdf2Hex(candidatePassword, saltHex ?? "", iterations);
+  return !!derivedHex && timingSafeEqualString(derivedHex, expectedHex ?? "");
+}
+
 export async function verifyBackofficePassword(candidatePassword: string) {
   const creds = getBackofficeCredentials();
   const storedHash = creds.passwordHash.trim();
 
-  // Preferred mode: PBKDF2 hash from env => pbkdf2$210000$<saltHex>$<hashHex>
   if (storedHash.startsWith("pbkdf2$")) {
-    const [, iterRaw, saltHex, expectedHex] = storedHash.split("$");
-    const iterations = Number.parseInt(iterRaw ?? "", 10);
-    const derivedHex = await pbkdf2Hex(candidatePassword, saltHex ?? "", iterations);
-    return !!derivedHex && timingSafeEqualString(derivedHex, expectedHex ?? "");
+    return verifyPasswordStoredHash(candidatePassword, storedHash);
   }
 
   // Fallback mode: plain password from env (kept for backward compatibility).

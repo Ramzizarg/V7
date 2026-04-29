@@ -5,6 +5,7 @@ import {
   getBackofficeCredentials,
   verifyBackofficePassword,
 } from "@/lib/backofficeAuth";
+import { tryBackofficeDbLogin } from "@/lib/backofficeUserFromDb";
 
 type AttemptInfo = {
   count: number;
@@ -61,12 +62,20 @@ export async function POST(request: Request) {
     password = String(form.get("password") ?? "");
   }
 
-  const expected = getBackofficeCredentials();
+  const dbLogin = await tryBackofficeDbLogin(email, password);
+  let authenticated = false;
+  if (dbLogin === "ok") {
+    authenticated = true;
+  } else if (dbLogin === "fail") {
+    authenticated = false;
+  } else {
+    const expected = getBackofficeCredentials();
+    const emailOk = email.toLowerCase() === expected.email.toLowerCase();
+    const passwordOk = await verifyBackofficePassword(password);
+    authenticated = emailOk && passwordOk;
+  }
 
-  const emailOk = email.toLowerCase() === expected.email.toLowerCase();
-  const passwordOk = await verifyBackofficePassword(password);
-
-  if (!emailOk || !passwordOk) {
+  if (!authenticated) {
     const prev = attemptsByIp.get(ip);
     if (!prev || prev.firstAt + ATTEMPT_WINDOW_MS < now) {
       attemptsByIp.set(ip, {
