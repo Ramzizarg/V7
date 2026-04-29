@@ -50,10 +50,12 @@ export default function Home() {
         list != null && list > 0 ? Math.max(1, Math.round(((list - sale) / list) * 100)) : null;
       const colors: { label: string; hex: string | null }[] = [];
       if (p.color?.trim()) {
-        colors.push({ label: p.color.trim(), hex: hexOk(p.color_hex) ? p.color_hex : null });
+        const h = p.color_hex;
+        colors.push({ label: p.color.trim(), hex: h && hexOk(h) ? h : null });
       }
       if (p.color_2?.trim()) {
-        colors.push({ label: p.color_2.trim(), hex: hexOk(p.color_2_hex) ? p.color_2_hex : null });
+        const h2 = p.color_2_hex;
+        colors.push({ label: p.color_2.trim(), hex: h2 && hexOk(h2) ? h2 : null });
       }
       return {
         key: `db-${p.id}`,
