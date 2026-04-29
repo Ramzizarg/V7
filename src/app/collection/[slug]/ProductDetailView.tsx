@@ -13,8 +13,7 @@ import {
   flyProductThumbnailToFavorites,
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
-import { OutOfStockImageBadge } from "@/components/shop/OutOfStockImageBadge";
-import { firstAvailableSize, getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
+import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
 import type { Product } from "@/lib/types";
 
 const PLACEHOLDER = "/V7/1.jpg";
@@ -106,55 +105,42 @@ function QuantityStepper({
 }
 
 /**
- * Deux couleurs sur un même produit (ex. Noir + Blanc) : pastilles cliquables,
- * style proche d’un anneau noir + décalage blanc pour l’option sélectionnée.
+ * Même produit, design pouvant combiner 2+ couleurs (ex. rayures) : pastilles
+ * informatives, pas de choix de variante.
  */
-function ColorSwatchList({
+function ProductDesignColors({
   swatches,
-  valueIndex,
-  onChange,
   namePrefix,
-  className = "mt-3",
+  className = "mt-2",
 }: {
   swatches: Swatch[];
-  valueIndex: number;
-  onChange: (index: number) => void;
   namePrefix: string;
   className?: string;
 }) {
   if (swatches.length === 0) return null;
   return (
-    <div
-      className={`flex flex-wrap items-center gap-3 ${className}`}
-      role="listbox"
-      aria-label="Couleurs"
+    <ul
+      className={`flex flex-wrap items-end gap-4 sm:gap-5 ${className} relative z-20`}
+      aria-label="Couleurs du modèle (design)"
     >
-      {swatches.map((c, i) => {
-        const selected = valueIndex === i;
-        return (
-          <button
-            key={`${namePrefix}-${c.label}-${i}`}
-            type="button"
-            id={`${namePrefix}-swatch-${i}`}
-            role="option"
-            title={c.label}
-            aria-label={`Choisir ${c.label}`}
-            aria-selected={selected}
-            onClick={() => onChange(i)}
-            className={
-              selected
-                ? "h-10 w-10 shrink-0 cursor-pointer rounded-sm ring-2 ring-black ring-offset-2 ring-offset-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
-                : "h-10 w-10 shrink-0 cursor-pointer rounded-sm border border-zinc-300 transition hover:border-zinc-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
-            }
+      {swatches.map((c, i) => (
+        <li key={`${namePrefix}-design-${c.label}-${i}`} className="flex list-none flex-col items-center gap-1.5">
+          <div
+            className="h-10 w-10 shrink-0 rounded-sm border border-zinc-300"
             style={
               c.hex
                 ? { backgroundColor: c.hex }
                 : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
             }
+            aria-hidden
+            title={c.label}
           />
-        );
-      })}
-    </div>
+          <span className="max-w-[5rem] text-center text-[11px] font-medium leading-tight text-zinc-700">
+            {c.label}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -176,7 +162,6 @@ export default function ProductDetailView({ product }: Props) {
   const [showMobileStickyCart, setShowMobileStickyCart] = useState(false);
   const [mobileQuickAddOpen, setMobileQuickAddOpen] = useState(false);
   const [mobileQuickSize, setMobileQuickSize] = useState<string | null>(null);
-  const [colorPickIndex, setColorPickIndex] = useState(0);
   const [addQty, setAddQty] = useState(1);
   const favBtnRef = useRef<HTMLButtonElement>(null);
   const mainAddBtnRef = useRef<HTMLButtonElement>(null);
@@ -221,9 +206,9 @@ export default function ProductDetailView({ product }: Props) {
   }, [product.color, product.color_2, colorHex, colorHex2]);
 
   useEffect(() => {
-    setColorPickIndex(0);
     setActive(0);
     setAddQty(1);
+    setSelectedSize(null);
   }, [product.id]);
 
   useEffect(() => {
@@ -236,21 +221,17 @@ export default function ProductDetailView({ product }: Props) {
     });
   }, [outOfStock, stockQty, product.id]);
 
-  useEffect(() => {
-    setColorPickIndex((i) => (i < colorChoices.length ? i : 0));
-  }, [colorChoices.length]);
+  /** Un seul article : libellé panier = 1 couleur, ou toutes les teintes du design reliées (ex. « Noir & Blanc »). */
+  const colorForCart = useMemo((): string | undefined => {
+    if (colorChoices.length === 0) return product.color?.trim() || undefined;
+    if (colorChoices.length === 1) return colorChoices[0]!.label;
+    return colorChoices.map((c) => c.label).join(" & ");
+  }, [colorChoices, product.color]);
 
-  const selectedColorForCart = colorChoices[colorPickIndex]?.label?.trim() || product.color?.trim() || undefined;
-
-  useEffect(() => {
-    if (colorChoices.length !== 2) return;
-    if (images.length !== 2) return;
-    setActive(colorPickIndex);
-  }, [colorPickIndex, colorChoices.length, images.length]);
-
-  useEffect(() => {
-    setSelectedSize(firstAvailableSize(sizeOptions));
-  }, [product.id, sizeOptions]);
+  const hasPickedSize = useMemo(() => {
+    if (selectedSize == null || selectedSize === "") return false;
+    return sizeOptions.some((o) => o.label === selectedSize && o.available);
+  }, [selectedSize, sizeOptions]);
 
   const syncFav = useCallback(() => {
     setFav(getWishlistIds().includes(product.id));
@@ -376,12 +357,10 @@ export default function ProductDetailView({ product }: Props) {
   const hasMultipleImages = images.length > 1;
   const showPrevImage = () => setActive((prev) => (prev - 1 + images.length) % images.length);
   const showNextImage = () => setActive((prev) => (prev + 1) % images.length);
-  const resolveAddToCartSize = useCallback(() => {
-    if (selectedSize) {
-      const o = sizeOptions.find((x) => x.label === selectedSize);
-      if (o?.available) return selectedSize;
-    }
-    return firstAvailableSize(sizeOptions);
+  const resolveAddToCartSize = useCallback((): string | null => {
+    if (selectedSize == null || selectedSize === "") return null;
+    const o = sizeOptions.find((x) => x.label === selectedSize);
+    return o?.available ? selectedSize : null;
   }, [selectedSize, sizeOptions]);
 
   const addToCartWithFeedback = (originEl: HTMLElement | null, size: string) => {
@@ -393,7 +372,7 @@ export default function ProductDetailView({ product }: Props) {
       discountPrice: product.discount_price,
       image: product.images[0],
       size,
-      color: selectedColorForCart,
+      color: colorForCart,
       quantity: q,
     });
     dispatchCartAdded();
@@ -417,7 +396,7 @@ export default function ProductDetailView({ product }: Props) {
                   onClick={() => setActive(i)}
                   aria-label={`Image ${i + 1}`}
                   aria-current={active === i ? "true" : undefined}
-                  className={`relative h-[4.5rem] w-[3.25rem] shrink-0 overflow-hidden bg-zinc-100 ring-2 ring-offset-1 transition sm:h-24 sm:w-[4.5rem] lg:h-20 lg:w-full ${
+                  className={`relative h-[4.5rem] w-[3.25rem] shrink-0 overflow-hidden bg-zinc-100 ring-2 ring-offset-1 ring-offset-zinc-100 transition sm:h-24 sm:w-[4.5rem] lg:h-20 lg:w-full ${
                     active === i ? "ring-black" : "ring-transparent hover:ring-black/20"
                   }`}
                 >
@@ -429,28 +408,32 @@ export default function ProductDetailView({ product }: Props) {
                     loading={i === 0 ? "eager" : "lazy"}
                     priority={i === 0}
                     unoptimized={isRemote(src)}
-                    className="object-contain object-center"
+                    className="object-cover object-center"
                   />
-                  {outOfStock ? <OutOfStockImageBadge compact /> : null}
                 </button>
               ))}
             </div>
-            <div className="relative order-1 aspect-[3/4] w-full min-h-[280px] overflow-hidden bg-black sm:min-h-[360px] lg:order-2 lg:min-h-[420px]">
-              <Image
-                src={mainSrc}
-                alt={product.name}
-                fill
-                priority
-                loading="eager"
-                fetchPriority="high"
-                sizes="(max-width: 1024px) 100vw, 55vw"
-                unoptimized={isRemote(mainSrc)}
-                className="object-contain object-center"
-              />
-              {outOfStock ? (
-                <OutOfStockImageBadge
-                  className={hasMultipleImages ? "!top-12 sm:!top-2" : ""}
+            <div className="relative order-1 aspect-[3/4] w-full min-h-[280px] overflow-hidden bg-zinc-100 sm:min-h-[360px] lg:order-2 lg:min-h-[420px]">
+                <Image
+                  src={mainSrc}
+                  alt={product.name}
+                  fill
+                  priority
+                  loading="eager"
+                  fetchPriority="high"
+                  sizes="(max-width: 1024px) 100vw, 55vw"
+                  unoptimized={isRemote(mainSrc)}
+                  className="object-contain object-center"
                 />
+              {outOfStock ? (
+                <div
+                  className="pointer-events-none absolute right-2 top-2 z-30 sm:right-3 sm:top-3"
+                  role="status"
+                >
+                  <span className="inline-block whitespace-nowrap rounded-md bg-red-600 px-2.5 py-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-white shadow-md sm:px-3 sm:text-xs sm:tracking-wider">
+                    Rupture de stock
+                  </span>
+                </div>
               ) : null}
               {hasMultipleImages ? (
                 <div className="absolute left-2 top-2 z-20 flex items-center gap-2 lg:hidden">
@@ -476,20 +459,20 @@ export default function ProductDetailView({ product }: Props) {
                   </button>
                 </div>
               ) : null}
-              <button
-                ref={favBtnRef}
-                type="button"
-                aria-label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
-                aria-pressed={fav}
-                onClick={onToggleFav}
-                className={`absolute right-2 top-2 z-20 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition hover:bg-white ${
-                  fav ? "text-red-600" : "text-black"
-                } ${
-                  favFx ? "favorite-pop" : ""
-                }`}
-              >
-                <HeartIcon filled={fav} className="h-5 w-5" />
-              </button>
+              {!outOfStock ? (
+                <button
+                  ref={favBtnRef}
+                  type="button"
+                  aria-label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  aria-pressed={fav}
+                  onClick={onToggleFav}
+                  className={`absolute right-2 top-2 z-20 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition hover:bg-white ${
+                    fav ? "text-red-600" : "text-black"
+                  } ${favFx ? "favorite-pop" : ""}`}
+                >
+                  <HeartIcon filled={fav} className="h-5 w-5" />
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -532,34 +515,56 @@ export default function ProductDetailView({ product }: Props) {
                 <span />
               )}
             </div>
-            {stockQty > 0 && !outOfStock ? (
-              <p className="mt-2 text-sm text-zinc-600">
-                Quantité en stock :{" "}
-                <span className="font-medium tabular-nums text-black">{stockQty}</span>
-              </p>
-            ) : null}
 
             <div className="mt-10">
-              <p className="text-sm font-semibold text-black">
-                Couleur :{" "}
-                <span className="font-medium text-zinc-700">
-                  {selectedColorForCart || "Unique"}
-                </span>
-              </p>
-              {colorChoices.length > 0 ? (
-                <ColorSwatchList
-                  swatches={colorChoices}
-                  valueIndex={colorPickIndex}
-                  onChange={setColorPickIndex}
-                  namePrefix="product-detail"
-                />
-              ) : (
-                <span
-                  className="mt-3 inline-block h-10 w-10 rounded-sm border border-zinc-300"
-                  style={{ background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }}
-                  aria-hidden
-                />
-              )}
+              <div
+                className={
+                  outOfStock
+                    ? "space-y-2"
+                    : "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6"
+                }
+              >
+                <div className="relative z-20 min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-black">
+                    {colorChoices.length > 1 ? (
+                      <>
+                        {colorChoices.length === 2 ? "Design bicolore : " : "Design (plusieurs couleurs) : "}
+                        <span className="font-medium text-zinc-700">
+                          {colorChoices.map((c) => c.label).join(" · ")}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        Couleur :{" "}
+                        <span className="font-medium text-zinc-700">
+                          {colorChoices[0]?.label || product.color?.trim() || "—"}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                  {colorChoices.length > 0 ? (
+                    <ProductDesignColors swatches={colorChoices} namePrefix="product-detail" className="mt-2" />
+                  ) : (
+                    <span
+                      className="mt-2 inline-block h-10 w-10 rounded-sm border border-zinc-300"
+                      style={{ background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }}
+                      aria-hidden
+                    />
+                  )}
+                </div>
+                {!outOfStock ? (
+                  <div className="relative z-10 flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
+                    <p className="text-sm font-semibold text-black">Quantité</p>
+                    <QuantityStepper
+                      value={addQty}
+                      onChange={setAddQty}
+                      min={1}
+                      max={Math.max(1, stockQty)}
+                      disabled={stockQty < 1}
+                    />
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div ref={sizeSectionRef} className="mt-10">
@@ -634,6 +639,11 @@ export default function ProductDetailView({ product }: Props) {
                     })}
                   </div>
                   <p className="mt-4 text-xs text-zinc-500">Le mannequin mesure 187 cm et porte du M.</p>
+                  {!hasPickedSize ? (
+                    <p className="mt-2 text-xs font-medium text-zinc-600" role="status">
+                      Choisissez une taille pour continuer.
+                    </p>
+                  ) : null}
                 </>
               )}
             </div>
@@ -647,36 +657,19 @@ export default function ProductDetailView({ product }: Props) {
                 RUPTURE DE STOCK
               </button>
             ) : (
-              <>
-                <div className="mt-8">
-                  <p className="text-sm font-semibold text-black">Quantité</p>
-                  <div className="mt-2">
-                    <QuantityStepper
-                      value={addQty}
-                      onChange={setAddQty}
-                      min={1}
-                      max={Math.max(1, stockQty)}
-                      disabled={stockQty < 1}
-                    />
-                  </div>
-                  {stockQty > 0 ? (
-                    <p className="mt-1.5 text-xs text-zinc-500">Maximum {stockQty} en stock</p>
-                  ) : null}
-                </div>
-                <button
-                  ref={mainAddBtnRef}
-                  type="button"
-                  onClick={() => {
-                    const size = resolveAddToCartSize();
-                    if (!size) return;
-                    setSelectedSize(size);
-                    addToCartWithFeedback(mainAddBtnRef.current, size);
-                  }}
-                  className="mt-4 w-full border border-black bg-black py-3.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800"
-                >
-                  Ajouter au panier
-                </button>
-              </>
+              <button
+                ref={mainAddBtnRef}
+                type="button"
+                disabled={!hasPickedSize}
+                onClick={() => {
+                  const size = resolveAddToCartSize();
+                  if (!size) return;
+                  addToCartWithFeedback(mainAddBtnRef.current, size);
+                }}
+                className="mt-10 w-full border border-black bg-black py-3.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-200 disabled:text-zinc-500"
+              >
+                Ajouter au panier
+              </button>
             )}
 
             {product.description?.trim() ? (
@@ -702,7 +695,6 @@ export default function ProductDetailView({ product }: Props) {
               const isSuggestedFav = getWishlistIds().includes(p.id);
               const suggestedSizeOpts = getSizeOptionsForProduct(p);
               const suggestedOos = isProductOutOfStock(p);
-              const suggestedStock = Math.max(0, Math.floor(Number(p.stock ?? 0)));
               return (
                 <article key={p.id} className="group text-left">
                   <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100">
@@ -719,9 +711,8 @@ export default function ProductDetailView({ product }: Props) {
                         fetchPriority={idx < 2 ? "high" : "auto"}
                         unoptimized={isRemote(src)}
                         sizes="(max-width: 768px) 50vw, 25vw"
-                        className="object-contain object-center transition duration-500 group-hover:scale-[1.02]"
+                        className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                       />
-                      {suggestedOos ? <OutOfStockImageBadge /> : null}
                     </Link>
                     <button
                       type="button"
@@ -823,11 +814,6 @@ export default function ProductDetailView({ product }: Props) {
                         )}
                         <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
                       </p>
-                      {!suggestedOos && suggestedStock > 0 ? (
-                        <p className="text-[11px] text-zinc-500">
-                          Qté : <span className="font-medium tabular-nums text-zinc-700">{suggestedStock}</span>
-                        </p>
-                      ) : null}
                     </div>
                   </Link>
                 </article>
@@ -843,8 +829,9 @@ export default function ProductDetailView({ product }: Props) {
             type="button"
             onClick={() => {
               setMobileQuickSize(
-                sizeOptions.find((o) => o.label === selectedSize && o.available)?.label ??
-                  firstAvailableSize(sizeOptions)
+                selectedSize && sizeOptions.some((o) => o.label === selectedSize && o.available)
+                  ? selectedSize
+                  : null
               );
               setMobileQuickAddOpen(true);
             }}
@@ -879,28 +866,44 @@ export default function ProductDetailView({ product }: Props) {
               </button>
             </div>
             <p className="text-lg font-semibold text-black">{formatPrice(displayPrice)}</p>
-            {stockQty > 0 && !outOfStock ? (
-              <p className="mt-1 text-sm text-zinc-600">
-                Quantité en stock :{" "}
-                <span className="font-medium tabular-nums text-black">{stockQty}</span>
-              </p>
-            ) : null}
 
-            {colorChoices.length > 1 ? (
-              <div className="mt-5">
+            <div
+              className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4"
+            >
+              <div className="relative z-20 min-w-0 flex-1">
                 <p className="text-sm font-semibold text-black">
-                  Couleur :{" "}
-                  <span className="font-medium text-zinc-700">{selectedColorForCart || "—"}</span>
+                  {colorChoices.length > 1 ? (
+                    <>
+                      {colorChoices.length === 2 ? "Design bicolore : " : "Design (plusieurs couleurs) : "}
+                      <span className="font-medium text-zinc-700">
+                        {colorChoices.map((c) => c.label).join(" · ")}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      Couleur :{" "}
+                      <span className="font-medium text-zinc-700">
+                        {colorChoices[0]?.label || product.color?.trim() || "—"}
+                      </span>
+                    </>
+                  )}
                 </p>
-                <ColorSwatchList
-                  swatches={colorChoices}
-                  valueIndex={colorPickIndex}
-                  onChange={setColorPickIndex}
-                  namePrefix="mobile-quick"
-                  className="mt-2"
+                {colorChoices.length > 0 ? (
+                  <ProductDesignColors swatches={colorChoices} namePrefix="mobile-quick" className="mt-2" />
+                ) : null}
+              </div>
+              <div className="relative z-10 flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
+                <p className="text-sm font-semibold text-black">Quantité</p>
+                <QuantityStepper
+                  value={addQty}
+                  onChange={setAddQty}
+                  min={1}
+                  max={Math.max(1, stockQty)}
+                  disabled={stockQty < 1}
+                  compact
                 />
               </div>
-            ) : null}
+            </div>
 
             <div className="mt-5">
               <div className="flex items-baseline justify-between gap-2">
@@ -943,23 +946,6 @@ export default function ProductDetailView({ product }: Props) {
               </div>
             </div>
 
-            <div className="mt-5">
-              <p className="text-sm font-semibold text-black">Quantité</p>
-              <div className="mt-2">
-                <QuantityStepper
-                  value={addQty}
-                  onChange={setAddQty}
-                  min={1}
-                  max={Math.max(1, stockQty)}
-                  disabled={stockQty < 1}
-                  compact
-                />
-              </div>
-              {stockQty > 0 ? (
-                <p className="mt-1 text-xs text-zinc-500">Maximum {stockQty} en stock</p>
-              ) : null}
-            </div>
-
             <button
               type="button"
               disabled={
@@ -977,7 +963,7 @@ export default function ProductDetailView({ product }: Props) {
                   discountPrice: product.discount_price,
                   image: product.images[0],
                   size: mobileQuickSize,
-                  color: selectedColorForCart,
+                  color: colorForCart,
                   quantity: q,
                 });
                 dispatchCartAdded();

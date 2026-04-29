@@ -11,7 +11,6 @@ import {
   flyProductThumbnailToFavorites,
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
-import { OutOfStockImageBadge } from "@/components/shop/OutOfStockImageBadge";
 import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { productPathSlug } from "@/lib/productUrl";
 import type { Product, StorefrontCategory } from "@/lib/types";
@@ -391,10 +390,19 @@ export default function CollectionView() {
                             fetchPriority={index < 2 ? "high" : "auto"}
                             unoptimized={isRemote}
                             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                            className="object-contain object-center transition duration-500 group-hover:scale-[1.02]"
+                            className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                           />
-                          {cardOos ? <OutOfStockImageBadge /> : null}
                         </div>
+                        {cardOos ? (
+                          <div
+                            className="pointer-events-none absolute right-1.5 top-1.5 z-20 sm:right-2 sm:top-2"
+                            role="status"
+                          >
+                            <span className="inline-block whitespace-nowrap rounded-md bg-red-600 px-1.5 py-1 text-center text-[8px] font-bold uppercase leading-tight tracking-wide text-white shadow-md sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:tracking-wider">
+                              Rupture de stock
+                            </span>
+                          </div>
+                        ) : null}
                         {!cardOos ? (
                           <>
                         <button
@@ -476,9 +484,9 @@ export default function CollectionView() {
                           )}
                           <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
                         </p>
-                        {!cardOos && product.stock > 0 ? (
-                          <p className="text-[11px] text-zinc-500">
-                            Qté : <span className="font-medium tabular-nums text-zinc-700">{product.stock}</span>
+                        {cardOos ? (
+                          <p className="pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">
+                            Rupture de stock
                           </p>
                         ) : null}
                         {product.color || product.color2 ? (
@@ -509,34 +517,36 @@ export default function CollectionView() {
                         ) : null}
                       </div>
                     </Link>
-                    <button
-                      type="button"
-                      aria-label={wishlist[String(product.id)] ? "Retirer des favoris" : "Ajouter aux favoris"}
-                      aria-pressed={wishlist[String(product.id)] ?? false}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const isNowFavorite = toggleWishlistId(product.id);
-                        if (isNowFavorite) {
-                          setFavoriteFx((prev) => ({ ...prev, [String(product.id)]: true }));
-                          window.setTimeout(() => {
-                            setFavoriteFx((prev) => ({ ...prev, [String(product.id)]: false }));
-                          }, 520);
-                          dispatchFavorisAdded();
-                          flyProductThumbnailToFavorites(e.currentTarget, product.image);
-                          showWishlistToast({ kind: "added", name: product.name, image: product.image });
-                        } else {
-                          showWishlistToast({ kind: "removed" });
-                        }
-                      }}
-                      className={`absolute right-2 top-2 z-10 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition hover:bg-white ${
-                        wishlist[String(product.id)] ? "text-red-600" : "text-black"
-                      } ${
-                        favoriteFx[String(product.id)] ? "favorite-pop" : ""
-                      }`}
-                    >
-                      <HeartIcon filled={wishlist[String(product.id)]} className="h-4 w-4" />
-                    </button>
+                    {!cardOos ? (
+                      <button
+                        type="button"
+                        aria-label={wishlist[String(product.id)] ? "Retirer des favoris" : "Ajouter aux favoris"}
+                        aria-pressed={wishlist[String(product.id)] ?? false}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const isNowFavorite = toggleWishlistId(product.id);
+                          if (isNowFavorite) {
+                            setFavoriteFx((prev) => ({ ...prev, [String(product.id)]: true }));
+                            window.setTimeout(() => {
+                              setFavoriteFx((prev) => ({ ...prev, [String(product.id)]: false }));
+                            }, 520);
+                            dispatchFavorisAdded();
+                            flyProductThumbnailToFavorites(e.currentTarget, product.image);
+                            showWishlistToast({ kind: "added", name: product.name, image: product.image });
+                          } else {
+                            showWishlistToast({ kind: "removed" });
+                          }
+                        }}
+                        className={`absolute right-2 top-2 z-10 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition hover:bg-white ${
+                          wishlist[String(product.id)] ? "text-red-600" : "text-black"
+                        } ${
+                          favoriteFx[String(product.id)] ? "favorite-pop" : ""
+                        }`}
+                      >
+                        <HeartIcon filled={wishlist[String(product.id)]} className="h-4 w-4" />
+                      </button>
+                    ) : null}
                   </article>
                 );
               })}

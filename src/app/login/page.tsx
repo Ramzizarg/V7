@@ -47,24 +47,24 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
             <section>
               <h2 className="text-3xl font-black uppercase leading-tight">
-                Want To Join Club Champion?
+                Envie de rejoindre le club Vero7 ?
               </h2>
               <a
-                href="#club"
+                href="/#club"
                 className="mt-4 inline-flex border border-black px-5 py-2 text-xs font-bold uppercase tracking-[0.08em] transition hover:bg-black hover:text-white"
               >
-                Sign Up Now
+                Inscription
               </a>
 
-              <h3 className="mt-10 text-2xl font-black uppercase">For Exclusive Benefits</h3>
+              <h3 className="mt-10 text-2xl font-black uppercase">Avantages exclusifs</h3>
               <div className="mt-5 grid grid-cols-1 gap-3 text-sm font-semibold uppercase sm:grid-cols-2">
                 {[
-                  "15% Off Your First Order",
-                  "Free Return",
-                  "Birthday Gift",
-                  "Product Preview",
-                  "Special Offers",
-                  "Weekly Newsletter",
+                  "10 % sur votre première commande",
+                  "Retour gratuit",
+                  "Cadeau d’anniversaire",
+                  "Aperçu produits",
+                  "Offres spéciales",
+                  "Newsletter hebdomadaire",
                 ].map((benefit) => (
                   <div key={benefit} className="flex items-center gap-2">
                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/30 text-[10px]">

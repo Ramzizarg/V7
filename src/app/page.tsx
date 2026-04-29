@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { OutOfStockImageBadge } from "@/components/shop/OutOfStockImageBadge";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { isProductOutOfStock } from "@/lib/productSizesDisplay";
@@ -39,7 +38,6 @@ export default function Home() {
     const hexOk = (h: string | null | undefined) =>
       typeof h === "string" && /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(h);
     const mapProduct = (p: Product) => {
-      const oos = isProductOutOfStock(p);
       const list =
         p.discount_price != null && p.discount_price < p.price ? p.price : null;
       const sale =
@@ -63,11 +61,11 @@ export default function Home() {
         src: p.images[0] || "/V7/1.jpg",
         alt: p.name,
         name: p.name,
-        oos,
         listPrice: list,
         price: sale,
         discountPercent,
         colors,
+        oos: isProductOutOfStock({ sizes: p.sizes, stock: p.stock }),
       };
     };
     if (collectionProducts !== undefined && collectionProducts.length > 0) {
@@ -92,12 +90,12 @@ export default function Home() {
         src: item.src,
         alt: item.alt,
         name: item.alt,
-        oos: false,
         listPrice: list,
         price,
         discountPercent:
           onSale && list != null ? Math.max(1, Math.round(((list - price) / list) * 100)) : null,
         colors: fallbackColors[i] ?? [{ label: "—", hex: null }],
+        oos: false,
       };
     });
   }, [collectionProducts]);
@@ -364,21 +362,28 @@ export default function Home() {
                       href={item.href}
                       className="group flex w-[200px] shrink-0 flex-col overflow-hidden border border-zinc-200/80 bg-white shadow-sm transition duration-200 hover:shadow-md sm:w-[240px]"
                     >
-                      <div className="relative flex h-[200px] w-full items-center justify-center bg-[#e8e8e8] sm:h-[230px]">
-                        <div className="relative h-full w-full max-w-[190px] px-2 sm:max-w-[210px]">
-                          <Image
-                            src={item.src}
-                            alt={item.alt}
-                            fill
-                            priority={isFirstFeatured}
-                            loading={isFirstFeatured ? "eager" : "lazy"}
-                            fetchPriority={isFirstFeatured ? "high" : "auto"}
-                            unoptimized={isRemote}
-                            sizes="(max-width: 640px) 200px, 220px"
-                            className="object-contain object-center transition duration-300 group-hover:scale-[1.03]"
-                          />
-                        </div>
-                        {item.oos ? <OutOfStockImageBadge compact /> : null}
+                      <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100">
+                        <Image
+                          src={item.src}
+                          alt={item.alt}
+                          fill
+                          priority={isFirstFeatured}
+                          loading={isFirstFeatured ? "eager" : "lazy"}
+                          fetchPriority={isFirstFeatured ? "high" : "auto"}
+                          unoptimized={isRemote}
+                          sizes="(max-width: 640px) 200px, 240px"
+                          className="object-cover object-center transition duration-300 group-hover:scale-[1.03]"
+                        />
+                        {item.oos ? (
+                          <div
+                            className="pointer-events-none absolute right-1.5 top-1.5 z-10 sm:right-2 sm:top-2"
+                            role="status"
+                          >
+                            <span className="inline-block whitespace-nowrap rounded-md bg-red-600 px-1.5 py-1 text-center text-[8px] font-bold uppercase leading-tight tracking-wide text-white shadow-md sm:px-2 sm:py-1.5 sm:text-[10px] sm:tracking-wider">
+                              Rupture de stock
+                            </span>
+                          </div>
+                        ) : null}
                       </div>
                       <div className="flex flex-1 flex-col gap-1.5 border-t border-zinc-100 px-2.5 pb-3 pt-2.5 text-left">
                         <div className="flex items-start justify-between gap-2">
@@ -391,9 +396,6 @@ export default function Home() {
                             </span>
                           ) : null}
                         </div>
-                        {item.discountPercent != null && item.discountPercent > 0 ? (
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-600">Solde</p>
-                        ) : null}
                         <p className="flex min-h-[1.25rem] items-baseline justify-between gap-2 text-sm">
                           {item.listPrice != null ? (
                             <span className="whitespace-nowrap text-zinc-400 line-through tabular-nums">
@@ -406,6 +408,11 @@ export default function Home() {
                             {item.price.toFixed(2)} DT
                           </span>
                         </p>
+                        {item.oos ? (
+                          <p className="text-[10px] font-semibold uppercase leading-tight tracking-wide text-red-600 sm:text-[11px]">
+                            Rupture de stock
+                          </p>
+                        ) : null}
                         {item.colors.length > 0 ? (
                           <div
                             className="flex flex-wrap items-center gap-1 pt-0.5"
@@ -440,27 +447,27 @@ export default function Home() {
         <section id="club" className="mx-auto w-full max-w-6xl px-5 pb-20 sm:px-8">
           <div className="border border-black/10 bg-white p-4 sm:p-6">
             <h2 className="text-3xl font-black uppercase leading-none text-black sm:text-4xl">
-              Join The Club -15% Off First Order
+              Rejoignez le club — 10 % sur la première commande
             </h2>
             <p className="mt-3 max-w-xl text-base text-zinc-700">
-              Get inspired and enjoy member-only advantages. Join the club and
-              unlock exclusive benefits on your first purchase.
+              Inspirez-vous et profitez d’avantages réservés aux membres. Rejoignez le
+              club et débloquez des bénéfices exclusifs dès votre premier achat.
             </p>
             <a
               href="#shop"
               className="mt-5 inline-flex bg-[#122a74] px-7 py-3 text-xl font-bold text-white transition hover:bg-[#0e215d]"
             >
-              Join Now
+              Rejoindre
             </a>
 
             <div className="mt-8 grid grid-cols-1 gap-4 text-black sm:grid-cols-2">
               {[
-                "15% OFF YOUR FIRST ORDER",
-                "BIRTHDAY GIFT",
-                "FREE RETURN",
-                "PRODUCT PREVIEW",
-                "SPECIAL OFFERS",
-                "WEEKLY NEWSLETTER",
+                "10 % sur votre première commande",
+                "Cadeau d’anniversaire",
+                "Retour gratuit",
+                "Aperçu produits",
+                "Offres spéciales",
+                "Newsletter hebdomadaire",
               ].map((benefit) => (
                 <div key={benefit} className="flex items-center gap-3 text-lg font-semibold uppercase">
                   <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-black/30 text-xs">
@@ -474,7 +481,7 @@ export default function Home() {
             <div className="mt-8 overflow-hidden">
               <Image
                 src="/V7/img-1.jpg"
-                alt="Vero7 club members"
+                alt="Membres du club Vero7"
                 width={1200}
                 height={700}
                 className="h-auto w-full object-cover"
