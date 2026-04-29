@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
-import { getStorefrontDemoCategories, getStorefrontDemoProducts } from "@/lib/storefrontDemoCatalog";
 import type { Product, StorefrontCategory } from "@/lib/types";
 
 /** Neon (PostgreSQL via `DATABASE_URL`): `products` + `categories` for storefront. */
@@ -243,8 +242,10 @@ export async function GET() {
   if (!resolveDatabaseUrl()) {
     return new NextResponse(
       serializeJson({
-        products: getStorefrontDemoProducts(),
-        categories: getStorefrontDemoCategories(),
+        products: [],
+        categories: [],
+        error:
+          "DATABASE_URL (ou POSTGRES_URL) manquant. Ajoutez-le dans .env.local puis redemarrez npm run dev.",
       }),
       { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
     );
