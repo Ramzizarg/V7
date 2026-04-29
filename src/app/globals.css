@@ -2,7 +2,11 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #09090b;
+  --vero-muted: #52525b;
+  --vero-card: #f4f4f5;
+  --vero-accent: #09090b;
+  --vero-accent-dark: #27272a;
 }
 
 @theme inline {
@@ -14,13 +18,160 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #09090b;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.grid-overlay {
+  background-image: linear-gradient(
+      rgba(0, 0, 0, 0.05) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.hero-fade {
+  background: radial-gradient(
+      80% 80% at 50% 0%,
+      rgba(0, 0, 0, 0.08) 0%,
+      rgba(0, 0, 0, 0.03) 35%,
+      transparent 70%
+    ),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04), transparent 40%);
+}
+
+.promo-marquee {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.promo-marquee-track {
+  display: flex;
+  width: max-content;
+  height: 100%;
+  align-items: center;
+  will-change: transform;
+  animation: promo-scroll 18s linear infinite;
+}
+
+.promo-marquee-group {
+  display: flex;
+  align-items: center;
+  min-width: max-content;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  gap: 1.6rem;
+  white-space: nowrap;
+  padding-right: 1.6rem;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes promo-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-33.3333%);
+  }
+}
+
+.categories-marquee {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.categories-marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: categories-scroll 60s linear infinite;
+}
+
+.categories-marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  gap: 1rem;
+  padding-right: 1rem;
+}
+
+@keyframes categories-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-33.3333%);
+  }
+}
+
+@keyframes categories-inline-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-12.5%);
+  }
+}
+
+@keyframes favorite-pop {
+  0% {
+    transform: scale(1);
+  }
+  22% {
+    transform: scale(1.28);
+  }
+  46% {
+    transform: scale(0.92);
+  }
+  70% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.favorite-pop {
+  animation: favorite-pop 520ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+/* Toast favoris : centre horizontal, bas de l’écran (un peu remonté = “milieu en bas”) */
+.fav-toast-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(max(1.75rem, 10vh) + env(safe-area-inset-bottom, 0px));
+  z-index: 220;
+  max-width: min(92vw, 22rem);
+}
+
+@keyframes fav-toast-slide-up {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 18px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.fav-toast-bar.fav-toast-enter {
+  animation: fav-toast-slide-up 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
