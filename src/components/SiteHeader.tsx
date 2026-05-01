@@ -61,13 +61,13 @@ export default function SiteHeader() {
   }, []);
 
   useEffect(() => {
-    if (!searchOpen || searchClosing) return;
-    if (searchProducts.length > 0 || searchProductsLoading) return;
-
     let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 6500);
+
     setSearchProductsLoading(true);
-    fetch("/api/products", { cache: "no-store" })
-      .then((r) => r.json())
+    fetch("/api/products", { cache: "no-store", signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((data: { products?: Product[] }) => {
         if (!cancelled) setSearchProducts(data.products ?? []);
       })
@@ -75,13 +75,16 @@ export default function SiteHeader() {
         if (!cancelled) setSearchProducts([]);
       })
       .finally(() => {
+        window.clearTimeout(timeoutId);
         if (!cancelled) setSearchProductsLoading(false);
       });
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
     };
-  }, [searchOpen, searchClosing, searchProducts.length, searchProductsLoading]);
+  }, []);
 
   useEffect(() => {
     if (!searchOpen || searchClosing) return;
