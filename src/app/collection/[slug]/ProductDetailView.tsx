@@ -384,7 +384,7 @@ export default function ProductDetailView({ product }: Props) {
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-[1400px] px-0 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
+      <main className="mx-auto w-full max-w-[1400px] px-0 pb-8 pt-2 sm:px-6 sm:pb-10 sm:pt-4 lg:px-10 lg:pb-12 lg:pt-5">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,26rem)] lg:gap-14 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,28rem)] xl:gap-16">
           {/* Galerie */}
           <div className="flex flex-col gap-3 lg:flex-row lg:gap-4">
