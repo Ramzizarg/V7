@@ -293,9 +293,10 @@ export default function DashboardProduitsPage() {
         throw new Error("Ajoutez au moins une image produit avant de sauvegarder.");
       }
 
+      const hasDescription = description.trim().length > 0;
       const payload: Record<string, unknown> = {
         name: name.trim(),
-        description: description.trim() || null,
+        description: hasDescription ? description : null,
         price: parseFloat(price) || 0,
         stock: parseInt(stock, 10) || 0,
         category_id: categoryId ? parseInt(categoryId, 10) : null,

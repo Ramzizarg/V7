@@ -38,7 +38,22 @@ function num(v: unknown): number {
 
 function normalizeDescription(d: unknown): string | null {
   if (d == null) return null;
-  if (typeof d === "string") return d;
+  if (typeof d === "string") {
+    let out = d;
+    const t = out.trim();
+    if (t.startsWith('"') && t.endsWith('"')) {
+      try {
+        const parsed = JSON.parse(t) as unknown;
+        if (typeof parsed === "string") out = parsed;
+      } catch {
+        // Keep original value when it is not JSON-encoded.
+      }
+    }
+    if (!out.includes("\n") && out.includes("\\n")) {
+      out = out.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+    }
+    return out;
+  }
   if (typeof d === "object") {
     try {
       return JSON.stringify(d);

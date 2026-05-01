@@ -160,6 +160,7 @@ export default function ProductDetailView({ product }: Props) {
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [quickAddProductId, setQuickAddProductId] = useState<number | null>(null);
   const [showMobileStickyCart, setShowMobileStickyCart] = useState(false);
+  const [openInfoPanel, setOpenInfoPanel] = useState<"description" | "shipping" | null>("description");
   const [mobileQuickAddOpen, setMobileQuickAddOpen] = useState(false);
   const [mobileQuickSize, setMobileQuickSize] = useState<string | null>(null);
   const [imageZoomOpen, setImageZoomOpen] = useState(false);
@@ -689,12 +690,61 @@ export default function ProductDetailView({ product }: Props) {
               </button>
             )}
 
-            {product.description?.trim() ? (
-              <div className="mt-10 border-t border-black/10 pt-8">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Description</p>
-                <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-zinc-700">{product.description}</p>
+            {(product.description?.trim() ? true : false) ? (
+              <div className="mt-10 border-t border-black/10">
+                <button
+                  type="button"
+                  onClick={() => setOpenInfoPanel((prev) => (prev === "description" ? null : "description"))}
+                  aria-expanded={openInfoPanel === "description"}
+                  className="flex w-full items-center justify-between py-4 text-left"
+                >
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-800">
+                    Description du produit
+                  </span>
+                  <span className="text-black" aria-hidden>
+                    {openInfoPanel === "description" ? "-" : "+"}
+                  </span>
+                </button>
+                <div
+                  className={`grid transition-all duration-200 ${
+                    openInfoPanel === "description" ? "grid-rows-[1fr] pb-5" : "grid-rows-[0fr]"
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-700">{product.description}</p>
+                  </div>
+                </div>
               </div>
             ) : null}
+
+            <div className="border-t border-black/10">
+              <button
+                type="button"
+                onClick={() => setOpenInfoPanel((prev) => (prev === "shipping" ? null : "shipping"))}
+                aria-expanded={openInfoPanel === "shipping"}
+                className="flex w-full items-center justify-between py-4 text-left"
+              >
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-800">
+                  Livraison et retours
+                </span>
+                <span className="text-black" aria-hidden>
+                  {openInfoPanel === "shipping" ? "-" : "+"}
+                </span>
+              </button>
+              <div
+                className={`grid transition-all duration-200 ${
+                  openInfoPanel === "shipping" ? "grid-rows-[1fr] pb-5" : "grid-rows-[0fr]"
+                }`}
+              >
+                <div className="overflow-hidden">
+                  <ul className="space-y-2 text-sm leading-relaxed text-zinc-700">
+                    <li>Livraison: 8 DT.</li>
+                    <li>Livraison gratuite si la commande est superieure ou egale a 200 DT.</li>
+                    <li>Retours acceptes uniquement dans les 7 jours apres la commande.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
