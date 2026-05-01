@@ -423,7 +423,7 @@ export default function ProductDetailView({ product }: Props) {
                   fetchPriority="high"
                   sizes="(max-width: 1024px) 100vw, 55vw"
                   unoptimized={isRemote(mainSrc)}
-                  className="object-contain object-center"
+                  className="object-cover object-center sm:object-contain"
                 />
               {outOfStock ? (
                 <div
