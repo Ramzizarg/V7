@@ -521,7 +521,7 @@ export default function ProductDetailView({ product }: Props) {
                 className={
                   outOfStock
                     ? "space-y-2"
-                    : "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6"
+                    : "flex items-end justify-between gap-4"
                 }
               >
                 <div className="relative z-20 min-w-0 flex-1">
@@ -553,7 +553,7 @@ export default function ProductDetailView({ product }: Props) {
                   )}
                 </div>
                 {!outOfStock ? (
-                  <div className="relative z-10 flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
+                  <div className="relative z-10 flex shrink-0 flex-col items-end gap-2">
                     <p className="text-sm font-semibold text-black">Quantité</p>
                     <QuantityStepper
                       value={addQty}
@@ -868,7 +868,7 @@ export default function ProductDetailView({ product }: Props) {
             <p className="text-lg font-semibold text-black">{formatPrice(displayPrice)}</p>
 
             <div
-              className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4"
+              className="mt-5 flex items-end justify-between gap-4"
             >
               <div className="relative z-20 min-w-0 flex-1">
                 <p className="text-sm font-semibold text-black">
@@ -892,7 +892,7 @@ export default function ProductDetailView({ product }: Props) {
                   <ProductDesignColors swatches={colorChoices} namePrefix="mobile-quick" className="mt-2" />
                 ) : null}
               </div>
-              <div className="relative z-10 flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:items-end">
+              <div className="relative z-10 flex shrink-0 flex-col items-end gap-2">
                 <p className="text-sm font-semibold text-black">Quantité</p>
                 <QuantityStepper
                   value={addQty}

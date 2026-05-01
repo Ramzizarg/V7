@@ -185,22 +185,22 @@ export function CartSidebar({ open, onClose }: Props) {
                           >
                             Supprimer
                           </button>
-                          <div className="flex h-8 items-center border border-zinc-300">
+                          <div className="flex h-7 items-center border border-zinc-300 sm:h-8">
                             <button
                               type="button"
                               onClick={() => updateCartQuantity(item, Math.max(0, item.quantity - 1))}
-                              className="h-full w-10 text-xl text-zinc-700 hover:bg-zinc-50"
+                              className="h-full w-8 text-lg text-zinc-700 hover:bg-zinc-50 sm:w-10 sm:text-xl"
                               aria-label="Diminuer la quantite"
                             >
                               −
                             </button>
-                            <span className="flex h-full w-10 items-center justify-center border-x border-zinc-300 text-base text-black">
+                            <span className="flex h-full w-8 items-center justify-center border-x border-zinc-300 text-sm text-black sm:w-10 sm:text-base">
                               {item.quantity}
                             </span>
                             <button
                               type="button"
                               onClick={() => updateCartQuantity(item, item.quantity + 1)}
-                              className="h-full w-10 text-xl text-zinc-700 hover:bg-zinc-50"
+                              className="h-full w-8 text-lg text-zinc-700 hover:bg-zinc-50 sm:w-10 sm:text-xl"
                               aria-label="Augmenter la quantite"
                             >
                               +
