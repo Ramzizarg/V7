@@ -162,6 +162,7 @@ export default function ProductDetailView({ product }: Props) {
   const [showMobileStickyCart, setShowMobileStickyCart] = useState(false);
   const [mobileQuickAddOpen, setMobileQuickAddOpen] = useState(false);
   const [mobileQuickSize, setMobileQuickSize] = useState<string | null>(null);
+  const [imageZoomOpen, setImageZoomOpen] = useState(false);
   const [addQty, setAddQty] = useState(1);
   const favBtnRef = useRef<HTMLButtonElement>(null);
   const mainAddBtnRef = useRef<HTMLButtonElement>(null);
@@ -209,6 +210,7 @@ export default function ProductDetailView({ product }: Props) {
     setActive(0);
     setAddQty(1);
     setSelectedSize(null);
+    setImageZoomOpen(false);
   }, [product.id]);
 
   useEffect(() => {
@@ -258,6 +260,15 @@ export default function ProductDetailView({ product }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [sizeGuideOpen]);
+
+  useEffect(() => {
+    if (!imageZoomOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setImageZoomOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [imageZoomOpen]);
 
   useEffect(() => {
     if (!mobileQuickAddOpen) return;
@@ -384,7 +395,7 @@ export default function ProductDetailView({ product }: Props) {
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-[1400px] px-0 pb-8 pt-2 sm:px-6 sm:pb-10 sm:pt-4 lg:px-10 lg:pb-12 lg:pt-5">
+      <main className="mx-auto w-full max-w-[1400px] px-0 pb-8 pt-0 sm:px-6 sm:pb-10 sm:pt-0 lg:px-10 lg:pb-12 lg:pt-0">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,26rem)] lg:gap-14 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,28rem)] xl:gap-16">
           {/* Galerie */}
           <div className="flex flex-col gap-3 lg:flex-row lg:gap-4">
@@ -425,6 +436,12 @@ export default function ProductDetailView({ product }: Props) {
                   unoptimized={isRemote(mainSrc)}
                   className="object-cover object-center sm:object-contain"
                 />
+              <button
+                type="button"
+                onClick={() => setImageZoomOpen(true)}
+                className="absolute inset-0 z-10 cursor-zoom-in"
+                aria-label="Agrandir l'image du produit"
+              />
               {outOfStock ? (
                 <div
                   className="pointer-events-none absolute right-2 top-2 z-30 sm:right-3 sm:top-3"
@@ -976,6 +993,38 @@ export default function ProductDetailView({ product }: Props) {
             >
               Ajouter au panier
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {imageZoomOpen ? (
+        <div className="fixed inset-0 z-[140] bg-black/90 p-4 sm:p-6" role="dialog" aria-label="Zoom image produit">
+          <button
+            type="button"
+            className="absolute right-3 top-3 z-10 rounded-full bg-white/95 p-2 text-black transition hover:bg-white"
+            onClick={() => setImageZoomOpen(false)}
+            aria-label="Fermer le zoom"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="absolute inset-0 cursor-zoom-out"
+            onClick={() => setImageZoomOpen(false)}
+            aria-label="Fermer le zoom"
+          />
+          <div className="relative h-full w-full">
+            <Image
+              src={mainSrc}
+              alt={product.name}
+              fill
+              sizes="100vw"
+              unoptimized={isRemote(mainSrc)}
+              className="object-contain"
+              priority
+            />
           </div>
         </div>
       ) : null}
