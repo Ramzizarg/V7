@@ -12,6 +12,7 @@ import {
   cancelPendingCartSidebarOpen,
   FAVORIS_ADDED_EVENT,
 } from "@/lib/favorisUx";
+import { isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { productPathSlug } from "@/lib/productUrl";
 import { getCartItemCount, getWishlistCount } from "@/lib/shopClientStorage";
 import type { Product } from "@/lib/types";
@@ -317,7 +318,7 @@ export default function SiteHeader() {
                     type="search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Que recherchez-vous ?"
+                    placeholder="What are you searching?"
                     className="min-w-0 flex-1 bg-transparent text-[16px] text-black placeholder:text-zinc-400 focus:outline-none sm:text-base"
                     autoFocus
                     aria-label="Rechercher des produits"
@@ -345,8 +346,8 @@ export default function SiteHeader() {
                       <>
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
                           {q
-                            ? `Resultats${filteredProducts.length > 0 ? ` (${filteredProducts.length})` : ""}`
-                            : "A la une"}
+                            ? `Results${filteredProducts.length > 0 ? ` (${filteredProducts.length})` : ""}`
+                            : "HIGHLIGHTS"}
                         </p>
                         {searchProductsLoading ? (
                           <p className="py-2 text-sm text-zinc-500">Chargement…</p>
@@ -379,9 +380,9 @@ export default function SiteHeader() {
                                           —
                                         </span>
                                       )}
-                                      {Number(p.stock ?? 0) <= 0 && (
+                                      {isProductOutOfStock({ sizes: p.sizes, stock: p.stock }) && (
                                         <span className="absolute right-0.5 top-0.5 rounded bg-red-600 px-1 py-0.5 text-[7px] font-semibold uppercase leading-none text-white">
-                                          Rupture
+                                          OUT
                                         </span>
                                       )}
                                     </span>
