@@ -24,7 +24,6 @@ const CAROUSEL_STATIC_FALLBACK: StorefrontCategory[] = [
 ];
 
 export default function Home() {
-  const carouselRef = useRef<HTMLDivElement>(null);
   const featuredRef = useRef<HTMLDivElement>(null);
   const [heroSlide, setHeroSlide] = useState(0);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -79,7 +78,12 @@ export default function Home() {
         oos: isProductOutOfStock({ sizes: p.sizes, stock: p.stock }),
       };
     };
-    if (collectionProducts !== undefined && collectionProducts.length > 0) {
+    // Evite le "double rendu" au reload:
+    // tant que l'API n'a pas repondu, on n'affiche pas encore la liste fallback.
+    if (collectionProducts === undefined) {
+      return [];
+    }
+    if (collectionProducts.length > 0) {
       return collectionProducts.slice(0, 12).map(mapProduct);
     }
     const fallbackColors: { label: string; hex: string | null }[][] = [
@@ -119,13 +123,6 @@ export default function Home() {
   };
 
   const carouselCategories = dbCategories.length > 0 ? dbCategories : CAROUSEL_STATIC_FALLBACK;
-
-  const scrollCarousel = (dir: "prev" | "next") => {
-    const el = carouselRef.current;
-    if (!el) return;
-    const step = typeof window !== "undefined" && window.innerWidth < 640 ? 260 : 320;
-    el.scrollBy({ left: dir === "prev" ? -step : step, behavior: "smooth" });
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -187,6 +184,7 @@ export default function Home() {
   const heroCollectionColor = homeContent?.heroCollectionColor || "#ffffff";
   const heroHeadlineColor = homeContent?.heroHeadlineColor || "#ffffff";
   const heroDescriptionColor = homeContent?.heroDescriptionColor || "#999999";
+  const hasFeaturedVedettes = featuredVedettes.length > 0;
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
@@ -206,26 +204,6 @@ export default function Home() {
     }, HERO_SLIDE_MS);
     return () => window.clearInterval(id);
   }, [heroImages.length]);
-
-  useEffect(() => {
-    const el = carouselRef.current;
-    if (!el) return;
-
-    const centerCarousel = () => {
-      const max = el.scrollWidth - el.clientWidth;
-      if (max > 0) {
-        el.scrollLeft = max / 2;
-      }
-    };
-
-    const frame = requestAnimationFrame(centerCarousel);
-    window.addEventListener("resize", centerCarousel);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", centerCarousel);
-    };
-  }, [carouselCategories.length]);
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -307,83 +285,30 @@ export default function Home() {
               Acheter par Categorie
             </h2>
           </div>
-          <div className="relative">
-            <button
-              onClick={() => scrollCarousel("prev")}
-              aria-label="Defiler a gauche"
-              className="absolute left-0 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-2 text-black shadow transition hover:bg-white"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  d="m15 18-6-6 6-6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={() => scrollCarousel("next")}
-              aria-label="Defiler a droite"
-              className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white/90 p-2 text-black shadow transition hover:bg-white"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  d="m9 18 6-6-6-6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            <div
-              ref={carouselRef}
-              className="overflow-x-auto overflow-y-hidden w-full px-1 sm:px-2 no-scrollbar"
-            >
-              <div
-                className="flex gap-2"
-                style={{
-                  animationName: "categories-inline-scroll",
-                  animationDuration: "28s",
-                  animationTimingFunction: "linear",
-                  animationIterationCount: "infinite",
-                  animationPlayState: "running",
-                  width: "max-content",
-                }}
-              >
-                {Array.from({ length: 8 }, (_, copy) => (
-                  <div key={copy} className="flex gap-2" aria-hidden={copy > 0}>
-                    {carouselCategories.map((item) => (
-                      <a
-                        key={`${copy}-${item.slug}-${item.id}`}
-                        href="/collection"
-                        className="group relative block h-[320px] w-[280px] shrink-0 overflow-hidden rounded-sm border border-black/10"
-                      >
-                        <div
-                          className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-105"
-                          style={{ backgroundImage: `url(${item.image})` }}
-                        />
-                        <div className="absolute inset-0 bg-black/22" />
-                        <div className="relative z-10 flex h-full items-end p-4">
-                          <h3 className="text-4xl font-extrabold uppercase tracking-[0.06em] text-white">
-                            {item.name}
-                          </h3>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                ))}
-              </div>
+          <div className="categories-marquee px-1 sm:px-2">
+            <div className="categories-loop-track gap-2">
+              {Array.from({ length: 2 }, (_, copy) => (
+                <div key={copy} className="flex gap-2" aria-hidden={copy > 0}>
+                  {carouselCategories.map((item) => (
+                    <a
+                      key={`${copy}-${item.slug}-${item.id}`}
+                      href="/collection"
+                      className="group relative block h-[320px] w-[280px] shrink-0 overflow-hidden rounded-sm border border-black/10"
+                    >
+                      <div
+                        className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-105"
+                        style={{ backgroundImage: `url(${item.image})` }}
+                      />
+                      <div className="absolute inset-0 bg-black/22" />
+                      <div className="relative z-10 flex h-full items-end p-4">
+                        <h3 className="text-4xl font-extrabold uppercase tracking-[0.06em] text-white">
+                          {item.name}
+                        </h3>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -430,7 +355,8 @@ export default function Home() {
               type="button"
               onClick={() => scrollFeatured("prev")}
               aria-label="Produits precedents"
-              className="absolute left-2 top-1/2 z-20 -translate-y-1/2 border border-black/10 bg-white p-2.5 text-black shadow-md transition hover:bg-zinc-50 sm:left-4"
+              disabled={!hasFeaturedVedettes}
+              className="absolute left-2 top-1/2 z-20 -translate-y-1/2 border border-black/10 bg-white p-2.5 text-black shadow-md transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 sm:left-4"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -450,7 +376,8 @@ export default function Home() {
               type="button"
               onClick={() => scrollFeatured("next")}
               aria-label="Produits suivants"
-              className="absolute right-2 top-1/2 z-20 -translate-y-1/2 border border-black/10 bg-white p-2.5 text-black shadow-md transition hover:bg-zinc-50 sm:right-4"
+              disabled={!hasFeaturedVedettes}
+              className="absolute right-2 top-1/2 z-20 -translate-y-1/2 border border-black/10 bg-white p-2.5 text-black shadow-md transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 sm:right-4"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -468,7 +395,7 @@ export default function Home() {
             </button>
             <div
               ref={featuredRef}
-              className="no-scrollbar flex gap-2 overflow-x-auto overflow-y-hidden px-12 py-1 sm:gap-2.5 sm:px-16"
+              className="no-scrollbar flex gap-2 overflow-x-auto overflow-y-hidden pl-0 pr-12 py-1 sm:gap-2.5 sm:pl-0 sm:pr-16"
             >
               {[0, 1].map((copy) =>
                 featuredVedettes.map((item, itemIdx) => {
