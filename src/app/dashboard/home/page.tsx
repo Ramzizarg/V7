@@ -54,11 +54,15 @@ export default function DashboardHomePage() {
   const [loading, setLoading] = useState(true);
   const [heroUploading, setHeroUploading] = useState(false);
   const [heroUploadError, setHeroUploadError] = useState<string | null>(null);
+  const [selectedHeroPreviewIndex, setSelectedHeroPreviewIndex] = useState(0);
   const [cat1Uploading, setCat1Uploading] = useState(false);
   const [cat1UploadError, setCat1UploadError] = useState<string | null>(null);
   const [cat2Uploading, setCat2Uploading] = useState(false);
   const [cat2UploadError, setCat2UploadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"hero" | "bandeau" | "products" | "categories" | "footer" | "comingSoon">("hero");
+
+  const selectedHeroPreviewUrl =
+    content.heroImageUrls[selectedHeroPreviewIndex] ?? content.heroImageUrls[0] ?? "";
 
   useEffect(() => {
     getHomeContent()
@@ -351,25 +355,33 @@ export default function DashboardHomePage() {
 
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold uppercase tracking-wider text-white">
-                Image Hero
+                Images Hero (carousel)
               </label>
               <div className="flex flex-col sm:flex-row gap-3 items-start">
                 <label className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black border border-white rounded text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-zinc-100 hover:border-zinc-100 transition-colors">
                   <Upload className="h-4 w-4" />
-                  {heroUploading ? "Upload…" : "Choisir une image"}
+                  {heroUploading ? "Upload…" : "Ajouter image(s)"}
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     className="sr-only"
                     disabled={heroUploading}
                     onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
+                      const files = e.target.files;
+                      if (!files?.length) return;
                       setHeroUploadError(null);
                       setHeroUploading(true);
                       try {
-                        const url = await uploadHeroImage(file);
-                        updateField("heroImageUrl", url);
+                        const uploaded: string[] = [];
+                        for (let i = 0; i < files.length; i++) {
+                          const url = await uploadHeroImage(files[i]);
+                          uploaded.push(url);
+                        }
+                        setContent((prev) => {
+                          const next = [...prev.heroImageUrls, ...uploaded];
+                          return { ...prev, heroImageUrls: next, heroImageUrl: next[0] ?? "" };
+                        });
                       } catch (err) {
                         setHeroUploadError(err instanceof Error ? err.message : "Erreur d’upload");
                       } finally {
@@ -379,14 +391,16 @@ export default function DashboardHomePage() {
                     }}
                   />
                 </label>
-                {content.heroImageUrl && (
+                {content.heroImageUrls.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => updateField("heroImageUrl", "")}
+                    onClick={() =>
+                      setContent((prev) => ({ ...prev, heroImageUrls: [], heroImageUrl: "" }))
+                    }
                     className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-600 rounded text-zinc-300 text-xs font-semibold uppercase tracking-wider hover:bg-zinc-800 hover:text-white transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
-                    Supprimer l’image
+                    Vider la liste
                   </button>
                 )}
               </div>
@@ -394,14 +408,109 @@ export default function DashboardHomePage() {
                 <p className="text-xs text-red-400">{heroUploadError}</p>
               )}
               <p className="text-[10px] text-zinc-400">Best quality: high‑resolution images (min 1920×1080). JPEG, PNG or WebP.</p>
-              {content.heroImageUrl && content.heroImageUrl.startsWith("http") && (
+              {content.heroImageUrls.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-[10px] uppercase tracking-widest text-zinc-400">
+                    Ordre du carousel ({content.heroImageUrls.length} image{content.heroImageUrls.length > 1 ? "s" : ""})
+                  </p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {content.heroImageUrls.map((url, index) => (
+                      <div
+                        key={`${url}-${index}`}
+                        className={`flex items-center gap-2 rounded border p-2 transition-colors ${
+                          index === selectedHeroPreviewIndex
+                            ? "border-white bg-zinc-800"
+                            : "border-zinc-700 bg-zinc-900"
+                        }`}
+                        onClick={() => setSelectedHeroPreviewIndex(index)}
+                      >
+                        <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded border border-zinc-700 bg-black">
+                          <img
+                            src={url}
+                            alt={`Hero ${index + 1}`}
+                            className="h-full w-full object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs text-zinc-300">{url}</p>
+                          <p className="text-[10px] text-zinc-500">
+                            {index === 0 ? "Image principale (affichée en premier)" : `Position ${index + 1}`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {index > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setContent((prev) => {
+                                  const next = [...prev.heroImageUrls];
+                                  [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                                  setSelectedHeroPreviewIndex((curr) => {
+                                    if (curr === index) return index - 1;
+                                    if (curr === index - 1) return index;
+                                    return curr;
+                                  });
+                                  return { ...prev, heroImageUrls: next, heroImageUrl: next[0] ?? "" };
+                                })
+                              }
+                              className="rounded border border-zinc-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-300 hover:bg-zinc-800"
+                            >
+                              ↑
+                            </button>
+                          ) : null}
+                          {index < content.heroImageUrls.length - 1 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setContent((prev) => {
+                                  const next = [...prev.heroImageUrls];
+                                  [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                                  setSelectedHeroPreviewIndex((curr) => {
+                                    if (curr === index) return index + 1;
+                                    if (curr === index + 1) return index;
+                                    return curr;
+                                  });
+                                  return { ...prev, heroImageUrls: next, heroImageUrl: next[0] ?? "" };
+                                })
+                              }
+                              className="rounded border border-zinc-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-300 hover:bg-zinc-800"
+                            >
+                              ↓
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setContent((prev) => {
+                                const next = prev.heroImageUrls.filter((_, i) => i !== index);
+                                setSelectedHeroPreviewIndex((curr) => {
+                                  if (next.length === 0) return 0;
+                                  if (curr === index) return Math.max(0, index - 1);
+                                  if (curr > index) return curr - 1;
+                                  return curr;
+                                });
+                                return { ...prev, heroImageUrls: next, heroImageUrl: next[0] ?? "" };
+                              })
+                            }
+                            className="rounded border border-red-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-300 hover:bg-red-950/40"
+                          >
+                            Suppr.
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {selectedHeroPreviewUrl && (
                 <div className="mt-3 flex justify-center">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-3 items-end w-full max-w-4xl mx-auto">
                   <div className="w-full">
                     <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Aperçu (version site – fond noir)</p>
                     <div className="relative aspect-video w-full rounded overflow-hidden border border-zinc-600 bg-black">
                       <img
-                        src={content.heroImageUrl}
+                        src={selectedHeroPreviewUrl}
                         alt="Hero preview"
                         className="w-full h-full object-cover object-center"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -426,7 +535,7 @@ export default function DashboardHomePage() {
                     <p className="text-[9px] text-zinc-500 mb-2">{typeof content.heroImagePositionMobile === "number" ? content.heroImagePositionMobile : 50}%</p>
                     <div className="relative w-[140px] sm:w-[160px] aspect-[9/16] max-h-[300px] rounded-xl overflow-hidden border-2 border-zinc-600 bg-black shadow-xl">
                       <img
-                        src={content.heroImageUrl}
+                        src={selectedHeroPreviewUrl}
                         alt="Hero mobile"
                         style={{ objectPosition: `${typeof content.heroImagePositionMobile === "number" ? content.heroImagePositionMobile : 50}% center` }}
                         className="absolute inset-0 w-full h-full object-cover"
@@ -449,7 +558,7 @@ export default function DashboardHomePage() {
                   </div>
                 </div>
               )}
-              {!content.heroImageUrl && (
+              {content.heroImageUrls.length === 0 && (
                 <div className="mt-2 flex items-center gap-2 text-zinc-500 text-xs">
                   <ImageIcon className="h-4 w-4 flex-shrink-0" />
                   <span>Aucune image. L’image par défaut du site sera affichée.</span>
@@ -458,27 +567,6 @@ export default function DashboardHomePage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-white">
-                  Subtitle
-                </label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="text"
-                    value={content.heroSubtitle}
-                    onChange={(e) => updateField("heroSubtitle", e.target.value)}
-                    className="flex-1 min-w-0 border border-zinc-600 bg-white text-black placeholder:text-zinc-400 rounded px-3 py-2 text-sm focus:outline-none focus:border-white transition-colors"
-                  />
-                  <input
-                    type="color"
-                    value={(content.heroSubtitleColor || "#ffffff").replace(/^([^#])/, "#$1")}
-                    onChange={(e) => updateField("heroSubtitleColor", e.target.value)}
-                    className="w-9 h-9 rounded border border-zinc-600 cursor-pointer bg-white p-0.5"
-                    title="Couleur du texte"
-                  />
-                </div>
-              </div>
-
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-white">
                   Nom de la collection
@@ -545,35 +633,15 @@ export default function DashboardHomePage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-white">
-                Texte du bouton
-              </label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  value={content.heroButtonText}
-                  onChange={(e) => updateField("heroButtonText", e.target.value)}
-                  className="w-full sm:max-w-xs border border-zinc-600 bg-white text-black placeholder:text-zinc-400 rounded px-3 py-2 text-sm focus:outline-none focus:border-white transition-colors"
-                />
-                <input
-                  type="color"
-                  value={(content.heroButtonTextColor || "#000000").replace(/^([^#])/, "#$1")}
-                  onChange={(e) => updateField("heroButtonTextColor", e.target.value)}
-                  className="w-9 h-9 rounded border border-zinc-600 cursor-pointer bg-white p-0.5"
-                  title="Couleur du texte"
-                />
-              </div>
-            </div>
           </div>
 
           {/* Live Preview */}
           <div className="rounded-lg border border-zinc-200 bg-zinc-950 p-4 sm:p-6 text-white">
             <p className="text-[10px] uppercase tracking-widest text-zinc-500 mb-3">Aperçu avec textes</p>
-            {content.heroImageUrl && content.heroImageUrl.startsWith("http") && (
+            {selectedHeroPreviewUrl && (
               <div className="relative aspect-video w-full rounded overflow-hidden mb-4 bg-black">
                 <img
-                  src={content.heroImageUrl}
+                  src={selectedHeroPreviewUrl}
                   alt="Hero preview"
                   className="w-full h-full object-cover"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -581,15 +649,11 @@ export default function DashboardHomePage() {
               </div>
             )}
             <div className="space-y-2">
-              <p className="text-sm" style={{ color: content.heroSubtitleColor || "#ffffff" }}>{content.heroSubtitle}</p>
               <p className="text-lg font-black uppercase tracking-wide" style={{ color: content.heroCollectionColor || "#ffffff" }}>{content.heroCollection}</p>
               <h2 className="text-2xl sm:text-3xl font-black uppercase leading-tight whitespace-pre-line" style={{ color: content.heroHeadlineColor || "#ffffff" }}>
                 {content.heroHeadline}
               </h2>
               <p className="text-sm" style={{ color: content.heroDescriptionColor || "#999999" }}>{content.heroDescription}</p>
-              <span className="inline-block bg-white px-4 py-1.5 text-xs font-medium uppercase tracking-wider mt-2" style={{ color: content.heroButtonTextColor || "#000000" }}>
-                {content.heroButtonText}
-              </span>
             </div>
 
           </div>

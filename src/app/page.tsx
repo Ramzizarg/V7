@@ -7,7 +7,13 @@ import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { productPathSlug } from "@/lib/productUrl";
+import { getCachedHomeContentSync, getHomeContent } from "@/lib/homeContent";
+import type { HomeContent } from "@/lib/homeContent";
 import type { Product, StorefrontCategory } from "@/lib/types";
+
+/** Hero fallback images (si backoffice n'a rien configuré). */
+const HERO_FALLBACK_IMAGES = ["/V7/img.jpg", "/V7/imgg.png", "/V7/imggg.png", "/V7/imgggg.png"] as const;
+const HERO_SLIDE_MS = 5000;
 
 /** Accueil si la table `categories` est vide ou indisponible. */
 const CAROUSEL_STATIC_FALLBACK: StorefrontCategory[] = [
@@ -20,6 +26,11 @@ const CAROUSEL_STATIC_FALLBACK: StorefrontCategory[] = [
 export default function Home() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const featuredRef = useRef<HTMLDivElement>(null);
+  const [heroSlide, setHeroSlide] = useState(0);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [homeContent, setHomeContent] = useState<HomeContent | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [homeContentLoaded, setHomeContentLoaded] = useState(false);
   const [dbCategories, setDbCategories] = useState<StorefrontCategory[]>([]);
   /** `undefined` = not loaded yet; then API products or empty. */
   const [collectionProducts, setCollectionProducts] = useState<Product[] | undefined>(undefined);
@@ -137,6 +148,66 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    setHydrated(true);
+    const cached = getCachedHomeContentSync();
+    if (cached) setHomeContent(cached);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getHomeContent()
+      .then((c) => {
+        if (cancelled) return;
+        setHomeContent(c);
+      })
+      .catch(() => {
+        if (!cancelled) setHomeContent(null);
+      })
+      .finally(() => {
+        if (!cancelled) setHomeContentLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const heroImages = useMemo(() => {
+    if (!hydrated || !homeContentLoaded) return [];
+    const list =
+      (homeContent?.heroImageUrls ?? []).filter((x) => typeof x === "string" && x.trim().length > 0) ?? [];
+    return list.length ? list : [...HERO_FALLBACK_IMAGES];
+  }, [hydrated, homeContentLoaded, homeContent]);
+
+  const heroCollectionText = homeContent?.heroCollection || "Collection Sport x Casual";
+  const heroHeadlineText = homeContent?.heroHeadline || "Renverse Les Regles";
+  const heroDescriptionText = homeContent?.heroDescription || "Signe par Vero7.";
+  const heroImagePositionMobile =
+    typeof homeContent?.heroImagePositionMobile === "number" ? homeContent.heroImagePositionMobile : 50;
+
+  const heroCollectionColor = homeContent?.heroCollectionColor || "#ffffff";
+  const heroHeadlineColor = homeContent?.heroHeadlineColor || "#ffffff";
+  const heroDescriptionColor = homeContent?.heroDescriptionColor || "#999999";
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const apply = () => setIsMobileViewport(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    // Reset index when the hero image list changes.
+    setHeroSlide(0);
+
+    if (heroImages.length < 2) return;
+    const id = window.setInterval(() => {
+      setHeroSlide((i) => (i + 1) % heroImages.length);
+    }, HERO_SLIDE_MS);
+    return () => window.clearInterval(id);
+  }, [heroImages.length]);
+
+  useEffect(() => {
     const el = carouselRef.current;
     if (!el) return;
 
@@ -161,25 +232,72 @@ export default function Home() {
       <SiteHeader />
       <main>
         <section className="hero-fade grid-overlay relative overflow-hidden">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: "url('/hero-img.jpg')",
-              backgroundPosition: "center 30%",
-            }}
-          />
-          <div className="absolute inset-0 bg-white/20" />
+          <div className="absolute inset-0" aria-hidden>
+            {heroImages.map((src, i) => (
+              <div
+                key={src}
+                className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-out"
+                style={{
+                  backgroundImage: `url('${src}')`,
+                  backgroundPosition: isMobileViewport
+                    ? `${heroImagePositionMobile}% center`
+                    : "center 30%",
+                  opacity: heroSlide === i ? 1 : 0,
+                }}
+              />
+            ))}
+          </div>
           <div className="relative z-10 flex min-h-[560px] w-full flex-col justify-end px-5 py-14 sm:px-8 sm:py-16 lg:min-h-[640px] lg:px-10 lg:py-20">
             <span className="mb-5 inline-block h-[2px] w-20 bg-white/90" />
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/85">
-              Collection Sport x Casual
+            <p
+              className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/85"
+              style={{ color: heroCollectionColor }}
+            >
+              {heroCollectionText}
             </p>
-            <h1 className="max-w-3xl text-5xl font-extrabold uppercase leading-[0.95] text-white sm:text-6xl lg:text-7xl">
-              Renverse Les Regles
+            <h1
+              className="max-w-3xl text-5xl font-extrabold uppercase leading-[0.95] sm:text-6xl lg:text-7xl whitespace-pre-line"
+              style={{ color: heroHeadlineColor }}
+            >
+              {heroHeadlineText}
             </h1>
-            <p className="mt-4 max-w-xl text-2xl text-white/95 sm:text-3xl">
-              Signe par Vero7.
+            <p
+              className="mt-4 max-w-xl text-2xl sm:text-3xl"
+              style={{ color: heroDescriptionColor }}
+            >
+              {heroDescriptionText}
             </p>
+            {heroImages.length > 0 ? (
+              <div
+                className="mt-6 flex w-full max-w-[160px] gap-1 sm:max-w-[200px]"
+                role="status"
+                aria-label={`Image hero ${heroSlide + 1} sur ${heroImages.length}`}
+              >
+                {heroImages.map((_, i) => {
+                  const done = i < heroSlide;
+                  const current = i === heroSlide;
+                  return (
+                    <div
+                      key={i}
+                      className="h-1 min-h-[3px] flex-1 overflow-hidden rounded-full bg-white/35"
+                    >
+                      {done ? (
+                        <div className="h-full w-full rounded-full bg-white" />
+                      ) : null}
+                      {current ? (
+                        <div
+                          key={heroSlide}
+                          className="h-full w-full origin-left rounded-full bg-white"
+                          style={{
+                            animation: `hero-slide-progress ${HERO_SLIDE_MS}ms linear forwards`,
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
         </section>
 

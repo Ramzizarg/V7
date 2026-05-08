@@ -10,8 +10,11 @@ async function callNeon<T = any>(payload: Record<string, unknown>): Promise<ApiR
   const json = (await res.json().catch(() => null)) as any;
   if (!res.ok) {
     const message = json?.error || `Requete echouee (${res.status})`;
+    const lower = String(message).toLowerCase();
+    const isMissingHomeContent =
+      lower.includes("home_content") && (lower.includes("42p01") || lower.includes("does not exist"));
     if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-      console.error("[api/neon/table]", message);
+      if (!isMissingHomeContent) console.error("[api/neon/table]", message);
     }
     return { data: null as any, error: { message }, count: null };
   }

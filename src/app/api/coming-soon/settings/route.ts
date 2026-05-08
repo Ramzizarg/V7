@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { neonQuery } from "@/lib/neon-db";
+import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
 import { createHash } from "crypto";
 
 export const runtime = "nodejs";
@@ -24,14 +24,45 @@ function hashPassword(password: string) {
   return createHash("sha256").update(`${getPepper()}:${password}`, "utf8").digest("hex");
 }
 
+function isMissingComingSoonTable(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const anyErr = error as Error & { code?: string };
+  const msg = `${anyErr.message || ""}`.toLowerCase();
+  return anyErr.code === "42P01" || (msg.includes("coming_soon_settings") && msg.includes("does not exist"));
+}
+
+async function ensureComingSoonSettingsTable() {
+  await neonQuery(`
+    CREATE TABLE IF NOT EXISTS coming_soon_settings (
+      id text PRIMARY KEY,
+      enabled boolean NOT NULL DEFAULT false,
+      hero_image_url text NOT NULL DEFAULT '',
+      end_at timestamptz NULL,
+      require_password boolean NOT NULL DEFAULT false,
+      password_hash text NULL,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+}
+
 export async function GET() {
+  if (!resolveDatabaseUrl()) {
+    return NextResponse.json({ enabled: false, heroImageUrl: "", endAt: "", requirePassword: false, hasPassword: false });
+  }
   try {
-    const { rows } = await neonQuery("SELECT enabled, hero_image_url, end_at, require_password, password_hash FROM coming_soon_settings WHERE id = $1 LIMIT 1", ["default"]);
+    const { rows } = await neonQuery(
+      "SELECT enabled, hero_image_url, end_at, require_password, password_hash FROM coming_soon_settings WHERE id = $1 LIMIT 1",
+      ["default"]
+    );
     if (!rows[0]) {
       return NextResponse.json({ enabled: false, heroImageUrl: "", endAt: "", requirePassword: false, hasPassword: false });
     }
     return NextResponse.json(toPublic(rows[0]));
-  } catch {
+  } catch (error) {
+    if (isMissingComingSoonTable(error)) {
+      await ensureComingSoonSettingsTable();
+      return NextResponse.json({ enabled: false, heroImageUrl: "", endAt: "", requirePassword: false, hasPassword: false });
+    }
     return NextResponse.json({ error: "Failed to load settings" }, { status: 500 });
   }
 }
@@ -51,6 +82,9 @@ export async function POST(req: Request) {
       : undefined;
 
   try {
+    if (!resolveDatabaseUrl()) {
+      return NextResponse.json({ ok: true });
+    }
     if (password_hash === undefined) {
       await neonQuery(
         "INSERT INTO coming_soon_settings (id, enabled, hero_image_url, require_password, end_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET enabled=EXCLUDED.enabled, hero_image_url=EXCLUDED.hero_image_url, require_password=EXCLUDED.require_password, end_at=EXCLUDED.end_at, updated_at=EXCLUDED.updated_at",
@@ -63,7 +97,11 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (error) {
+    if (isMissingComingSoonTable(error)) {
+      await ensureComingSoonSettingsTable();
+      return NextResponse.json({ ok: true });
+    }
     return NextResponse.json({ error: "Failed to save settings" }, { status: 500 });
   }
 }

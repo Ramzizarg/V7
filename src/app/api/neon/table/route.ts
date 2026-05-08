@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
+import type { QueryResultRow } from "pg";
 
 export const runtime = "nodejs";
 
@@ -131,6 +132,39 @@ function serializeError(error: unknown): string {
   return String(error);
 }
 
+function isMissingHomeContentTableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const anyErr = error as Error & { code?: string };
+  const msg = `${anyErr.message || ""}`.toLowerCase();
+  return anyErr.code === "42P01" || (msg.includes("home_content") && msg.includes("does not exist"));
+}
+
+async function ensureHomeContentTable(): Promise<void> {
+  await neonQuery(`
+    CREATE TABLE IF NOT EXISTS home_content (
+      id text PRIMARY KEY,
+      content jsonb NOT NULL DEFAULT '{}'::jsonb,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+}
+
+async function neonQueryWithHomeContentRecovery<T extends QueryResultRow = QueryResultRow>(
+  sql: string,
+  params?: unknown[],
+  table?: string
+) {
+  try {
+    return await neonQuery<T>(sql, params);
+  } catch (error) {
+    if (table === "home_content" && isMissingHomeContentTableError(error)) {
+      await ensureHomeContentTable();
+      return await neonQuery<T>(sql, params);
+    }
+    throw error;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     if (!resolveDatabaseUrl()) {
@@ -160,11 +194,19 @@ export async function POST(req: Request) {
       const where = buildWhere(body.filters || [], params);
       const order = body.orderBy ? ` ORDER BY ${safeIdent(String(body.orderBy))} ${body.ascending === false ? "DESC" : "ASC"}` : "";
       const limit = Number.isFinite(body.limit) ? ` LIMIT ${Math.max(1, Number(body.limit))}` : "";
-      const { rows } = await neonQuery(`SELECT ${cols} FROM ${tableIdent}${where}${order}${limit}`, params);
+      const { rows } = await neonQueryWithHomeContentRecovery(
+        `SELECT ${cols} FROM ${tableIdent}${where}${order}${limit}`,
+        params,
+        table
+      );
 
       let count: number | null = null;
       if (body.count === "exact") {
-        const c = await neonQuery<{ total: string }>(`SELECT COUNT(*)::text as total FROM ${tableIdent}${where}`, params);
+        const c = await neonQueryWithHomeContentRecovery<{ total: string }>(
+          `SELECT COUNT(*)::text as total FROM ${tableIdent}${where}`,
+          params,
+          table
+        );
         count = Number(c.rows?.[0]?.total || 0);
       }
 
@@ -192,7 +234,11 @@ export async function POST(req: Request) {
             return usesJsonbCast(table, k) ? `$${n}::jsonb` : `$${n}`;
           })
           .join(", ");
-        const res = await neonQuery(`INSERT INTO ${tableIdent} (${cols}) VALUES (${ph}) RETURNING *`, params);
+        const res = await neonQueryWithHomeContentRecovery(
+          `INSERT INTO ${tableIdent} (${cols}) VALUES (${ph}) RETURNING *`,
+          params,
+          table
+        );
         inserted.push(...res.rows);
       }
       return NextResponse.json({ data: inserted, error: null });
@@ -217,7 +263,7 @@ export async function POST(req: Request) {
         .join(", ");
       const updateCols = keys.filter((k) => k !== conflict).map((k) => `${safeIdent(k)} = EXCLUDED.${safeIdent(k)}`).join(", ");
       const sql = `INSERT INTO ${tableIdent} (${cols}) VALUES (${placeholders}) ON CONFLICT (${safeIdent(conflict)}) DO UPDATE SET ${updateCols} RETURNING *`;
-      const { rows } = await neonQuery(sql, params);
+      const { rows } = await neonQueryWithHomeContentRecovery(sql, params, table);
       return NextResponse.json({ data: rows[0] ?? null, error: null });
     }
 
@@ -237,14 +283,22 @@ export async function POST(req: Request) {
         })
         .join(", ");
       const where = buildWhere(body.filters || [], params);
-      const { rows } = await neonQuery(`UPDATE ${tableIdent} SET ${setSql}${where} RETURNING *`, params);
+      const { rows } = await neonQueryWithHomeContentRecovery(
+        `UPDATE ${tableIdent} SET ${setSql}${where} RETURNING *`,
+        params,
+        table
+      );
       return NextResponse.json({ data: rows, error: null });
     }
 
     if (action === "delete") {
       const params: unknown[] = [];
       const where = buildWhere(body.filters || [], params);
-      const { rows } = await neonQuery(`DELETE FROM ${tableIdent}${where} RETURNING *`, params);
+      const { rows } = await neonQueryWithHomeContentRecovery(
+        `DELETE FROM ${tableIdent}${where} RETURNING *`,
+        params,
+        table
+      );
       return NextResponse.json({ data: rows, error: null });
     }
 

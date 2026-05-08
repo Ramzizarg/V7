@@ -48,6 +48,16 @@ body {
     linear-gradient(180deg, rgba(0, 0, 0, 0.04), transparent 40%);
 }
 
+/** Remplissage des barres sous le hero (durée alignée avec le carrousel). */
+@keyframes hero-slide-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 .promo-marquee {
   position: relative;
   overflow: hidden;

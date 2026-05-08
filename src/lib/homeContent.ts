@@ -9,6 +9,11 @@ export interface HomeProduct {
 
 /** 0 = left, 50 = center, 100 = right. Fine control for mobile hero image. */
 export interface HomeContent {
+  /**
+   * Carousel images for the homepage hero.
+   * If missing in old saved data, it will be derived from `heroImageUrl`.
+   */
+  heroImageUrls: string[];
   heroImageUrl: string;
   /** Mobile hero horizontal position (0–100). Legacy: "left"|"center"|"right" converted in mergeWithDefaults. */
   heroImagePositionMobile: number | "left" | "center" | "right";
@@ -35,6 +40,7 @@ export interface HomeContent {
 }
 
 export const defaultHomeContent: HomeContent = {
+  heroImageUrls: [],
   heroImageUrl: "",
   heroImagePositionMobile: 50,
   heroSubtitle: "New in",
@@ -69,6 +75,13 @@ export const defaultHomeContent: HomeContent = {
 
 const STORAGE_KEY = "blacktephra-home-content";
 const ROW_ID = "default";
+let homeContentTableMissing = false;
+
+function isMissingHomeContentTableMessage(message: string | undefined): boolean {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return m.includes("home_content") && (m.includes("42p01") || m.includes("does not exist"));
+}
 
 function toPositionNumber(v: number | "left" | "center" | "right" | undefined): number {
   if (typeof v === "number" && v >= 0 && v <= 100) return v;
@@ -86,11 +99,20 @@ function mergeWithDefaults(partial: Partial<HomeContent> | null): HomeContent {
   if (!Array.isArray(merged.bannerPhrases) || merged.bannerPhrases.length === 0) {
     merged.bannerPhrases = [...defaultHomeContent.bannerPhrases];
   }
+  // Backward compatibility: older data only had `heroImageUrl`.
+  if ((!Array.isArray(merged.heroImageUrls) || merged.heroImageUrls.length === 0) && merged.heroImageUrl?.trim()) {
+    merged.heroImageUrls = [merged.heroImageUrl.trim()];
+  }
+  // If the new array exists, ensure the legacy field points to the first element.
+  if (Array.isArray(merged.heroImageUrls) && merged.heroImageUrls.length > 0) {
+    merged.heroImageUrl = merged.heroImageUrls[0] ?? "";
+  }
   return merged;
 }
 
 /** Get home content from Supabase (server-side only). Cached per request so safe to call from page + generateMetadata. */
 export const getHomeContentServer = cache(async (): Promise<HomeContent> => {
+  if (homeContentTableMissing) return defaultHomeContent;
   try {
     const supabase = supabaseServerOnlyClient();
     const { data, error } = await supabase
@@ -98,6 +120,10 @@ export const getHomeContentServer = cache(async (): Promise<HomeContent> => {
       .select("content")
       .eq("id", ROW_ID)
       .single();
+    if (error && isMissingHomeContentTableMessage(error.message)) {
+      homeContentTableMissing = true;
+      return defaultHomeContent;
+    }
     if (!error && data?.content) return mergeWithDefaults(data.content as Partial<HomeContent>);
   } catch {
     // Supabase not configured or network error
@@ -107,6 +133,18 @@ export const getHomeContentServer = cache(async (): Promise<HomeContent> => {
 
 /** Get home content from Supabase, then localStorage fallback, then defaults. */
 export async function getHomeContent(): Promise<HomeContent> {
+  if (homeContentTableMissing) {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) return mergeWithDefaults(JSON.parse(stored));
+      } catch {
+        // ignore
+      }
+    }
+    return defaultHomeContent;
+  }
+
   try {
     const supabase = supabaseBrowserClient();
     const { data, error } = await supabase
@@ -114,6 +152,9 @@ export async function getHomeContent(): Promise<HomeContent> {
       .select("content")
       .eq("id", ROW_ID)
       .single();
+    if (error && isMissingHomeContentTableMessage(error.message)) {
+      homeContentTableMissing = true;
+    }
 
     if (!error && data?.content) {
       const merged = mergeWithDefaults(data.content as Partial<HomeContent>);
@@ -138,20 +179,37 @@ export async function getHomeContent(): Promise<HomeContent> {
   return defaultHomeContent;
 }
 
+/** Fast client-side read to avoid first-render flicker on homepage reload. */
+export function getCachedHomeContentSync(): HomeContent | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    return mergeWithDefaults(JSON.parse(stored));
+  } catch {
+    return null;
+  }
+}
+
 /** Save home content to Supabase and to localStorage as cache. */
 export async function saveHomeContent(content: HomeContent): Promise<void> {
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(content));
   }
 
+  if (homeContentTableMissing) return;
+
   try {
     const supabase = supabaseBrowserClient();
-    await supabase
+    const { error } = await supabase
       .from("home_content")
       .upsert(
         { id: ROW_ID, content: content, updated_at: new Date().toISOString() },
         { onConflict: "id" }
       );
+    if (error && isMissingHomeContentTableMessage(error.message)) {
+      homeContentTableMissing = true;
+    }
   } catch {
     // Supabase not configured or network error; localStorage already updated
   }

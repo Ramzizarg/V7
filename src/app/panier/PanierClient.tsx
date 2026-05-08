@@ -59,6 +59,7 @@ export default function PanierClient() {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [showOrderProcessPopup, setShowOrderProcessPopup] = useState(false);
 
   useEffect(() => {
     setItems(getCart());
@@ -157,6 +158,9 @@ export default function PanierClient() {
     }
     setPlacingOrder(true);
     try {
+      const minProcessingDelay = new Promise<void>((resolve) => {
+        window.setTimeout(() => resolve(), 2000);
+      });
       const supabase = supabaseBrowserClient();
       const { data: orderData, error: orderErr } = await supabase
         .from("orders")
@@ -189,8 +193,11 @@ export default function PanierClient() {
       const { error: itemsErr } = await supabase.from("order_items").insert(payload);
       if (itemsErr) throw new Error(itemsErr.message);
 
+      await minProcessingDelay;
+
       setCart([]);
       setOrderSuccess(true);
+      setShowOrderProcessPopup(true);
       setFullName("");
       setEmail("");
       setPhone("");
@@ -440,7 +447,7 @@ export default function PanierClient() {
                   disabled={placingOrder}
                   className="w-full py-4 sm:py-3.5 bg-black text-white text-sm font-semibold uppercase tracking-wider rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {placingOrder ? "Envoi..." : "PAYER EN ESPECES"}
+                  {placingOrder ? "..." : "PAYER EN ESPECES"}
                 </button>
                 <p className="text-xs text-zinc-500 mt-2 text-center px-1">
                   Paiement a la livraison (especes uniquement). Pas de PayPal.
@@ -546,6 +553,23 @@ export default function PanierClient() {
           </section>
         ) : null}
       </main>
+      {showOrderProcessPopup ? (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 sm:p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-black">Commande en cours</h3>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-700">
+              Votre commande est en cours de traitement. Le service client va vous appeler pour confirmer la
+              commande.
+            </p>
+            <Link
+              href="/collection"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-black px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-zinc-800"
+            >
+              Continuer vos achats
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
