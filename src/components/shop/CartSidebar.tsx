@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { getCart, removeFromCartLine, updateCartQuantity } from "@/lib/shopClientStorage";
 import type { CartItem } from "@/lib/types";
 
@@ -181,9 +182,10 @@ export function CartSidebar({ open, onClose }: Props) {
                           <button
                             type="button"
                             onClick={() => removeFromCartLine(item)}
-                            className="text-xs font-semibold uppercase leading-none tracking-[0.02em] text-zinc-500 hover:text-red-600"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 hover:text-red-700"
+                            aria-label="Supprimer l'article"
                           >
-                            Supprimer
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                           <div className="flex h-7 items-center border border-zinc-300 sm:h-8">
                             <button
