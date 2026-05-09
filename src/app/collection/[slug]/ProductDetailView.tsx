@@ -18,6 +18,41 @@ import type { Product } from "@/lib/types";
 
 const PLACEHOLDER = "/V7/1.jpg";
 
+type AudioTrack = { src: string; title: string };
+
+/**
+ * Bandes-son auto-declenchees quand certains mots-cles apparaissent dans le
+ * nom (ou le slug) du produit. La detection est tolerante (accents, casse,
+ * tirets / espaces) pour fonctionner quelle que soit la forme exacte du slug.
+ */
+const PRODUCT_AUDIO_RULES: { keywords: string[]; track: AudioTrack }[] = [
+  {
+    keywords: ["club africain"],
+    track: { src: "/CA.mp3", title: "Hymne du Club Africain" },
+  },
+];
+
+function normalizeForMatch(input: string | null | undefined): string {
+  if (!input) return "";
+  return input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function resolveAudioTrack(product: { name?: string | null; slug?: string | null }): AudioTrack | null {
+  const haystack = `${normalizeForMatch(product.name)} ${normalizeForMatch(product.slug)}`.trim();
+  if (!haystack) return null;
+  for (const rule of PRODUCT_AUDIO_RULES) {
+    if (rule.keywords.every((kw) => haystack.includes(normalizeForMatch(kw)))) {
+      return rule.track;
+    }
+  }
+  return null;
+}
+
 function HeartIcon({ filled, className }: { filled?: boolean; className?: string }) {
   return (
     <svg
@@ -165,10 +200,27 @@ export default function ProductDetailView({ product }: Props) {
   const [mobileQuickSize, setMobileQuickSize] = useState<string | null>(null);
   const [imageZoomOpen, setImageZoomOpen] = useState(false);
   const [addQty, setAddQty] = useState(1);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  /**
+   * Splash d'entree pour activer la bande-son (necessaire car les navigateurs
+   * exigent un geste utilisateur avant le son automatique). 'pending' = pas
+   * encore decide, 'visible' = on l'affiche, 'dismissed' = utilisateur a deja
+   * choisi (active ou refuse) dans cet onglet/session.
+   */
+  const [audioGateState, setAudioGateState] = useState<"pending" | "visible" | "dismissed">(
+    "pending"
+  );
   const favBtnRef = useRef<HTMLButtonElement>(null);
   const mainAddBtnRef = useRef<HTMLButtonElement>(null);
   const sizeSectionRef = useRef<HTMLDivElement>(null);
   const favToastTimerRef = useRef<number | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const audioTrack = useMemo(
+    () => resolveAudioTrack({ name: product.name, slug: product.slug ?? null }),
+    [product.name, product.slug]
+  );
 
   const sizeOptions = useMemo(() => getSizeOptionsForProduct(product), [product]);
   const outOfStock = !sizeOptions.some((o) => o.available);
@@ -252,6 +304,227 @@ export default function ProductDetailView({ product }: Props) {
       if (favToastTimerRef.current != null) window.clearTimeout(favToastTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!audioTrack) {
+      setIsAudioPlaying(false);
+      setIsAudioMuted(false);
+      setAudioGateState("dismissed");
+      return;
+    }
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const storageKey = `vero7:audio-pos:${audioTrack.src}`;
+    const gateKey = `vero7:audio-gate:${audioTrack.src}`;
+    const alreadyDismissed = (() => {
+      try {
+        return window.sessionStorage.getItem(gateKey) === "1";
+      } catch {
+        return false;
+      }
+    })();
+
+    const savedPos = (() => {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) return 0;
+        const n = Number(raw);
+        return Number.isFinite(n) && n > 0 ? n : 0;
+      } catch {
+        return 0;
+      }
+    })();
+
+    const seekToSaved = () => {
+      if (savedPos > 0 && Number.isFinite(audio.duration) && audio.duration > 0) {
+        try {
+          audio.currentTime = Math.min(savedPos, Math.max(0, audio.duration - 0.5));
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    if (audio.readyState >= 1) {
+      seekToSaved();
+    } else {
+      audio.addEventListener("loadedmetadata", seekToSaved, { once: true });
+    }
+
+    audio.volume = 0.6;
+    audio.muted = false;
+
+    const onPlay = () => {
+      setIsAudioPlaying(true);
+      setIsAudioMuted(audio.muted);
+    };
+    const onPause = () => setIsAudioPlaying(false);
+    const onEnded = () => setIsAudioPlaying(false);
+    const onVolumeChange = () => setIsAudioMuted(audio.muted);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("volumechange", onVolumeChange);
+
+    let lastSaved = 0;
+    const persistPos = () => {
+      if (!Number.isFinite(audio.currentTime)) return;
+      try {
+        window.localStorage.setItem(storageKey, String(audio.currentTime));
+      } catch {
+        // ignore quota / privacy errors
+      }
+    };
+    const onTimeUpdate = () => {
+      const now = Date.now();
+      if (now - lastSaved < 1000) return;
+      lastSaved = now;
+      persistPos();
+    };
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    const onPageHide = () => persistPos();
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onPageHide);
+
+    // Page restored from BFCache (browser back/forward, sometimes also F5):
+    // re-attempt audible playback because the user gesture is preserved.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        audio.muted = false;
+        setIsAudioMuted(false);
+        audio.play().catch(() => {});
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+
+    const UNLOCK_EVENTS = [
+      "pointerdown",
+      "mousedown",
+      "click",
+      "keydown",
+      "touchstart",
+      "wheel",
+      "scroll",
+      "mousemove",
+    ] as const;
+
+    let detachUnlock: (() => void) | null = null;
+
+    const unlockAndPlay = () => {
+      audio.muted = false;
+      audio.volume = 0.6;
+      setIsAudioMuted(false);
+      audio.play().catch(() => {});
+      if (detachUnlock) {
+        detachUnlock();
+        detachUnlock = null;
+      }
+    };
+
+    const armUnlockListeners = () => {
+      const opts = { passive: true } as const;
+      UNLOCK_EVENTS.forEach((ev) => window.addEventListener(ev, unlockAndPlay, opts));
+      detachUnlock = () => {
+        UNLOCK_EVENTS.forEach((ev) => window.removeEventListener(ev, unlockAndPlay));
+      };
+    };
+
+    const tryAutoplay = async () => {
+      try {
+        await audio.play();
+        setIsAudioMuted(audio.muted);
+        // Lecture audible reussie : pas besoin du splash.
+        setAudioGateState("dismissed");
+      } catch {
+        // Autoplay sonore bloque : on tente la lecture en muet
+        // (toujours autorisee), puis on retire le muet au 1er geste.
+        try {
+          audio.muted = true;
+          setIsAudioMuted(true);
+          await audio.play();
+        } catch {
+          // Meme la lecture muette a echoue : on attend un geste.
+        }
+        armUnlockListeners();
+        // Le son a ete bloque : si l'utilisateur n'a pas deja choisi dans
+        // cette session, on affiche le splash d'entree.
+        if (!alreadyDismissed) {
+          setAudioGateState("visible");
+        } else {
+          setAudioGateState("dismissed");
+        }
+      }
+    };
+
+    void tryAutoplay();
+
+    return () => {
+      persistPos();
+      audio.removeEventListener("loadedmetadata", seekToSaved);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("volumechange", onVolumeChange);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onPageHide);
+      window.removeEventListener("pageshow", onPageShow);
+      if (detachUnlock) detachUnlock();
+      audio.pause();
+      setIsAudioPlaying(false);
+    };
+  }, [audioTrack]);
+
+  const toggleAudioPlayback = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      audio.muted = false;
+      audio.volume = 0.6;
+      setIsAudioMuted(false);
+      audio.play().catch(() => {});
+    } else if (audio.muted) {
+      audio.muted = false;
+      audio.volume = 0.6;
+      setIsAudioMuted(false);
+    } else {
+      audio.pause();
+    }
+  }, []);
+
+  const persistGateDismissal = useCallback((src: string) => {
+    try {
+      window.sessionStorage.setItem(`vero7:audio-gate:${src}`, "1");
+    } catch {
+      // ignore quota / privacy errors
+    }
+  }, []);
+
+  const acceptAudioGate = useCallback(() => {
+    if (!audioTrack) return;
+    const audio = audioRef.current;
+    if (audio) {
+      audio.muted = false;
+      audio.volume = 0.6;
+      setIsAudioMuted(false);
+      void audio.play().catch(() => {});
+    }
+    persistGateDismissal(audioTrack.src);
+    setAudioGateState("dismissed");
+  }, [audioTrack, persistGateDismissal]);
+
+  const declineAudioGate = useCallback(() => {
+    if (!audioTrack) return;
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.muted = true;
+      setIsAudioMuted(true);
+    }
+    persistGateDismissal(audioTrack.src);
+    setAudioGateState("dismissed");
+  }, [audioTrack, persistGateDismissal]);
 
   useEffect(() => {
     if (!sizeGuideOpen) return;
@@ -367,8 +640,16 @@ export default function ProductDetailView({ product }: Props) {
   const mainSrc = images[Math.min(active, images.length - 1)] ?? PLACEHOLDER;
   const isRemote = (u: string) => u.startsWith("http");
   const hasMultipleImages = images.length > 1;
-  const showPrevImage = () => setActive((prev) => (prev - 1 + images.length) % images.length);
-  const showNextImage = () => setActive((prev) => (prev + 1) % images.length);
+  const canGoPrev = active > 0;
+  const canGoNext = active < images.length - 1;
+  const showPrevImage = () => setActive((prev) => Math.max(0, prev - 1));
+  const showNextImage = () => setActive((prev) => Math.min(images.length - 1, prev + 1));
+  const navBtnClass = (enabled: boolean) =>
+    `flex h-8 w-8 items-center justify-center border shadow-sm transition ${
+      enabled
+        ? "border-black/10 bg-white/95 text-black hover:bg-white"
+        : "cursor-not-allowed border-zinc-200 bg-zinc-100/90 text-zinc-400 opacity-60 hover:bg-zinc-100/90"
+    }`;
   const resolveAddToCartSize = useCallback((): string | null => {
     if (selectedSize == null || selectedSize === "") return null;
     const o = sizeOptions.find((x) => x.label === selectedSize);
@@ -454,12 +735,13 @@ export default function ProductDetailView({ product }: Props) {
                 </div>
               ) : null}
               {hasMultipleImages ? (
-                <div className="absolute left-2 top-2 z-20 flex items-center gap-2 lg:hidden">
+                <div className="absolute left-2 top-2 z-20 flex items-center gap-2">
                   <button
                     type="button"
+                    disabled={!canGoPrev}
                     onClick={showPrevImage}
                     aria-label="Image précédente"
-                    className="flex h-8 w-8 items-center justify-center border border-black/10 bg-white/95 text-black shadow-sm transition hover:bg-white"
+                    className={navBtnClass(canGoPrev)}
                   >
                     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6">
                       <path d="M15 6 9 12l6 6" strokeLinecap="round" strokeLinejoin="round" />
@@ -467,9 +749,10 @@ export default function ProductDetailView({ product }: Props) {
                   </button>
                   <button
                     type="button"
+                    disabled={!canGoNext}
                     onClick={showNextImage}
                     aria-label="Image suivante"
-                    className="flex h-8 w-8 items-center justify-center border border-black/10 bg-white/95 text-black shadow-sm transition hover:bg-white"
+                    className={navBtnClass(canGoNext)}
                   >
                     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6">
                       <path d="m9 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
@@ -496,19 +779,98 @@ export default function ProductDetailView({ product }: Props) {
 
           {/* Infos */}
           <div className="flex flex-col px-4 sm:px-0 lg:pt-2">
-            <nav className="text-[11px] leading-relaxed text-zinc-500 sm:text-xs" aria-label="Fil d'Ariane">
-              <Link href="/" className="transition hover:text-black">
-                Accueil
-              </Link>
-              <span className="mx-1.5 text-zinc-300">/</span>
-              <Link href="/collection" className="transition hover:text-black">
-                Collection
-              </Link>
-              <span className="mx-1.5 text-zinc-300">/</span>
-              <span className="text-zinc-600">{categoryLabel}</span>
-              <span className="mx-1.5 text-zinc-300">/</span>
-              <span className="text-black">{product.name}</span>
-            </nav>
+            <div className="flex items-center justify-between gap-3">
+              <nav
+                className="min-w-0 flex-1 truncate text-[11px] leading-relaxed text-zinc-500 sm:text-xs"
+                aria-label="Fil d'Ariane"
+              >
+                <Link href="/" className="transition hover:text-black">
+                  Accueil
+                </Link>
+                <span className="mx-1.5 text-zinc-300">/</span>
+                <Link href="/collection" className="transition hover:text-black">
+                  Collection
+                </Link>
+                <span className="mx-1.5 text-zinc-300">/</span>
+                <span className="text-zinc-600">{categoryLabel}</span>
+                <span className="mx-1.5 text-zinc-300">/</span>
+                <span className="text-black">{product.name}</span>
+              </nav>
+              {audioTrack ? (
+                <>
+                  <audio
+                    ref={audioRef}
+                    src={audioTrack.src}
+                    loop
+                    preload="auto"
+                    autoPlay
+                    playsInline
+                  />
+                  <button
+                    type="button"
+                    onClick={toggleAudioPlayback}
+                    aria-label={
+                      isAudioPlaying && !isAudioMuted
+                        ? "Mettre la musique en pause"
+                        : "Lire la musique"
+                    }
+                    aria-pressed={isAudioPlaying && !isAudioMuted}
+                    title={
+                      isAudioMuted
+                        ? `Activer le son — ${audioTrack.title}`
+                        : isAudioPlaying
+                          ? audioTrack.title
+                          : `Lire — ${audioTrack.title}`
+                    }
+                    className={`audio-toggle ${
+                      isAudioPlaying && !isAudioMuted ? "is-playing" : ""
+                    } ${isAudioMuted ? "is-muted" : ""}`}
+                  >
+                    <span className="audio-toggle__halo" aria-hidden />
+                    <span className="audio-toggle__core">
+                      {isAudioMuted ? (
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="audio-toggle__icon"
+                          fill="currentColor"
+                          aria-hidden
+                        >
+                          <path d="M3 10v4a1 1 0 0 0 1 1h3l4 3.5a1 1 0 0 0 1.7-.8V6.3a1 1 0 0 0-1.7-.8L7 9H4a1 1 0 0 0-1 1Z" />
+                          <path
+                            d="m16.5 9 4 4m0-4-4 4"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            fill="none"
+                          />
+                        </svg>
+                      ) : isAudioPlaying ? (
+                        <span className="audio-toggle__eq" aria-hidden>
+                          <span />
+                          <span />
+                          <span />
+                          <span />
+                        </span>
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="audio-toggle__icon"
+                          fill="currentColor"
+                          aria-hidden
+                        >
+                          <path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z" />
+                        </svg>
+                      )}
+                    </span>
+                    {isAudioMuted ? (
+                      <span className="audio-toggle__hint" aria-hidden>
+                        Cliquez pour activer le son
+                      </span>
+                    ) : null}
+                  </button>
+                </>
+              ) : null}
+            </div>
 
             <div className="mt-6 flex items-start justify-between gap-4 border-b border-black/10 pb-6">
               <h1 className="max-w-[90%] text-xl font-semibold uppercase leading-[1.2] tracking-tight sm:text-2xl lg:text-[1.65rem] lg:leading-tight">
@@ -1153,6 +1515,61 @@ export default function ProductDetailView({ product }: Props) {
           ) : (
             <p className="pr-1 text-sm font-medium text-black">Retiré de vos favoris</p>
           )}
+        </div>
+      ) : null}
+
+      {audioTrack && audioGateState === "visible" ? (
+        <div
+          className="audio-gate"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="audio-gate-title"
+          aria-describedby="audio-gate-desc"
+        >
+          <button
+            type="button"
+            className="audio-gate__backdrop"
+            aria-label="Continuer en silence"
+            onClick={declineAudioGate}
+          />
+          <div className="audio-gate__card">
+            <button
+              type="button"
+              className="audio-gate__close"
+              aria-label="Fermer"
+              onClick={declineAudioGate}
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              </svg>
+            </button>
+
+            <span className="audio-gate__eyebrow">Bande-son officielle</span>
+            <h2 id="audio-gate-title" className="audio-gate__title">
+              Entrez dans l&apos;ambiance
+            </h2>
+            <p id="audio-gate-desc" className="audio-gate__desc">
+              Activez <strong>{audioTrack.title}</strong> pour vivre la collection comme dans le stade.
+            </p>
+
+            <button
+              type="button"
+              className="audio-gate__cta"
+              onClick={acceptAudioGate}
+              autoFocus
+            >
+              <span className="audio-gate__cta-icon" aria-hidden>
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                  <path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z" />
+                </svg>
+              </span>
+              <span>Activer la musique</span>
+            </button>
+
+            <button type="button" className="audio-gate__skip" onClick={declineAudioGate}>
+              Continuer en silence
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
