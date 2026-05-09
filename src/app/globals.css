@@ -58,8 +58,24 @@ body {
   }
 }
 
-/** Bouton play/pause de la bande-son produit (style Club Africain). */
+/** Bouton play/pause de la bande-son produit (themable: rouge / jaune). */
 .audio-toggle {
+  /* Variables de theme (rouge par defaut). */
+  --audio-c1: #ef4444;
+  --audio-c2: #dc2626;
+  --audio-c3: #9f1239;
+  --audio-c1-hover: #f87171;
+  --audio-c2-hover: #ef4444;
+  --audio-c3-hover: #be123c;
+  --audio-icon: #ffffff;
+  --audio-bar: #ffffff;
+  --audio-shadow: rgba(159, 18, 57, 0.55);
+  --audio-halo: rgba(220, 38, 38, 0.35);
+  --audio-halo-strong: rgba(220, 38, 38, 0.45);
+  --audio-pulse: rgba(220, 38, 38, 0.55);
+  --audio-pulse-end: rgba(220, 38, 38, 0);
+  --audio-focus: rgba(190, 18, 60, 0.35);
+
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -75,6 +91,25 @@ body {
   isolation: isolate;
   transition: transform 0.2s ease;
 }
+
+/** Variante jaune (Esperance Sportive de Tunis / Taraji). */
+.audio-toggle--yellow {
+  --audio-c1: #fde047;
+  --audio-c2: #facc15;
+  --audio-c3: #a16207;
+  --audio-c1-hover: #fef08a;
+  --audio-c2-hover: #fde047;
+  --audio-c3-hover: #ca8a04;
+  --audio-icon: #1c1917;
+  --audio-bar: #1c1917;
+  --audio-shadow: rgba(161, 98, 7, 0.55);
+  --audio-halo: rgba(234, 179, 8, 0.4);
+  --audio-halo-strong: rgba(234, 179, 8, 0.5);
+  --audio-pulse: rgba(234, 179, 8, 0.6);
+  --audio-pulse-end: rgba(234, 179, 8, 0);
+  --audio-focus: rgba(202, 138, 4, 0.4);
+}
+
 .audio-toggle:hover {
   transform: scale(1.07);
 }
@@ -86,8 +121,8 @@ body {
 }
 .audio-toggle:focus-visible .audio-toggle__core {
   box-shadow:
-    0 6px 18px -4px rgba(190, 18, 60, 0.55),
-    0 0 0 3px rgba(190, 18, 60, 0.35);
+    0 6px 18px -4px var(--audio-shadow),
+    0 0 0 3px var(--audio-focus);
 }
 
 .audio-toggle__core {
@@ -99,14 +134,14 @@ body {
   width: 38px;
   height: 38px;
   border-radius: 9999px;
-  color: #ffffff;
+  color: var(--audio-icon);
   background:
     radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 55%),
-    linear-gradient(140deg, #ef4444 0%, #dc2626 45%, #9f1239 100%);
+    linear-gradient(140deg, var(--audio-c1) 0%, var(--audio-c2) 45%, var(--audio-c3) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     inset 0 -2px 4px rgba(0, 0, 0, 0.25),
-    0 6px 14px -4px rgba(159, 18, 57, 0.55),
+    0 6px 14px -4px var(--audio-shadow),
     0 2px 4px rgba(0, 0, 0, 0.18);
   transition:
     box-shadow 0.2s ease,
@@ -115,7 +150,7 @@ body {
 .audio-toggle:hover .audio-toggle__core {
   background:
     radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0) 55%),
-    linear-gradient(140deg, #f87171 0%, #ef4444 45%, #be123c 100%);
+    linear-gradient(140deg, var(--audio-c1-hover) 0%, var(--audio-c2-hover) 45%, var(--audio-c3-hover) 100%);
 }
 
 .audio-toggle__icon {
@@ -140,19 +175,19 @@ body {
 .audio-toggle.is-playing .audio-toggle__halo {
   opacity: 1;
   transform: scale(1);
-  background: radial-gradient(circle, rgba(220, 38, 38, 0.35) 0%, rgba(220, 38, 38, 0) 70%);
+  background: radial-gradient(circle, var(--audio-halo) 0%, var(--audio-pulse-end) 70%);
   animation: audio-toggle-halo 1.8s ease-out infinite;
 }
 
 @keyframes audio-toggle-halo {
   0% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55);
+    box-shadow: 0 0 0 0 var(--audio-pulse);
   }
   70% {
-    box-shadow: 0 0 0 12px rgba(220, 38, 38, 0);
+    box-shadow: 0 0 0 12px var(--audio-pulse-end);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    box-shadow: 0 0 0 0 var(--audio-pulse-end);
   }
 }
 
@@ -169,7 +204,7 @@ body {
   display: block;
   width: 2.5px;
   height: 100%;
-  background: #ffffff;
+  background: var(--audio-bar);
   border-radius: 2px;
   transform-origin: center;
   animation: audio-toggle-eq-bar 0.95s ease-in-out infinite;
@@ -203,7 +238,7 @@ body {
 .audio-toggle.is-muted .audio-toggle__halo {
   opacity: 1;
   transform: scale(1);
-  background: radial-gradient(circle, rgba(220, 38, 38, 0.45) 0%, rgba(220, 38, 38, 0) 70%);
+  background: radial-gradient(circle, var(--audio-halo-strong) 0%, var(--audio-pulse-end) 70%);
   animation: audio-toggle-halo 1.4s ease-out infinite;
 }
 
@@ -277,6 +312,26 @@ body {
 
 /** Splash d'entree pour activer la bande-son du produit. */
 .audio-gate {
+  /* Theme par defaut : rouge (Club Africain). */
+  --gate-card-bg-1: #2a0a0f;
+  --gate-card-bg-2: #1a0408;
+  --gate-card-bg-3: #0a0103;
+  --gate-card-shadow: rgba(159, 18, 57, 0.45);
+  --gate-glow: rgba(220, 38, 38, 0.35);
+  --gate-glow-end: rgba(220, 38, 38, 0);
+  --gate-eyebrow: #fca5a5;
+  --gate-cta-c1: #ef4444;
+  --gate-cta-c2: #dc2626;
+  --gate-cta-c3: #9f1239;
+  --gate-cta-c1-hover: #f87171;
+  --gate-cta-c2-hover: #ef4444;
+  --gate-cta-c3-hover: #be123c;
+  --gate-cta-text: #ffffff;
+  --gate-cta-shadow: rgba(220, 38, 38, 0.55);
+  --gate-cta-shadow-hover: rgba(220, 38, 38, 0.65);
+  --gate-cta-pulse: rgba(220, 38, 38, 0.55);
+  --gate-cta-pulse-end: rgba(220, 38, 38, 0);
+
   position: fixed;
   inset: 0;
   z-index: 200;
@@ -285,6 +340,28 @@ body {
   justify-content: center;
   padding: 24px;
   animation: audio-gate-fade 0.3s ease-out;
+}
+
+/** Variante jaune (Esperance Sportive de Tunis / Taraji). */
+.audio-gate--yellow {
+  --gate-card-bg-1: #2a1f04;
+  --gate-card-bg-2: #1a1402;
+  --gate-card-bg-3: #050402;
+  --gate-card-shadow: rgba(161, 98, 7, 0.5);
+  --gate-glow: rgba(250, 204, 21, 0.35);
+  --gate-glow-end: rgba(250, 204, 21, 0);
+  --gate-eyebrow: #fde047;
+  --gate-cta-c1: #fde047;
+  --gate-cta-c2: #facc15;
+  --gate-cta-c3: #a16207;
+  --gate-cta-c1-hover: #fef08a;
+  --gate-cta-c2-hover: #fde047;
+  --gate-cta-c3-hover: #ca8a04;
+  --gate-cta-text: #1c1917;
+  --gate-cta-shadow: rgba(234, 179, 8, 0.6);
+  --gate-cta-shadow-hover: rgba(234, 179, 8, 0.7);
+  --gate-cta-pulse: rgba(234, 179, 8, 0.6);
+  --gate-cta-pulse-end: rgba(234, 179, 8, 0);
 }
 
 .audio-gate__backdrop {
@@ -309,10 +386,15 @@ body {
   color: #ffffff;
   background:
     radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 55%),
-    linear-gradient(160deg, #2a0a0f 0%, #1a0408 50%, #0a0103 100%);
+    linear-gradient(
+      160deg,
+      var(--gate-card-bg-1) 0%,
+      var(--gate-card-bg-2) 50%,
+      var(--gate-card-bg-3) 100%
+    );
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
-    0 30px 80px -20px rgba(159, 18, 57, 0.45),
+    0 30px 80px -20px var(--gate-card-shadow),
     0 12px 30px -8px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   animation: audio-gate-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1);
@@ -325,8 +407,8 @@ body {
   inset: 0;
   background: radial-gradient(
     600px circle at 50% -10%,
-    rgba(220, 38, 38, 0.35) 0%,
-    rgba(220, 38, 38, 0) 60%
+    var(--gate-glow) 0%,
+    var(--gate-glow-end) 60%
   );
   pointer-events: none;
 }
@@ -358,7 +440,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: #fca5a5;
+  color: var(--gate-eyebrow);
   margin-bottom: 14px;
   position: relative;
 }
@@ -401,16 +483,21 @@ body {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #ffffff;
+  color: var(--gate-cta-text);
   background:
     radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 55%),
-    linear-gradient(140deg, #ef4444 0%, #dc2626 45%, #9f1239 100%);
+    linear-gradient(
+      140deg,
+      var(--gate-cta-c1) 0%,
+      var(--gate-cta-c2) 45%,
+      var(--gate-cta-c3) 100%
+    );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
     inset 0 -2px 4px rgba(0, 0, 0, 0.25),
-    0 12px 30px -6px rgba(220, 38, 38, 0.55),
+    0 12px 30px -6px var(--gate-cta-shadow),
     0 4px 10px rgba(0, 0, 0, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .audio-gate__cta::after {
@@ -418,17 +505,25 @@ body {
   position: absolute;
   inset: -4px;
   border-radius: 9999px;
-  box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55);
+  box-shadow: 0 0 0 0 var(--gate-cta-pulse);
   animation: audio-gate-cta-pulse 1.8s ease-out infinite;
   pointer-events: none;
 }
 
 .audio-gate__cta:hover {
   transform: translateY(-1px) scale(1.01);
+  background:
+    radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 55%),
+    linear-gradient(
+      140deg,
+      var(--gate-cta-c1-hover) 0%,
+      var(--gate-cta-c2-hover) 45%,
+      var(--gate-cta-c3-hover) 100%
+    );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     inset 0 -2px 4px rgba(0, 0, 0, 0.25),
-    0 16px 36px -6px rgba(220, 38, 38, 0.65),
+    0 16px 36px -6px var(--gate-cta-shadow-hover),
     0 4px 10px rgba(0, 0, 0, 0.3);
 }
 .audio-gate__cta:active {
@@ -483,13 +578,13 @@ body {
 }
 @keyframes audio-gate-cta-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+    box-shadow: 0 0 0 0 var(--gate-cta-pulse);
   }
   70% {
-    box-shadow: 0 0 0 14px rgba(220, 38, 38, 0);
+    box-shadow: 0 0 0 14px var(--gate-cta-pulse-end);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    box-shadow: 0 0 0 0 var(--gate-cta-pulse-end);
   }
 }
 

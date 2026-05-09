@@ -18,7 +18,8 @@ import type { Product } from "@/lib/types";
 
 const PLACEHOLDER = "/V7/1.jpg";
 
-type AudioTrack = { src: string; title: string };
+type AudioTheme = "red" | "yellow";
+type AudioTrack = { src: string; title: string; theme: AudioTheme };
 
 /**
  * Bandes-son auto-declenchees quand certains mots-cles apparaissent dans le
@@ -28,7 +29,15 @@ type AudioTrack = { src: string; title: string };
 const PRODUCT_AUDIO_RULES: { keywords: string[]; track: AudioTrack }[] = [
   {
     keywords: ["club africain"],
-    track: { src: "/CA.mp3", title: "Hymne du Club Africain" },
+    track: { src: "/CA.mp3", title: "Music du Club Africain", theme: "red" },
+  },
+  {
+    keywords: ["esperance"],
+    track: { src: "/EST.mp3", title: "Music de l'Esperance Sportive", theme: "yellow" },
+  },
+  {
+    keywords: ["taraji"],
+    track: { src: "/EST.mp3", title: "Music de l'Esperance Sportive", theme: "yellow" },
   },
 ];
 
@@ -639,7 +648,7 @@ export default function ProductDetailView({ product }: Props) {
 
   const mainSrc = images[Math.min(active, images.length - 1)] ?? PLACEHOLDER;
   const isRemote = (u: string) => u.startsWith("http");
-  const hasMultipleImages = images.length > 1;
+  const hasMultipleImages = images.length > 0;
   const canGoPrev = active > 0;
   const canGoNext = active < images.length - 1;
   const showPrevImage = () => setActive((prev) => Math.max(0, prev - 1));
@@ -778,11 +787,12 @@ export default function ProductDetailView({ product }: Props) {
           </div>
 
           {/* Infos */}
-          <div className="flex flex-col px-4 sm:px-0 lg:pt-2">
-            <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-col px-4 sm:px-0 lg:pt-2">
+            <div className="flex w-full min-w-0 items-center justify-between gap-3">
               <nav
-                className="min-w-0 flex-1 truncate text-[11px] leading-relaxed text-zinc-500 sm:text-xs"
+                className="min-w-0 flex-1 truncate whitespace-nowrap text-[11px] leading-relaxed text-zinc-500 sm:text-xs"
                 aria-label="Fil d'Ariane"
+                title={product.name}
               >
                 <Link href="/" className="transition hover:text-black">
                   Accueil
@@ -797,78 +807,68 @@ export default function ProductDetailView({ product }: Props) {
                 <span className="text-black">{product.name}</span>
               </nav>
               {audioTrack ? (
-                <>
-                  <audio
-                    ref={audioRef}
-                    src={audioTrack.src}
-                    loop
-                    preload="auto"
-                    autoPlay
-                    playsInline
-                  />
-                  <button
-                    type="button"
-                    onClick={toggleAudioPlayback}
-                    aria-label={
-                      isAudioPlaying && !isAudioMuted
-                        ? "Mettre la musique en pause"
-                        : "Lire la musique"
-                    }
-                    aria-pressed={isAudioPlaying && !isAudioMuted}
-                    title={
-                      isAudioMuted
-                        ? `Activer le son — ${audioTrack.title}`
-                        : isAudioPlaying
-                          ? audioTrack.title
-                          : `Lire — ${audioTrack.title}`
-                    }
-                    className={`audio-toggle ${
-                      isAudioPlaying && !isAudioMuted ? "is-playing" : ""
-                    } ${isAudioMuted ? "is-muted" : ""}`}
-                  >
-                    <span className="audio-toggle__halo" aria-hidden />
-                    <span className="audio-toggle__core">
-                      {isAudioMuted ? (
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="audio-toggle__icon"
-                          fill="currentColor"
-                          aria-hidden
-                        >
-                          <path d="M3 10v4a1 1 0 0 0 1 1h3l4 3.5a1 1 0 0 0 1.7-.8V6.3a1 1 0 0 0-1.7-.8L7 9H4a1 1 0 0 0-1 1Z" />
-                          <path
-                            d="m16.5 9 4 4m0-4-4 4"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            fill="none"
-                          />
-                        </svg>
-                      ) : isAudioPlaying ? (
-                        <span className="audio-toggle__eq" aria-hidden>
-                          <span />
-                          <span />
-                          <span />
-                          <span />
-                        </span>
-                      ) : (
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="audio-toggle__icon"
-                          fill="currentColor"
-                          aria-hidden
-                        >
-                          <path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z" />
-                        </svg>
-                      )}
-                    </span>
+                <button
+                  type="button"
+                  onClick={toggleAudioPlayback}
+                  aria-label={
+                    isAudioPlaying && !isAudioMuted
+                      ? "Mettre la musique en pause"
+                      : "Lire la musique"
+                  }
+                  aria-pressed={isAudioPlaying && !isAudioMuted}
+                  title={
+                    isAudioMuted
+                      ? `Activer le son — ${audioTrack.title}`
+                      : isAudioPlaying
+                        ? audioTrack.title
+                        : `Lire — ${audioTrack.title}`
+                  }
+                  className={`audio-toggle audio-toggle--${audioTrack.theme} ${
+                    isAudioPlaying && !isAudioMuted ? "is-playing" : ""
+                  } ${isAudioMuted ? "is-muted" : ""}`}
+                >
+                  <span className="audio-toggle__halo" aria-hidden />
+                  <span className="audio-toggle__core">
                     {isAudioMuted ? (
-                      <span className="audio-toggle__hint" aria-hidden>
-                        Cliquez pour activer le son
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="audio-toggle__icon"
+                        fill="currentColor"
+                        aria-hidden
+                      >
+                        <path d="M3 10v4a1 1 0 0 0 1 1h3l4 3.5a1 1 0 0 0 1.7-.8V6.3a1 1 0 0 0-1.7-.8L7 9H4a1 1 0 0 0-1 1Z" />
+                        <path
+                          d="m16.5 9 4 4m0-4-4 4"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          fill="none"
+                        />
+                      </svg>
+                    ) : isAudioPlaying ? (
+                      <span className="audio-toggle__eq" aria-hidden>
+                        <span />
+                        <span />
+                        <span />
+                        <span />
                       </span>
-                    ) : null}
-                  </button>
-                </>
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="audio-toggle__icon"
+                        fill="currentColor"
+                        aria-hidden
+                      >
+                        <path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z" />
+                      </svg>
+                    )}
+                  </span>
+                  {isAudioMuted ? (
+                    <span className="audio-toggle__hint" aria-hidden>
+                      Cliquez pour activer le son
+                    </span>
+                  ) : null}
+                </button>
               ) : null}
             </div>
 
@@ -1443,6 +1443,17 @@ export default function ProductDetailView({ product }: Props) {
 
       <SiteFooter />
 
+      {audioTrack ? (
+        <audio
+          ref={audioRef}
+          src={audioTrack.src}
+          loop
+          preload="auto"
+          autoPlay
+          playsInline
+        />
+      ) : null}
+
       {sizeGuideOpen && product.size_guide_image ? (
         <div
           className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 sm:p-8"
@@ -1520,7 +1531,7 @@ export default function ProductDetailView({ product }: Props) {
 
       {audioTrack && audioGateState === "visible" ? (
         <div
-          className="audio-gate"
+          className={`audio-gate audio-gate--${audioTrack.theme}`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="audio-gate-title"
