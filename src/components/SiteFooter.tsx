@@ -28,12 +28,12 @@ export default function SiteFooter() {
   return (
     <footer className="bg-[#0f1f63] text-white">
       <div className="mx-auto w-full max-w-[1400px] px-6 py-10 sm:px-8 lg:px-12">
-        <div className="grid gap-10 border-b border-white/20 pb-10 lg:grid-cols-[1.1fr_1.1fr_1.1fr_1.9fr]">
+        <div className="grid gap-10 border-b border-white/20 pb-10 lg:grid-cols-[1fr_1fr_2fr]">
           <div>
             <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">A Propos De Vero7</h3>
             <ul className="space-y-2 text-sm text-white/90">
-              <li><a href="#" className="transition hover:text-white">A propos de nous</a></li>
-              <li><a href="#" className="transition hover:text-white">Nos collections</a></li>
+              <li><a href="/a-propos" className="transition hover:text-white">A propos de nous</a></li>
+              <li><a href="/collection" className="transition hover:text-white">Nos collections</a></li>
               <li><a href="#" className="transition hover:text-white">Athletes</a></li>
               <li><a href="#" className="transition hover:text-white">Club Vero7</a></li>
             </ul>
@@ -42,20 +42,10 @@ export default function SiteFooter() {
           <div>
             <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">Service Client</h3>
             <ul className="space-y-2 text-sm text-white/90">
-              <li><a href="#" className="transition hover:text-white">FAQ</a></li>
-              <li><a href="#" className="transition hover:text-white">Livraison & Retours</a></li>
+              <li><a href="/faq" className="transition hover:text-white">FAQ</a></li>
+              <li><a href="/shipping-terms" className="transition hover:text-white">Livraison & Retours</a></li>
               <li><a href="#" className="transition hover:text-white">Guide des tailles</a></li>
               <li><a href="#" className="transition hover:text-white">Contact</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">Informations Legales</h3>
-            <ul className="space-y-2 text-sm text-white/90">
-              <li><a href="#" className="transition hover:text-white">Confidentialite</a></li>
-              <li><a href="#" className="transition hover:text-white">Conditions Generales</a></li>
-              <li><a href="#" className="transition hover:text-white">Paiement</a></li>
-              <li><a href="#" className="transition hover:text-white">Code de conduite</a></li>
             </ul>
           </div>
 

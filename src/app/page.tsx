@@ -31,6 +31,7 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   const [homeContentLoaded, setHomeContentLoaded] = useState(false);
   const [dbCategories, setDbCategories] = useState<StorefrontCategory[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   /** `undefined` = not loaded yet; then API products or empty. */
   const [collectionProducts, setCollectionProducts] = useState<Product[] | undefined>(undefined);
 
@@ -132,11 +133,13 @@ export default function Home() {
         if (cancelled) return;
         setDbCategories(Array.isArray(d.categories) ? d.categories : []);
         setCollectionProducts(Array.isArray(d.products) ? d.products : []);
+        setCategoriesLoaded(true);
       })
       .catch(() => {
         if (!cancelled) {
           setDbCategories([]);
           setCollectionProducts([]);
+          setCategoriesLoaded(true);
         }
       });
     return () => {
@@ -285,32 +288,43 @@ export default function Home() {
               Acheter par Categorie
             </h2>
           </div>
-          <div className="categories-marquee px-1 sm:px-2">
-            <div className="categories-loop-track gap-2">
-              {Array.from({ length: 2 }, (_, copy) => (
-                <div key={copy} className="flex gap-2" aria-hidden={copy > 0}>
-                  {carouselCategories.map((item) => (
-                    <a
-                      key={`${copy}-${item.slug}-${item.id}`}
-                      href="/collection"
-                      className="group relative block h-[320px] w-[280px] shrink-0 overflow-hidden rounded-sm border border-black/10"
-                    >
-                      <div
-                        className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-105"
-                        style={{ backgroundImage: `url(${item.image})` }}
-                      />
-                      <div className="absolute inset-0 bg-black/22" />
-                      <div className="relative z-10 flex h-full items-end p-4">
-                        <h3 className="text-4xl font-extrabold uppercase tracking-[0.06em] text-white">
-                          {item.name}
-                        </h3>
-                      </div>
-                    </a>
-                  ))}
-                </div>
+          {!categoriesLoaded ? (
+            <div className="flex gap-2 overflow-hidden px-1 sm:px-2">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div
+                  key={i}
+                  className="h-[320px] w-[280px] shrink-0 animate-pulse rounded-sm bg-zinc-200"
+                />
               ))}
             </div>
-          </div>
+          ) : carouselCategories.length > 0 ? (
+            <div className="categories-marquee px-1 sm:px-2">
+              <div className="categories-loop-track gap-2">
+                {Array.from({ length: 2 }, (_, copy) => (
+                  <div key={copy} className="flex gap-2" aria-hidden={copy > 0}>
+                    {carouselCategories.map((item) => (
+                      <a
+                        key={`${copy}-${item.slug}-${item.id}`}
+                        href="/collection"
+                        className="group relative block h-[320px] w-[280px] shrink-0 overflow-hidden rounded-sm border border-black/10"
+                      >
+                        <div
+                          className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-105"
+                          style={{ backgroundImage: `url('${item.image}')` }}
+                        />
+                        <div className="absolute inset-0 bg-black/22" />
+                        <div className="relative z-10 flex h-full items-end p-4">
+                          <h3 className="text-4xl font-extrabold uppercase tracking-[0.06em] text-white">
+                            {item.name}
+                          </h3>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section className="relative w-full overflow-hidden">
