@@ -1,0 +1,147 @@
+import { NextRequest, NextResponse } from "next/server";
+import { Resend } from "resend";
+import { put } from "@vercel/blob";
+import fs from "node:fs";
+import path from "node:path";
+import {
+  templateOrderReceivedClient,
+  textOrderReceivedClient,
+  templateNewOrderAdmin,
+  type OrderForEmail,
+  type OrderItemForEmail,
+} from "@/lib/emailTemplates";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const ADMIN_EMAIL = "vero7.tn@gmail.com";
+
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "VERO7 <onboarding@resend.dev>";
+const domainVerified = Boolean(process.env.RESEND_FROM_EMAIL);
+
+const MIME: Record<string, string> = {
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+  webp: "image/webp", gif: "image/gif", avif: "image/avif",
+};
+
+const uploadCache = new Map<string, string>();
+
+async function ensurePublicUrl(imageUrl: string | null | undefined): Promise<string> {
+  if (!imageUrl) return "";
+  const trimmed = imageUrl.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+
+  if (uploadCache.has(trimmed)) return uploadCache.get(trimmed)!;
+
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return "";
+
+  try {
+    const filePath = path.join(process.cwd(), "public", trimmed);
+    if (!fs.existsSync(filePath)) return "";
+
+    const buf = fs.readFileSync(filePath);
+    const ext = path.extname(filePath).replace(".", "").toLowerCase();
+    const contentType = MIME[ext] || "image/jpeg";
+
+    const blob = await put(`email-images/${path.basename(filePath)}`, buf, {
+      access: "public",
+      contentType,
+      addRandomSuffix: false,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+
+    uploadCache.set(trimmed, blob.url);
+    return blob.url;
+  } catch (err) {
+    console.error("[send-email] blob upload failed:", err);
+    return "";
+  }
+}
+
+interface Payload {
+  to: string;
+  fullName: string;
+  phone: string;
+  orderId: number;
+  items: {
+    product_name: string;
+    quantity: number;
+    price: number;
+    size?: string | null;
+    color?: string | null;
+    image_url?: string | null;
+  }[];
+  subtotal: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  address: string;
+  city: string;
+  governorate: string;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = (await req.json()) as Payload;
+
+    if (!body.to || !body.fullName || !body.orderId) {
+      return NextResponse.json({ error: "Champs requis manquants." }, { status: 400 });
+    }
+
+    const order: OrderForEmail = {
+      id: body.orderId,
+      full_name: body.fullName,
+      email: body.to,
+      phone_number: body.phone || "",
+      address: body.address,
+      city: body.city,
+      governorate: body.governorate,
+      total_price: body.total,
+      subtotal: body.subtotal,
+      shipping: body.shipping,
+      discount: body.discount,
+      status: "pending",
+      created_at: new Date().toISOString(),
+    };
+
+    const items: OrderItemForEmail[] = await Promise.all(
+      body.items.map(async (i) => ({
+        product_name: i.product_name,
+        quantity: i.quantity,
+        price: i.price,
+        size: i.size,
+        color: i.color,
+        image_url: await ensurePublicUrl(i.image_url),
+      }))
+    );
+
+    const results = await Promise.all([
+      resend.emails.send({
+        from: FROM_EMAIL,
+        to: ADMIN_EMAIL,
+        subject: `Nouvelle commande #${body.orderId} — ${body.fullName}`,
+        html: templateNewOrderAdmin(order, items),
+      }),
+      resend.emails.send({
+        from: FROM_EMAIL,
+        to: domainVerified ? body.to : ADMIN_EMAIL,
+        replyTo: body.to,
+        subject: domainVerified
+          ? `Votre commande est confirmée — VERO7`
+          : `[Client: ${body.to}] Votre commande est confirmée — VERO7`,
+        html: templateOrderReceivedClient(order, items),
+        text: textOrderReceivedClient(order, items),
+      }),
+    ]);
+
+    if (results[0].error) console.error("[Resend] admin email error:", results[0].error);
+    if (results[1].error) console.error("[Resend] client email error:", results[1].error);
+
+    return NextResponse.json({ success: true, id: results[1].data?.id });
+  } catch (err) {
+    console.error("[send-email] unexpected error:", err);
+    return NextResponse.json(
+      { error: "Erreur interne lors de l'envoi de l'email." },
+      { status: 500 }
+    );
+  }
+}

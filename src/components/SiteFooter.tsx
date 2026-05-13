@@ -1,6 +1,30 @@
 "use client";
 
+import { useState } from "react";
+
 export default function SiteFooter() {
+  const [nlEmail, setNlEmail] = useState("");
+  const [nlStatus, setNlStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = nlEmail.trim();
+    if (!trimmed) return;
+    setNlStatus("loading");
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      if (!res.ok) throw new Error();
+      setNlStatus("success");
+      setNlEmail("");
+    } catch {
+      setNlStatus("error");
+    }
+  };
+
   return (
     <footer className="bg-[#0f1f63] text-white">
       <div className="mx-auto w-full max-w-[1400px] px-6 py-10 sm:px-8 lg:px-12">
@@ -40,18 +64,30 @@ export default function SiteFooter() {
             <p className="mb-4 max-w-xl text-sm text-white/80">
               Recevez les dernieres nouveautes, nos offres exclusives et les infos sur les nouveaux drops Vero7.
             </p>
-            <form className="max-w-md">
+            <form className="max-w-md" onSubmit={handleNewsletterSubmit}>
               <input
                 type="email"
                 placeholder="example@mail.com"
+                value={nlEmail}
+                onChange={(e) => {
+                  setNlEmail(e.target.value);
+                  if (nlStatus !== "idle" && nlStatus !== "loading") setNlStatus("idle");
+                }}
                 className="mb-4 w-full border border-white/35 bg-transparent px-4 py-3 text-sm text-white placeholder:text-white/45 focus:outline-none focus:ring-2 focus:ring-white/30"
               />
               <button
                 type="submit"
-                className="bg-white px-8 py-2.5 text-sm font-semibold text-[#0f1f63] transition hover:bg-white/90"
+                disabled={nlStatus === "loading"}
+                className="bg-white px-8 py-2.5 text-sm font-semibold text-[#0f1f63] transition hover:bg-white/90 disabled:opacity-60"
               >
-                S&apos;abonner
+                {nlStatus === "loading" ? "..." : "S\u0027abonner"}
               </button>
+              {nlStatus === "success" ? (
+                <p className="mt-2 text-sm text-green-300">Merci ! Verifiez votre boite mail.</p>
+              ) : null}
+              {nlStatus === "error" ? (
+                <p className="mt-2 text-sm text-red-300">Erreur, veuillez reessayer.</p>
+              ) : null}
             </form>
           </div>
         </div>

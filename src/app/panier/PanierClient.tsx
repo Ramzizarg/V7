@@ -195,6 +195,32 @@ export default function PanierClient() {
 
       await minProcessingDelay;
 
+      fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: em,
+          fullName: fn,
+          phone: ph,
+          orderId,
+          items: items.map((it) => ({
+            product_name: it.name,
+            quantity: it.quantity,
+            price: it.discountPrice ?? it.price,
+            size: it.size ?? null,
+            color: it.color ?? null,
+            image_url: it.image ?? null,
+          })),
+          subtotal,
+          shipping,
+          discount: discountAmount,
+          total,
+          address: addr,
+          city: ct,
+          governorate: gov,
+        }),
+      }).catch(() => {});
+
       setCart([]);
       setOrderSuccess(true);
       setShowOrderProcessPopup(true);
@@ -445,9 +471,18 @@ export default function PanierClient() {
                   type="button"
                   onClick={handlePlaceOrder}
                   disabled={placingOrder}
-                  className="w-full py-4 sm:py-3.5 bg-black text-white text-sm font-semibold uppercase tracking-wider rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="relative w-full py-4 sm:py-3.5 bg-black text-white text-sm font-semibold uppercase tracking-wider rounded-lg hover:bg-zinc-800 transition-colors disabled:cursor-not-allowed overflow-hidden"
                 >
-                  {placingOrder ? "..." : "PAYER EN ESPECES"}
+                  <span className={`inline-flex items-center transition-all duration-300 ${placingOrder ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"}`}>
+                    PAYER EN ESPECES
+                  </span>
+                  {placingOrder && (
+                    <span className="absolute inset-0 flex items-center justify-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-white animate-[dotBounce_1.2s_ease-in-out_infinite]" />
+                      <span className="h-2 w-2 rounded-full bg-white animate-[dotBounce_1.2s_ease-in-out_0.2s_infinite]" />
+                      <span className="h-2 w-2 rounded-full bg-white animate-[dotBounce_1.2s_ease-in-out_0.4s_infinite]" />
+                    </span>
+                  )}
                 </button>
                 <p className="text-xs text-zinc-500 mt-2 text-center px-1">
                   Paiement a la livraison (especes uniquement). Pas de PayPal.

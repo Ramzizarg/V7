@@ -742,3 +742,14 @@ body {
 .fav-toast-bar.fav-toast-enter {
   animation: fav-toast-slide-up 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+@keyframes dotBounce {
+  0%, 80%, 100% {
+    transform: scale(0.4);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
