@@ -174,20 +174,9 @@ export function ProductImageLightbox({
           </div>
         </div>
 
-        <p className="pointer-events-none mt-2 max-w-md shrink-0 px-4 text-center text-[11px] leading-relaxed text-white/50 sm:text-xs">
-          Double-clic pour {zoomed2x ? "taille normale" : "zoom x2"} · Clic sur le fond pour fermer ·{" "}
-          <span className="whitespace-nowrap">Échap</span>
-          {count > 1 ? (
-            <>
-              {" "}
-              · <span className="whitespace-nowrap">← →</span> pour changer d&apos;image
-            </>
-          ) : null}
-        </p>
-
         {count > 1 ? (
           <div
-            className="mt-3 flex max-w-full gap-1.5 overflow-x-auto px-2 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
+            className="mt-2 flex max-w-full gap-1.5 overflow-x-auto px-2 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
             onClick={(e) => e.stopPropagation()}
           >
             {images.map((thumb, i) => (
