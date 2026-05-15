@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ZoomIn } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ProductImageLightbox } from "@/components/ProductImageLightbox";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { productPathSlug } from "@/lib/productUrl";
@@ -218,6 +220,8 @@ export default function ProductDetailView({ product }: Props) {
   const [mobileQuickAddOpen, setMobileQuickAddOpen] = useState(false);
   const [mobileQuickSize, setMobileQuickSize] = useState<string | null>(null);
   const [imageZoomOpen, setImageZoomOpen] = useState(false);
+  /** Normalized 0–1 pointer position for desktop hover magnifier. */
+  const [hoverMagNorm, setHoverMagNorm] = useState<{ nx: number; ny: number } | null>(null);
   const [addQty, setAddQty] = useState(1);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -284,6 +288,7 @@ export default function ProductDetailView({ product }: Props) {
     setAddQty(1);
     setSelectedSize(null);
     setImageZoomOpen(false);
+    setHoverMagNorm(null);
   }, [product.id]);
 
   useEffect(() => {
@@ -556,15 +561,6 @@ export default function ProductDetailView({ product }: Props) {
   }, [sizeGuideOpen]);
 
   useEffect(() => {
-    if (!imageZoomOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setImageZoomOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [imageZoomOpen]);
-
-  useEffect(() => {
     if (!mobileQuickAddOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMobileQuickAddOpen(false);
@@ -659,16 +655,16 @@ export default function ProductDetailView({ product }: Props) {
 
   const mainSrc = images[Math.min(active, images.length - 1)] ?? PLACEHOLDER;
   const isRemote = (u: string) => u.startsWith("http");
-  const hasMultipleImages = images.length > 0;
+  const hasMultipleImages = images.length > 1;
   const canGoPrev = active > 0;
   const canGoNext = active < images.length - 1;
   const showPrevImage = () => setActive((prev) => Math.max(0, prev - 1));
   const showNextImage = () => setActive((prev) => Math.min(images.length - 1, prev + 1));
-  const navBtnClass = (enabled: boolean) =>
-    `flex h-8 w-8 items-center justify-center border shadow-sm transition ${
+  const galleryNavBtnClass = (enabled: boolean) =>
+    `pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border shadow-lg backdrop-blur-md transition sm:h-11 sm:w-11 ${
       enabled
-        ? "border-black/10 bg-white/95 text-black hover:bg-white"
-        : "cursor-not-allowed border-zinc-200 bg-zinc-100/90 text-zinc-400 opacity-60 hover:bg-zinc-100/90"
+        ? "border-white/25 bg-black/50 text-white hover:border-white/40 hover:bg-black/65 active:scale-[0.97]"
+        : "cursor-not-allowed border-white/10 bg-black/25 text-white/35 opacity-50"
     }`;
   const resolveAddToCartSize = useCallback((): string | null => {
     if (selectedSize == null || selectedSize === "") return null;
@@ -726,7 +722,7 @@ export default function ProductDetailView({ product }: Props) {
                 </button>
               ))}
             </div>
-            <div className="relative order-1 aspect-[3/4] w-full min-h-[280px] overflow-hidden bg-zinc-100 sm:min-h-[360px] lg:order-2 lg:min-h-[420px]">
+            <div className="group/main-gallery relative order-1 aspect-[3/4] w-full min-h-[280px] overflow-hidden bg-zinc-100 ring-1 ring-black/[0.04] transition-shadow hover:ring-black/10 sm:min-h-[360px] lg:order-2 lg:min-h-[420px]">
                 <Image
                   src={mainSrc}
                   alt={product.name}
@@ -736,12 +732,52 @@ export default function ProductDetailView({ product }: Props) {
                   fetchPriority="high"
                   sizes="(max-width: 1024px) 100vw, 55vw"
                   unoptimized={isRemote(mainSrc)}
-                  className="object-cover object-center sm:object-contain"
+                  className={`object-cover object-center transition-transform duration-500 ease-out motion-reduce:transition-none sm:object-contain ${
+                    inactiveListing
+                      ? ""
+                      : "lg:group-hover/main-gallery:scale-[1.02] motion-reduce:lg:group-hover/main-gallery:scale-100"
+                  }`}
                 />
+              {hoverMagNorm && !inactiveListing ? (
+                <div
+                  className="pointer-events-none absolute bottom-[4.25rem] right-3 z-[11] hidden h-[34%] max-h-[200px] w-[26%] max-w-[148px] overflow-hidden rounded-2xl border border-white/95 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/10 [@media(hover:hover)_and_(min-width:1024px)]:block [@media(pointer:coarse)]:hidden"
+                  aria-hidden
+                >
+                  <div
+                    className="h-full w-full bg-zinc-100"
+                    style={{
+                      backgroundImage: `url("${mainSrc.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`,
+                      backgroundSize: "240% 240%",
+                      backgroundPosition: `${hoverMagNorm.nx * 100}% ${hoverMagNorm.ny * 100}%`,
+                      backgroundRepeat: "no-repeat",
+                    }}
+                  />
+                </div>
+              ) : null}
+              {!inactiveListing ? (
+                <div
+                  className="pointer-events-none absolute bottom-3 left-3 z-[11] hidden max-w-[14rem] items-center gap-1.5 rounded-full border border-black/10 bg-white/95 px-2.5 py-1.5 text-[10px] font-medium text-zinc-700 shadow-md backdrop-blur-sm sm:gap-2 sm:text-[11px] [@media(hover:hover)_and_(min-width:1024px)]:flex [@media(pointer:coarse)]:hidden"
+                  aria-hidden
+                >
+                  <ZoomIn className="h-3.5 w-3.5 shrink-0 text-zinc-500 sm:h-4 sm:w-4" />
+                  <span className="leading-tight">Survolez pour zoomer · clic plein écran</span>
+                </div>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setImageZoomOpen(true)}
-                className="absolute inset-0 z-10 cursor-zoom-in"
+                onPointerMove={(e) => {
+                  if (e.pointerType !== "mouse") return;
+                  const el = e.currentTarget;
+                  const r = el.getBoundingClientRect();
+                  if (r.width < 1 || r.height < 1) return;
+                  setHoverMagNorm({
+                    nx: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+                    ny: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
+                  });
+                }}
+                onPointerLeave={() => setHoverMagNorm(null)}
+                className="absolute inset-0 z-10 cursor-zoom-in outline-offset-[-2px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/40"
                 aria-label="Agrandir l'image du produit"
               />
               {inactiveListing ? (
@@ -765,30 +801,36 @@ export default function ProductDetailView({ product }: Props) {
                 </div>
               ) : null}
               {hasMultipleImages ? (
-                <div className="absolute left-2 top-2 z-20 flex items-center gap-2">
+                <>
                   <button
                     type="button"
                     disabled={!canGoPrev}
-                    onClick={showPrevImage}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showPrevImage();
+                    }}
                     aria-label="Image précédente"
-                    className={navBtnClass(canGoPrev)}
+                    className={`absolute left-2 top-1/2 z-20 -translate-y-1/2 sm:left-3 ${galleryNavBtnClass(canGoPrev)}`}
                   >
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6">
+                    <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="2.4">
                       <path d="M15 6 9 12l6 6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
                   <button
                     type="button"
                     disabled={!canGoNext}
-                    onClick={showNextImage}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showNextImage();
+                    }}
                     aria-label="Image suivante"
-                    className={navBtnClass(canGoNext)}
+                    className={`absolute right-2 top-1/2 z-20 -translate-y-1/2 sm:right-3 ${galleryNavBtnClass(canGoNext)}`}
                   >
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.6">
+                    <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="2.4">
                       <path d="m9 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
-                </div>
+                </>
               ) : null}
               {!outOfStock && !inactiveListing ? (
                 <button
@@ -1471,37 +1513,15 @@ export default function ProductDetailView({ product }: Props) {
         </div>
       ) : null}
 
-      {imageZoomOpen ? (
-        <div className="fixed inset-0 z-[140] bg-black/90 p-4 sm:p-6" role="dialog" aria-label="Zoom image produit">
-          <button
-            type="button"
-            className="absolute right-3 top-3 z-10 rounded-full bg-white/95 p-2 text-black transition hover:bg-white"
-            onClick={() => setImageZoomOpen(false)}
-            aria-label="Fermer le zoom"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="absolute inset-0 cursor-zoom-out"
-            onClick={() => setImageZoomOpen(false)}
-            aria-label="Fermer le zoom"
-          />
-          <div className="relative h-full w-full">
-            <Image
-              src={mainSrc}
-              alt={product.name}
-              fill
-              sizes="100vw"
-              unoptimized={isRemote(mainSrc)}
-              className="object-contain"
-              priority
-            />
-          </div>
-        </div>
-      ) : null}
+      <ProductImageLightbox
+        open={imageZoomOpen}
+        onClose={() => setImageZoomOpen(false)}
+        images={images}
+        activeIndex={active}
+        onActiveChange={setActive}
+        productName={product.name}
+        isRemote={isRemote}
+      />
 
       <SiteFooter />
 
