@@ -17,12 +17,15 @@ import type { Product, StorefrontCategory } from "@/lib/types";
 const HERO_FALLBACK_IMAGES = ["/V7/img.jpg", "/V7/imgg.png", "/V7/imggg.png", "/V7/imgggg.png"] as const;
 const HERO_SLIDE_MS = 5000;
 
-/** Accueil si la table `categories` est vide ou indisponible (fichiers presents dans `public/` pour affichage immediat). */
+/** Images locales si la table `categories` est vide (pas de SVG placeholder). */
+const CATEGORY_COVER_FALLBACK_IMAGES = ["/V7/2.jpeg", "/V7/3.jpeg", "/V7/4.jpeg", "/V7/1.jpg", "/V7/img-1.jpg"] as const;
+
+/** Dernier recours si aucune catégorie API ni produits catégorisés. */
 const CAROUSEL_STATIC_FALLBACK: StorefrontCategory[] = [
-  { id: 0, name: "Hoodies", slug: "hoodies", sort_order: 0, image: "/globe.svg" },
-  { id: 0, name: "T-shirts", slug: "t-shirts", sort_order: 0, image: "/next.svg" },
-  { id: 0, name: "Shorts", slug: "shorts", sort_order: 0, image: "/vercel.svg" },
-  { id: 0, name: "Joggers", slug: "joggers", sort_order: 0, image: "/window.svg" },
+  { id: 0, name: "Hoodies", slug: "hoodies", sort_order: 0, image: CATEGORY_COVER_FALLBACK_IMAGES[0] },
+  { id: 0, name: "T-shirts", slug: "t-shirts", sort_order: 1, image: CATEGORY_COVER_FALLBACK_IMAGES[1] },
+  { id: 0, name: "Shorts", slug: "shorts", sort_order: 2, image: CATEGORY_COVER_FALLBACK_IMAGES[2] },
+  { id: 0, name: "Joggers", slug: "joggers", sort_order: 3, image: CATEGORY_COVER_FALLBACK_IMAGES[3] },
 ];
 
 export default function Home() {
@@ -144,7 +147,48 @@ export default function Home() {
     el.scrollBy({ left: dir === "prev" ? -step * 2 : step * 2, behavior: "smooth" });
   };
 
-  const carouselCategories = dbCategories.length > 0 ? dbCategories : CAROUSEL_STATIC_FALLBACK;
+  const carouselCategories = useMemo((): StorefrontCategory[] => {
+    if (dbCategories.length > 0) return dbCategories;
+
+    const cms: StorefrontCategory[] = [];
+    if (homeContent) {
+      const u1 = homeContent.category1ImageUrl?.trim();
+      const n1 = homeContent.category1Name?.trim();
+      if (u1) cms.push({ id: -1, name: n1 || "À la une", slug: "shop", sort_order: 0, image: u1 });
+      const u2 = homeContent.category2ImageUrl?.trim();
+      const n2 = homeContent.category2Name?.trim();
+      if (u2) cms.push({ id: -2, name: n2 || "Collection", slug: "shop-2", sort_order: 1, image: u2 });
+    }
+    if (cms.length > 0) return cms;
+
+    if (collectionProducts && collectionProducts.length > 0) {
+      const firstImageByCat = new Map<number, string>();
+      const nameByCat = new Map<number, string>();
+      for (const p of collectionProducts) {
+        if (p.category_id == null) continue;
+        const cid = p.category_id;
+        if (!nameByCat.has(cid)) nameByCat.set(cid, p.category_name?.trim() || "Collection");
+        if (!firstImageByCat.has(cid)) {
+          const img = p.images?.[0]?.trim();
+          if (img) firstImageByCat.set(cid, img);
+        }
+      }
+      const ids = [...new Set(collectionProducts.map((p) => p.category_id).filter((id): id is number => id != null))];
+      if (ids.length > 0) {
+        return ids.map((catId, i) => ({
+          id: catId,
+          name: nameByCat.get(catId) ?? "Collection",
+          slug: `categorie-${catId}`,
+          sort_order: i,
+          image:
+            firstImageByCat.get(catId) ??
+            CATEGORY_COVER_FALLBACK_IMAGES[i % CATEGORY_COVER_FALLBACK_IMAGES.length],
+        }));
+      }
+    }
+
+    return [...CAROUSEL_STATIC_FALLBACK];
+  }, [dbCategories, homeContent, collectionProducts]);
 
   useEffect(() => {
     let cancelled = false;
