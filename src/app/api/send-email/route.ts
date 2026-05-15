@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import { put } from "@vercel/blob";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,8 +9,8 @@ import {
   type OrderForEmail,
   type OrderItemForEmail,
 } from "@/lib/emailTemplates";
+import { getResend } from "@/lib/resendClient";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const ADMIN_EMAIL = "vero7.tn@gmail.com";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "VERO7 <onboarding@resend.dev>";
@@ -81,6 +80,14 @@ interface Payload {
 
 export async function POST(req: NextRequest) {
   try {
+    const resend = getResend();
+    if (!resend) {
+      return NextResponse.json(
+        { error: "Configuration email manquante (RESEND_API_KEY)." },
+        { status: 503 }
+      );
+    }
+
     const body = (await req.json()) as Payload;
 
     if (!body.to || !body.fullName || !body.orderId) {
