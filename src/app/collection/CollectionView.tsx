@@ -13,7 +13,7 @@ import {
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
 import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
-import { isProductListedForSale } from "@/lib/productListing";
+import { isProductAvailableForPurchase, isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
 import type { Product, StorefrontCategory } from "@/lib/types";
 
@@ -209,20 +209,38 @@ export default function CollectionView() {
   const visibleProducts = useMemo(() => {
     const eff = (p: GridProduct) =>
       p.discountPrice != null && p.discountPrice < p.price ? p.discountPrice : p.price;
-    let list = products.filter((p) =>
+    /** Même logique que la page d’accueil : achetable d’abord, puis rupture, puis à venir. */
+    const availabilityRank = (p: GridProduct) => {
+      if (isProductAvailableForPurchase({ active: p.listedForSale, sizes: p.sizes, stock: p.stock })) return 0;
+      if (p.listedForSale) return 1;
+      return 2;
+    };
+    const filtered = products.filter((p) =>
       selectedCategories.length === 0 ? true : selectedCategories.includes(p.category)
     );
-    list = [...list];
-    if (sortKey === "price-asc") {
-      list.sort((a, b) => eff(a) - eff(b));
-    } else if (sortKey === "price-desc") {
-      list.sort((a, b) => eff(b) - eff(a));
-    } else if (sortKey === "name") {
-      list.sort((a, b) => a.name.localeCompare(b.name, "fr"));
-    } else {
-      list.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
-    }
-    return list;
+    const withIdx = filtered.map((p, idx) => ({ p, idx }));
+    withIdx.sort((a, b) => {
+      const ra = availabilityRank(a.p);
+      const rb = availabilityRank(b.p);
+      if (ra !== rb) return ra - rb;
+      if (sortKey === "price-asc") {
+        const d = eff(a.p) - eff(b.p);
+        if (d !== 0) return d;
+      } else if (sortKey === "price-desc") {
+        const d = eff(b.p) - eff(a.p);
+        if (d !== 0) return d;
+      } else if (sortKey === "name") {
+        const d = a.p.name.localeCompare(b.p.name, "fr");
+        if (d !== 0) return d;
+      } else {
+        const ta = a.p.createdAt;
+        const tb = b.p.createdAt;
+        if (ta < tb) return 1;
+        if (ta > tb) return -1;
+      }
+      return a.idx - b.idx;
+    });
+    return withIdx.map(({ p }) => p);
   }, [selectedCategories, sortKey, products]);
 
   const toggleCategory = (cat: string) => {
