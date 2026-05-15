@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { ShoppingBag, Sparkles, Trash2 } from "lucide-react";
 import { getCart, removeFromCartLine, updateCartQuantity } from "@/lib/shopClientStorage";
 import type { CartItem } from "@/lib/types";
 
@@ -107,8 +107,17 @@ export function CartSidebar({ open, onClose }: Props) {
         aria-label="Panier"
       >
         <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
-          <h2 className="text-2xl font-black uppercase tracking-tight text-black">
-            Votre panier ({itemCount} {itemCount > 1 ? "articles" : "article"})
+          <h2 className="text-xl font-black uppercase tracking-tight text-black sm:text-2xl">
+            {itemCount === 0 ? (
+              "Panier"
+            ) : (
+              <>
+                Votre panier{" "}
+                <span className="font-semibold normal-case text-zinc-500">
+                  ({itemCount} {itemCount > 1 ? "articles" : "article"})
+                </span>
+              </>
+            )}
           </h2>
           <button
             type="button"
@@ -122,9 +131,58 @@ export function CartSidebar({ open, onClose }: Props) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-6">
           {items.length === 0 ? (
-            <p className="text-base text-zinc-500">Votre panier est vide.</p>
+            <div className="flex flex-1 flex-col items-center justify-center px-2 py-8 text-center sm:py-12">
+              <div
+                className="relative mb-8 flex h-[5.5rem] w-[5.5rem] items-center justify-center rounded-2xl border border-zinc-200/80 bg-gradient-to-br from-zinc-50 to-white shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.04]"
+                aria-hidden
+              >
+                <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_30%_20%,rgba(0,0,0,0.04),transparent_55%)]" />
+                <ShoppingBag className="relative h-11 w-11 text-zinc-800" strokeWidth={1.25} />
+              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">Panier vide</p>
+              <h3 className="mt-2 max-w-[280px] text-2xl font-black uppercase leading-tight tracking-tight text-black sm:text-[1.65rem]">
+                Rien pour l&apos;instant
+              </h3>
+              <p className="mt-3 max-w-[320px] text-pretty text-sm leading-relaxed text-zinc-600 sm:text-[15px]">
+                Ajoutez des pièces depuis la collection : tailles, couleurs et quantités s&apos;affichent ici avant
+                paiement.
+              </p>
+              <ul className="mt-6 w-full max-w-[300px] space-y-2.5 text-left text-sm text-zinc-600">
+                <li className="flex gap-2.5">
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+                  <span>Livraison standard offerte à partir de 200&nbsp;TND d&apos;achat.</span>
+                </li>
+                <li className="flex gap-2.5">
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+                  <span>Retours gratuits sous 14 jours.</span>
+                </li>
+              </ul>
+              <div className="mt-8 flex w-full max-w-[320px] flex-col gap-3 sm:flex-row sm:justify-center">
+                <Link
+                  href="/collection"
+                  onClick={onClose}
+                  className="inline-flex h-12 flex-1 items-center justify-center bg-black px-5 text-xs font-bold uppercase tracking-[0.14em] text-white transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25 focus-visible:ring-offset-2"
+                >
+                  Voir la collection
+                </Link>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="inline-flex h-12 flex-1 items-center justify-center border border-zinc-300 bg-white px-5 text-xs font-semibold uppercase tracking-[0.1em] text-zinc-800 transition hover:border-zinc-400 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2"
+                >
+                  Continuer
+                </button>
+              </div>
+              <Link
+                href="/"
+                onClick={onClose}
+                className="mt-5 text-sm font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-4 transition hover:text-black hover:decoration-black/40"
+              >
+                Retour à l&apos;accueil
+              </Link>
+            </div>
           ) : (
             <ul className="space-y-4">
               {items.map((item, index) => {
@@ -218,30 +276,40 @@ export function CartSidebar({ open, onClose }: Props) {
           )}
         </div>
 
-        <div className="border-t border-zinc-200 px-5 pb-5 pt-4">
-          <div className="space-y-2 text-lg leading-none">
-            <div className="flex items-center justify-between">
-              <span className="text-black">Sous-total</span>
-              <span className="font-medium text-black">{subtotal.toFixed(2)} TND</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-black">Livraison</span>
-              <span className="font-medium text-black">{shipping.toFixed(2)} TND</span>
-            </div>
-            <div className="flex items-center justify-between pt-1 font-semibold">
-              <span className="text-black">Total (TTC)</span>
-              <span className="text-black">{total.toFixed(2)} TND</span>
-            </div>
-          </div>
+        <div className="border-t border-zinc-200 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
+          {items.length === 0 ? (
+            <p className="text-center text-xs leading-relaxed text-zinc-500">
+              Paiement sécurisé · Codes promo applicables au passage en caisse
+            </p>
+          ) : (
+            <>
+              <div className="space-y-2 text-lg leading-none">
+                <div className="flex items-center justify-between">
+                  <span className="text-black">Sous-total</span>
+                  <span className="font-medium text-black">{subtotal.toFixed(2)} TND</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-black">Livraison</span>
+                  <span className="font-medium text-black">{shipping.toFixed(2)} TND</span>
+                </div>
+                <div className="flex items-center justify-between pt-1 font-semibold">
+                  <span className="text-black">Total (TTC)</span>
+                  <span className="text-black">{total.toFixed(2)} TND</span>
+                </div>
+              </div>
 
-          <Link
-            href="/panier"
-            onClick={onClose}
-            className="mt-4 block w-full bg-black px-5 py-3 text-center text-sm font-bold uppercase tracking-wider text-white transition hover:bg-zinc-800"
-          >
-            Commander
-          </Link>
-          <p className="mt-3 text-xs leading-tight text-zinc-600">Les codes promo et les bons de reduction peuvent etre appliques a la commande.</p>
+              <Link
+                href="/panier"
+                onClick={onClose}
+                className="mt-4 block w-full bg-black px-5 py-3 text-center text-sm font-bold uppercase tracking-wider text-white transition hover:bg-zinc-800"
+              >
+                Commander
+              </Link>
+              <p className="mt-3 text-xs leading-tight text-zinc-600">
+                Les codes promo et les bons de reduction peuvent etre appliques a la commande.
+              </p>
+            </>
+          )}
         </div>
       </aside>
     </>,

@@ -25,6 +25,8 @@ export type Product = {
   id: number;
   name: string;
   slug?: string;
+  /** `false` = visible on the shop as “coming soon” only (no purchase). Omitted/`true` = normal listing. */
+  active?: boolean | null;
   description: string | null;
   price: number;
   stock: number;

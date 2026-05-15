@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
+import { parseProductActive } from "@/lib/productListing";
 import type { Product, StorefrontCategory } from "@/lib/types";
 
 /** Neon (PostgreSQL via `DATABASE_URL`): `products` + `categories` for storefront. */
@@ -161,6 +162,7 @@ type DbRow = {
   color_2?: string | null;
   color_id_2?: unknown;
   color_2_hex?: string | null;
+  active?: unknown;
 };
 
 function rowToProduct(r: DbRow & { category_name?: string | null }): Product {
@@ -189,6 +191,7 @@ function rowToProduct(r: DbRow & { category_name?: string | null }): Product {
     color_2: r.color_2 != null ? String(r.color_2) : null,
     color_2_id: r.color_id_2 != null ? num(r.color_id_2) : null,
     color_2_hex: r.color_2_hex != null ? String(r.color_2_hex) : null,
+    active: parseProductActive(r.active),
   };
 }
 
@@ -230,6 +233,7 @@ async function fetchProductRows(): Promise<(DbRow & { category_name: string | nu
     pExpr("sizes", "NULL::jsonb"),
     pExpr("color_id", "NULL::int"),
     pExpr("color_id_2", "NULL::int"),
+    pExpr("active", "true::boolean"),
     colorExpr,
     canJoinColors && colorCols.has("hex") ? "clr.hex AS color_hex" : "NULL::text AS color_hex",
     color2Expr,

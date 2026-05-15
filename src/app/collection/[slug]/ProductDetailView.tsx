@@ -14,6 +14,7 @@ import {
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
 import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
+import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
 
 const PLACEHOLDER = "/V7/1.jpg";
@@ -60,6 +61,15 @@ function resolveAudioTrack(product: { name?: string | null; slug?: string | null
     }
   }
   return null;
+}
+
+function ListingLockIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <rect x="4" y="10" width="16" height="11" rx="1.5" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function HeartIcon({ filled, className }: { filled?: boolean; className?: string }) {
@@ -233,6 +243,7 @@ export default function ProductDetailView({ product }: Props) {
 
   const sizeOptions = useMemo(() => getSizeOptionsForProduct(product), [product]);
   const outOfStock = !sizeOptions.some((o) => o.available);
+  const inactiveListing = !isProductListedForSale(product);
 
   const displayPrice =
     product.discount_price != null && product.discount_price < product.price
@@ -276,14 +287,14 @@ export default function ProductDetailView({ product }: Props) {
   }, [product.id]);
 
   useEffect(() => {
-    if (outOfStock) return;
+    if (outOfStock || inactiveListing) return;
     if (stockQty < 1) return;
     setAddQty((q) => {
       if (q < 1) return 1;
       if (q > stockQty) return stockQty;
       return q;
     });
-  }, [outOfStock, stockQty, product.id]);
+  }, [outOfStock, inactiveListing, stockQty, product.id]);
 
   /** Un seul article : libellé panier = 1 couleur, ou toutes les teintes du design reliées (ex. « Noir & Blanc »). */
   const colorForCart = useMemo((): string | undefined => {
@@ -581,7 +592,7 @@ export default function ProductDetailView({ product }: Props) {
       }
       const r = el.getBoundingClientRect();
       const inView = r.top < window.innerHeight * 0.85 && r.bottom > 0;
-      setShowMobileStickyCart(!inView && !outOfStock);
+      setShowMobileStickyCart(!inView && !outOfStock && !inactiveListing);
     };
 
     onResizeOrScroll();
@@ -591,7 +602,7 @@ export default function ProductDetailView({ product }: Props) {
       window.removeEventListener("scroll", onResizeOrScroll);
       window.removeEventListener("resize", onResizeOrScroll);
     };
-  }, [outOfStock]);
+  }, [outOfStock, inactiveListing]);
 
   useEffect(() => {
     let cancelled = false;
@@ -601,7 +612,7 @@ export default function ProductDetailView({ product }: Props) {
         if (cancelled) return;
         const all = Array.isArray(d.products) ? d.products : [];
         const ranked = all
-          .filter((p) => p.id !== product.id)
+          .filter((p) => p.id !== product.id && isProductListedForSale(p))
           .sort((a, b) => {
             const aSame = a.category_id != null && a.category_id === product.category_id ? 1 : 0;
             const bSame = b.category_id != null && b.category_id === product.category_id ? 1 : 0;
@@ -733,7 +744,17 @@ export default function ProductDetailView({ product }: Props) {
                 className="absolute inset-0 z-10 cursor-zoom-in"
                 aria-label="Agrandir l'image du produit"
               />
-              {outOfStock ? (
+              {inactiveListing ? (
+                <div
+                  className="pointer-events-none absolute inset-0 z-[12] flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-black/80 via-black/60 to-black/50 text-white"
+                  role="status"
+                >
+                  <ListingLockIcon className="h-10 w-10 shrink-0 text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] sm:h-11 sm:w-11" />
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/95 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] sm:text-xs">
+                    Coming soon
+                  </span>
+                </div>
+              ) : outOfStock ? (
                 <div
                   className="pointer-events-none absolute right-2 top-2 z-30 sm:right-3 sm:top-3"
                   role="status"
@@ -769,7 +790,7 @@ export default function ProductDetailView({ product }: Props) {
                   </button>
                 </div>
               ) : null}
-              {!outOfStock ? (
+              {!outOfStock && !inactiveListing ? (
                 <button
                   ref={favBtnRef}
                   type="button"
@@ -899,7 +920,7 @@ export default function ProductDetailView({ product }: Props) {
             <div className="mt-10">
               <div
                 className={
-                  outOfStock
+                  outOfStock || inactiveListing
                     ? "space-y-2"
                     : "flex items-end justify-between gap-4"
                 }
@@ -932,7 +953,7 @@ export default function ProductDetailView({ product }: Props) {
                     />
                   )}
                 </div>
-                {!outOfStock ? (
+                {!outOfStock && !inactiveListing ? (
                   <div className="relative z-10 flex shrink-0 flex-col items-end gap-2">
                     <p className="text-sm font-semibold text-black">Quantité</p>
                     <QuantityStepper
@@ -948,7 +969,39 @@ export default function ProductDetailView({ product }: Props) {
             </div>
 
             <div ref={sizeSectionRef} className="mt-10">
-              {outOfStock ? (
+              {inactiveListing ? (
+                <>
+                  <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+                    {sizeOptions.map(({ label }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled
+                        aria-disabled
+                        className="w-full cursor-not-allowed border border-zinc-300 bg-zinc-100 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400 [text-decoration-thickness:1px] sm:w-auto sm:min-w-[2.75rem] sm:py-2 sm:text-sm"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-4 flex items-center gap-2 text-sm font-medium text-zinc-700" role="status">
+                    <ListingLockIcon className="h-4 w-4 shrink-0" />
+                    Coming soon — ce produit n&apos;est pas encore disponible à l&apos;achat.
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-sm font-semibold text-zinc-700">Taille :</p>
+                    {product.size_guide_image ? (
+                      <button
+                        type="button"
+                        onClick={() => setSizeGuideOpen(true)}
+                        className="text-xs font-semibold uppercase tracking-wider text-zinc-600 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
+                      >
+                        Guide des tailles
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              ) : outOfStock ? (
                 <>
                   <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
                     {sizeOptions.map(({ label }) => (
@@ -1028,7 +1081,16 @@ export default function ProductDetailView({ product }: Props) {
               )}
             </div>
 
-            {outOfStock ? (
+            {inactiveListing ? (
+              <button
+                type="button"
+                disabled
+                className="mt-10 flex w-full cursor-not-allowed items-center justify-center gap-2 border-0 bg-zinc-600 py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white"
+              >
+                <ListingLockIcon className="h-4 w-4 shrink-0" />
+                Coming soon
+              </button>
+            ) : outOfStock ? (
               <button
                 type="button"
                 disabled
@@ -1272,7 +1334,7 @@ export default function ProductDetailView({ product }: Props) {
         </div>
       ) : null}
 
-      {mobileQuickAddOpen && !outOfStock ? (
+      {mobileQuickAddOpen && !outOfStock && !inactiveListing ? (
         <div className="fixed inset-0 z-[130] sm:hidden">
           <button
             type="button"

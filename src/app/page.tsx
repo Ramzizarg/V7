@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
+import { ComingSoonPlaceholder } from "@/components/ComingSoonPlaceholder";
 import { isProductOutOfStock } from "@/lib/productSizesDisplay";
+import { isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
 import { getCachedHomeContentSync, getHomeContent } from "@/lib/homeContent";
 import type { HomeContent } from "@/lib/homeContent";
@@ -15,12 +17,12 @@ import type { Product, StorefrontCategory } from "@/lib/types";
 const HERO_FALLBACK_IMAGES = ["/V7/img.jpg", "/V7/imgg.png", "/V7/imggg.png", "/V7/imgggg.png"] as const;
 const HERO_SLIDE_MS = 5000;
 
-/** Accueil si la table `categories` est vide ou indisponible. */
+/** Accueil si la table `categories` est vide ou indisponible (fichiers presents dans `public/` pour affichage immediat). */
 const CAROUSEL_STATIC_FALLBACK: StorefrontCategory[] = [
-  { id: 0, name: "Hoodies", slug: "hoodies", sort_order: 0, image: "/V7/2.jpeg" },
-  { id: 0, name: "T-shirts", slug: "t-shirts", sort_order: 0, image: "/V7/3.jpeg" },
-  { id: 0, name: "Shorts", slug: "shorts", sort_order: 0, image: "/V7/4.jpeg" },
-  { id: 0, name: "Joggers", slug: "joggers", sort_order: 0, image: "/V7/1.jpg" },
+  { id: 0, name: "Hoodies", slug: "hoodies", sort_order: 0, image: "/globe.svg" },
+  { id: 0, name: "T-shirts", slug: "t-shirts", sort_order: 0, image: "/next.svg" },
+  { id: 0, name: "Shorts", slug: "shorts", sort_order: 0, image: "/vercel.svg" },
+  { id: 0, name: "Joggers", slug: "joggers", sort_order: 0, image: "/window.svg" },
 ];
 
 export default function Home() {
@@ -31,7 +33,6 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   const [homeContentLoaded, setHomeContentLoaded] = useState(false);
   const [dbCategories, setDbCategories] = useState<StorefrontCategory[]>([]);
-  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   /** `undefined` = not loaded yet; then API products or empty. */
   const [collectionProducts, setCollectionProducts] = useState<Product[] | undefined>(undefined);
 
@@ -77,6 +78,7 @@ export default function Home() {
         discountPercent,
         colors,
         oos: isProductOutOfStock({ sizes: p.sizes, stock: p.stock }),
+        comingSoon: !isProductListedForSale(p),
       };
     };
     // Evite le "double rendu" au reload:
@@ -112,6 +114,7 @@ export default function Home() {
           onSale && list != null ? Math.max(1, Math.round(((list - price) / list) * 100)) : null,
         colors: fallbackColors[i] ?? [{ label: "—", hex: null }],
         oos: false,
+        comingSoon: false,
       };
     });
   }, [collectionProducts]);
@@ -133,13 +136,11 @@ export default function Home() {
         if (cancelled) return;
         setDbCategories(Array.isArray(d.categories) ? d.categories : []);
         setCollectionProducts(Array.isArray(d.products) ? d.products : []);
-        setCategoriesLoaded(true);
       })
       .catch(() => {
         if (!cancelled) {
           setDbCategories([]);
           setCollectionProducts([]);
-          setCategoriesLoaded(true);
         }
       });
     return () => {
@@ -288,16 +289,7 @@ export default function Home() {
               Acheter par Categorie
             </h2>
           </div>
-          {!categoriesLoaded ? (
-            <div className="flex gap-2 overflow-hidden px-1 sm:px-2">
-              {Array.from({ length: 4 }, (_, i) => (
-                <div
-                  key={i}
-                  className="h-[320px] w-[280px] shrink-0 animate-pulse rounded-sm bg-zinc-200"
-                />
-              ))}
-            </div>
-          ) : carouselCategories.length > 0 ? (
+          {carouselCategories.length > 0 ? (
             <div className="categories-marquee px-1 sm:px-2">
               <div className="categories-loop-track gap-2">
                 {Array.from({ length: 2 }, (_, copy) => (
@@ -309,7 +301,9 @@ export default function Home() {
                         className="group relative block h-[320px] w-[280px] shrink-0 overflow-hidden rounded-sm border border-black/10"
                       >
                         <div
-                          className="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-105"
+                          className={`absolute inset-0 bg-center transition duration-500 group-hover:scale-105 ${
+                            item.image.endsWith(".svg") ? "bg-contain bg-no-repeat" : "bg-cover"
+                          }`}
                           style={{ backgroundImage: `url('${item.image}')` }}
                         />
                         <div className="absolute inset-0 bg-black/22" />
@@ -415,12 +409,12 @@ export default function Home() {
                 featuredVedettes.map((item, itemIdx) => {
                   const isFirstFeatured = copy === 0 && itemIdx === 0;
                   const isRemote = item.src.startsWith("http");
-                  return (
-                    <Link
-                      key={`${copy}-${item.key}`}
-                      href={item.href}
-                      className="group flex w-[200px] shrink-0 flex-col overflow-hidden border border-zinc-200/80 bg-white shadow-sm transition duration-200 hover:shadow-md sm:w-[240px]"
-                    >
+                  const shellClass =
+                    "group flex w-[200px] shrink-0 flex-col overflow-hidden border border-zinc-200/80 bg-white shadow-sm transition duration-200 hover:shadow-md sm:w-[240px]";
+                  const featuredInner = item.comingSoon ? (
+                    <ComingSoonPlaceholder compact imageUrl={item.src} />
+                  ) : (
+                    <>
                       <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100">
                         <Image
                           src={item.src}
@@ -495,6 +489,20 @@ export default function Home() {
                           </div>
                         ) : null}
                       </div>
+                    </>
+                  );
+                  return item.comingSoon ? (
+                    <div
+                      key={`${copy}-${item.key}`}
+                      className={`${shellClass} cursor-default select-none`}
+                      role="group"
+                      aria-label="Produit à venir — bientôt disponible"
+                    >
+                      {featuredInner}
+                    </div>
+                  ) : (
+                    <Link key={`${copy}-${item.key}`} href={item.href} className={shellClass}>
+                      {featuredInner}
                     </Link>
                   );
                 })

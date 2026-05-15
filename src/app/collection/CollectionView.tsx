@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
+import { ComingSoonPlaceholder } from "@/components/ComingSoonPlaceholder";
 import {
   dispatchCartAdded,
   dispatchFavorisAdded,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
 import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
+import { isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
 import type { Product, StorefrontCategory } from "@/lib/types";
 
@@ -32,6 +34,7 @@ type GridProduct = {
   color2Hex: string | null;
   sizes: string[];
   stock: number;
+  listedForSale: boolean;
 };
 
 function toGridProduct(p: Product): GridProduct {
@@ -51,6 +54,7 @@ function toGridProduct(p: Product): GridProduct {
     color2Hex: /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(p.color_2_hex ?? "") ? p.color_2_hex ?? null : null,
     sizes: Array.isArray(p.sizes) ? p.sizes.filter((s) => typeof s === "string" && s.trim().length > 0) : [],
     stock: Number(p.stock ?? 0),
+    listedForSale: isProductListedForSale(p),
   };
 }
 
@@ -372,152 +376,172 @@ export default function CollectionView() {
                 const href = `/collection/${encodeURIComponent(product.slug)}`;
                 const quickAddSizes = getSizeOptionsForProduct({ sizes: product.sizes, stock: product.stock });
                 const cardOos = isProductOutOfStock({ sizes: product.sizes, stock: product.stock });
+                const listedForSale = product.listedForSale;
+
+                const comingSoonPlaceholder = <ComingSoonPlaceholder imageUrl={product.image} />;
+
+                const activeProductCard = (
+                  <>
+                    <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100">
+                      <div className="relative h-full w-full">
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          priority={index < 4}
+                          loading={index < 4 ? "eager" : "lazy"}
+                          fetchPriority={index < 2 ? "high" : "auto"}
+                          unoptimized={isRemote}
+                          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+                          className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
+                        />
+                      </div>
+                      {cardOos ? (
+                        <div
+                          className="pointer-events-none absolute right-1.5 top-1.5 z-20 sm:right-2 sm:top-2"
+                          role="status"
+                        >
+                          <span className="inline-block whitespace-nowrap rounded-md bg-red-600 px-1.5 py-1 text-center text-[8px] font-bold uppercase leading-tight tracking-wide text-white shadow-md sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:tracking-wider">
+                            Rupture de stock
+                          </span>
+                        </div>
+                      ) : null}
+                      {!cardOos ? (
+                        <>
+                          <button
+                            type="button"
+                            aria-label="Ajouter au panier"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setQuickAddProductId((prev) => (prev === product.id ? null : product.id));
+                            }}
+                            className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center border border-black/10 bg-white text-lg font-light leading-none text-black shadow-sm transition hover:bg-zinc-50"
+                          >
+                            +
+                          </button>
+                          {quickAddProductId === product.id ? (
+                            <div
+                              className="absolute inset-x-2 bottom-12 z-20 rounded-md border border-black/10 bg-white p-2 shadow-lg"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                            >
+                              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                                Taille du produit
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {quickAddSizes.map(({ label, available }) => (
+                                  <button
+                                    key={`${product.id}-${label}`}
+                                    type="button"
+                                    disabled={!available}
+                                    onClick={() => {
+                                      if (!available) return;
+                                      const fromCard = document.getElementById(`collection-product-${product.id}`);
+                                      const imgSrc = product.image || PLACEHOLDER_IMAGE;
+                                      addToCart({
+                                        productId: product.id,
+                                        name: product.name,
+                                        price: product.price,
+                                        discountPrice: product.discountPrice,
+                                        image: imgSrc,
+                                        size: label,
+                                        color: product.color?.trim() || product.color2?.trim() || undefined,
+                                        quantity: 1,
+                                      });
+                                      dispatchCartAdded();
+                                      flyProductThumbnailToCart(fromCard, imgSrc);
+                                      setQuickAddProductId(null);
+                                    }}
+                                    className={
+                                      !available
+                                        ? "min-w-[2.2rem] cursor-not-allowed border border-zinc-200 bg-zinc-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400"
+                                        : "min-w-[2.2rem] border border-black/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
+                                    }
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                    <div className="mt-3 space-y-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h2 className="min-w-0 flex-1 line-clamp-2 text-sm font-medium leading-snug text-black sm:text-[15px]">
+                          {product.name}
+                        </h2>
+                        {discountPercent != null && discountPercent > 0 ? (
+                          <span className="ml-auto shrink-0 text-sm font-bold text-red-600">-{discountPercent}%</span>
+                        ) : null}
+                      </div>
+                      <p className="flex items-baseline justify-between gap-2 text-sm text-zinc-500">
+                        {list != null ? (
+                          <span className="text-zinc-400 line-through">{list.toFixed(2)} DT</span>
+                        ) : (
+                          <span />
+                        )}
+                        <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
+                      </p>
+                      {cardOos ? (
+                        <p className="pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">
+                          Rupture de stock
+                        </p>
+                      ) : null}
+                      {product.color || product.color2 ? (
+                        <div className="flex items-center gap-1 pt-0.5" aria-hidden>
+                          {product.color ? (
+                            <span
+                              className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
+                              style={
+                                product.colorHex
+                                  ? { backgroundColor: product.colorHex }
+                                  : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
+                              }
+                              title={product.color}
+                            />
+                          ) : null}
+                          {product.color2 ? (
+                            <span
+                              className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
+                              style={
+                                product.color2Hex
+                                  ? { backgroundColor: product.color2Hex }
+                                  : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
+                              }
+                              title={product.color2}
+                            />
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </>
+                );
+
                 return (
                   <article
                     id={`collection-product-${product.id}`}
                     key={product.id}
                     className="group relative scroll-mt-28 text-left lg:scroll-mt-36"
                   >
-                    <Link href={href} className="block">
-                      <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100">
-                        <div className="relative h-full w-full">
-                          <Image
-                            src={product.image}
-                            alt={product.name}
-                            fill
-                            priority={index < 4}
-                            loading={index < 4 ? "eager" : "lazy"}
-                            fetchPriority={index < 2 ? "high" : "auto"}
-                            unoptimized={isRemote}
-                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                            className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
-                          />
-                        </div>
-                        {cardOos ? (
-                          <div
-                            className="pointer-events-none absolute right-1.5 top-1.5 z-20 sm:right-2 sm:top-2"
-                            role="status"
-                          >
-                            <span className="inline-block whitespace-nowrap rounded-md bg-red-600 px-1.5 py-1 text-center text-[8px] font-bold uppercase leading-tight tracking-wide text-white shadow-md sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:tracking-wider">
-                              Rupture de stock
-                            </span>
-                          </div>
-                        ) : null}
-                        {!cardOos ? (
-                          <>
-                        <button
-                          type="button"
-                          aria-label="Ajouter au panier"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setQuickAddProductId((prev) => (prev === product.id ? null : product.id));
-                          }}
-                          className="absolute bottom-2 right-2 z-10 flex h-8 w-8 items-center justify-center border border-black/10 bg-white text-lg font-light leading-none text-black shadow-sm transition hover:bg-zinc-50"
-                        >
-                          +
-                        </button>
-                        {quickAddProductId === product.id ? (
-                          <div
-                            className="absolute inset-x-2 bottom-12 z-20 rounded-md border border-black/10 bg-white p-2 shadow-lg"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                            }}
-                          >
-                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                              Taille du produit
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {quickAddSizes.map(({ label, available }) => (
-                                <button
-                                  key={`${product.id}-${label}`}
-                                  type="button"
-                                  disabled={!available}
-                                  onClick={() => {
-                                    if (!available) return;
-                                    const fromCard = document.getElementById(`collection-product-${product.id}`);
-                                    const imgSrc = product.image || PLACEHOLDER_IMAGE;
-                                    addToCart({
-                                      productId: product.id,
-                                      name: product.name,
-                                      price: product.price,
-                                      discountPrice: product.discountPrice,
-                                      image: imgSrc,
-                                      size: label,
-                                      color: product.color?.trim() || product.color2?.trim() || undefined,
-                                      quantity: 1,
-                                    });
-                                    dispatchCartAdded();
-                                    flyProductThumbnailToCart(fromCard, imgSrc);
-                                    setQuickAddProductId(null);
-                                  }}
-                                  className={
-                                    !available
-                                      ? "min-w-[2.2rem] cursor-not-allowed border border-zinc-200 bg-zinc-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400"
-                                      : "min-w-[2.2rem] border border-black/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
-                                  }
-                                >
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                          </>
-                        ) : null}
+                    {listedForSale ? (
+                      <Link href={href} className="block">
+                        {activeProductCard}
+                      </Link>
+                    ) : (
+                      <div
+                        className="block cursor-default"
+                        role="group"
+                        aria-label="Produit à venir — bientôt disponible"
+                      >
+                        {comingSoonPlaceholder}
                       </div>
-                      <div className="mt-3 space-y-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <h2 className="min-w-0 flex-1 line-clamp-2 text-sm font-medium leading-snug text-black sm:text-[15px]">
-                            {product.name}
-                          </h2>
-                          {discountPercent != null && discountPercent > 0 ? (
-                            <span className="ml-auto shrink-0 text-sm font-bold text-red-600">-{discountPercent}%</span>
-                          ) : null}
-                        </div>
-                        <p className="flex items-baseline justify-between gap-2 text-sm text-zinc-500">
-                          {list != null ? (
-                            <span className="text-zinc-400 line-through">{list.toFixed(2)} DT</span>
-                          ) : (
-                            <span />
-                          )}
-                          <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
-                        </p>
-                        {cardOos ? (
-                          <p className="pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">
-                            Rupture de stock
-                          </p>
-                        ) : null}
-                        {product.color || product.color2 ? (
-                          <div className="flex items-center gap-1 pt-0.5" aria-hidden>
-                            {product.color ? (
-                              <span
-                                className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
-                                style={
-                                  product.colorHex
-                                    ? { backgroundColor: product.colorHex }
-                                    : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
-                                }
-                                title={product.color}
-                              />
-                            ) : null}
-                            {product.color2 ? (
-                              <span
-                                className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
-                                style={
-                                  product.color2Hex
-                                    ? { backgroundColor: product.color2Hex }
-                                    : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
-                                }
-                                title={product.color2}
-                              />
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    </Link>
-                    {!cardOos ? (
+                    )}
+                    {listedForSale && !cardOos ? (
                       <button
                         type="button"
                         aria-label={wishlist[String(product.id)] ? "Retirer des favoris" : "Ajouter aux favoris"}

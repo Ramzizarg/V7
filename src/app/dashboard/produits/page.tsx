@@ -138,6 +138,7 @@ export default function DashboardProduitsPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [togglingStockId, setTogglingStockId] = useState<number | null>(null);
+  const [togglingListedId, setTogglingListedId] = useState<number | null>(null);
   const [showUrlImages, setShowUrlImages] = useState(false);
   const [sizeGuideUploading, setSizeGuideUploading] = useState(false);
   const [productImagesUploading, setProductImagesUploading] = useState(false);
@@ -308,6 +309,7 @@ export default function DashboardProduitsPage() {
         measurement_table:
           measurementRows.length > 0 ? measurementRows.map((r) => [...r]) : null,
         sizes: sizes.filter((s) => typeof s === "string" && s.trim().length > 0),
+        active: true,
       };
 
       if (editing) {
@@ -330,6 +332,24 @@ export default function DashboardProduitsPage() {
   };
 
   const isInStock = (p: Product) => Number(p.stock ?? 0) > 0;
+
+  const isListedForShop = (p: Product) => p.active !== false;
+
+  const handleToggleListed = async (p: Product) => {
+    setTogglingListedId(p.id);
+    setError(null);
+    try {
+      const supabase = supabaseBrowserClient();
+      const nextActive = !isListedForShop(p);
+      const { error: err } = await supabase.from("products").update({ active: nextActive }).eq("id", p.id);
+      if (err) throw err;
+      setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, active: nextActive } : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setTogglingListedId(null);
+    }
+  };
 
   const handleToggleStock = async (p: Product) => {
     setTogglingStockId(p.id);
@@ -1608,7 +1628,7 @@ export default function DashboardProduitsPage() {
                     )}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex flex-wrap items-center justify-end gap-1 shrink-0">
                   <button
                     type="button"
                     onClick={() => handleToggleStock(p)}
@@ -1616,7 +1636,7 @@ export default function DashboardProduitsPage() {
                     className={`relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50 ${
                       isInStock(p) ? "bg-green-500" : "bg-red-500"
                     }`}
-                    title={isInStock(p) ? "In stock" : "Out of stock"}
+                    title={isInStock(p) ? "Stock" : "Rupture"}
                     aria-label={isInStock(p) ? "In stock" : "Out of stock"}
                   >
                     {togglingStockId === p.id ? (
@@ -1627,6 +1647,28 @@ export default function DashboardProduitsPage() {
                       <span
                         className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
                           isInStock(p) ? "left-5" : "left-1"
+                        }`}
+                      />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleListed(p)}
+                    disabled={togglingListedId === p.id}
+                    className={`relative inline-flex h-6 w-10 shrink-0 cursor-pointer rounded-full transition-colors disabled:opacity-50 ${
+                      isListedForShop(p) ? "bg-green-500" : "bg-red-500"
+                    }`}
+                    title={isListedForShop(p) ? "Visible boutique" : "Coming soon"}
+                    aria-label={isListedForShop(p) ? "Visible sur la boutique" : "Coming soon"}
+                  >
+                    {togglingListedId === p.id ? (
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="h-3 w-3 text-white animate-spin" />
+                      </span>
+                    ) : (
+                      <span
+                        className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                          isListedForShop(p) ? "left-5" : "left-1"
                         }`}
                       />
                     )}
@@ -1673,13 +1715,25 @@ export default function DashboardProduitsPage() {
               <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold uppercase tracking-wider text-zinc-600 hidden sm:table-cell">Stock</th>
               <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold uppercase tracking-wider text-zinc-600 hidden md:table-cell">Category</th>
               <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold uppercase tracking-wider text-zinc-600 hidden md:table-cell">Couleur</th>
+              <th
+                className="px-2 sm:px-4 py-2 sm:py-3 font-semibold uppercase tracking-wider text-zinc-600 hidden sm:table-cell text-center w-24 sm:w-28 align-bottom"
+                title="Basculer entre en stock et rupture de stock"
+              >
+                <span className="inline-block max-w-[5.5rem] sm:max-w-none leading-tight">Rupture de stock</span>
+              </th>
+              <th
+                className="px-2 sm:px-4 py-2 sm:py-3 font-semibold uppercase tracking-wider text-zinc-600 hidden sm:table-cell text-center w-24 sm:w-28 align-bottom"
+                title="Visible sur la boutique ou bientôt (coming soon)"
+              >
+                <span className="inline-block max-w-[5.5rem] sm:max-w-none leading-tight">Boutique</span>
+              </th>
               <th className="px-2 sm:px-4 py-2 sm:py-3 font-semibold uppercase tracking-wider text-zinc-600 w-20 sm:w-24 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
                   No products. Click &quot;Add product&quot; to get started.
                 </td>
               </tr>
@@ -1717,30 +1771,60 @@ export default function DashboardProduitsPage() {
                       {formatColorPair(p, colors)}
                     </span>
                   </td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 hidden sm:table-cell text-center align-middle">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStock(p)}
+                      disabled={togglingStockId === p.id}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 mx-auto ${
+                        isInStock(p) ? "bg-green-500" : "bg-red-500"
+                      }`}
+                      title={isInStock(p) ? "En stock — cliquer pour rupture" : "Rupture de stock — cliquer pour remettre en stock"}
+                      aria-label={isInStock(p) ? "En stock" : "Rupture de stock"}
+                    >
+                      {togglingStockId === p.id ? (
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <Loader2 className="h-3 w-3 text-white animate-spin" />
+                        </span>
+                      ) : (
+                        <span
+                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                            isInStock(p) ? "left-4" : "left-0.5"
+                          }`}
+                        />
+                      )}
+                    </button>
+                  </td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 hidden sm:table-cell text-center align-middle">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleListed(p)}
+                      disabled={togglingListedId === p.id}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 mx-auto ${
+                        isListedForShop(p) ? "bg-green-500" : "bg-red-500"
+                      }`}
+                      title={
+                        isListedForShop(p)
+                          ? "Visible sur la boutique — cliquer pour coming soon"
+                          : "Coming soon — cliquer pour publier sur la boutique"
+                      }
+                      aria-label={isListedForShop(p) ? "Produit visible sur la boutique" : "Produit masqué (coming soon)"}
+                    >
+                      {togglingListedId === p.id ? (
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <Loader2 className="h-3 w-3 text-white animate-spin" />
+                        </span>
+                      ) : (
+                        <span
+                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                            isListedForShop(p) ? "left-4" : "left-0.5"
+                          }`}
+                        />
+                      )}
+                    </button>
+                  </td>
                   <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
                     <div className="flex items-center justify-end gap-0.5 sm:gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStock(p)}
-                        disabled={togglingStockId === p.id}
-                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                          isInStock(p) ? "bg-green-500" : "bg-red-500"
-                        }`}
-                        title={isInStock(p) ? "In stock (click to set out of stock)" : "Out of stock (click to set in stock)"}
-                        aria-label={isInStock(p) ? "In stock" : "Out of stock"}
-                      >
-                        {togglingStockId === p.id ? (
-                          <span className="absolute inset-0 flex items-center justify-center">
-                            <Loader2 className="h-3 w-3 text-white animate-spin" />
-                          </span>
-                        ) : (
-                          <span
-                            className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                              isInStock(p) ? "left-4" : "left-0.5"
-                            }`}
-                          />
-                        )}
-                      </button>
                       <Link
                         href={`/collection/${encodeURIComponent(productPathSlug(p))}`}
                         target="_blank"

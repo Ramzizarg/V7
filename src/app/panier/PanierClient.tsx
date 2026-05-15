@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ShopEmptyState } from "@/components/shop/ShopEmptyState";
 import { ShopHeader } from "@/components/shop/ShopHeader";
 import { productPathSlug } from "@/lib/productUrl";
+import { isProductListedForSale } from "@/lib/productListing";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import type { CartItem, Coupon, Product } from "@/lib/types";
 import { addToCart, getCart, removeFromCartLine, setCart, updateCartQuantity } from "@/lib/shopClientStorage";
@@ -121,7 +122,7 @@ export default function PanierClient() {
 
   const suggestionProducts = useMemo(() => {
     const inCart = new Set(items.map((x) => x.productId));
-    return products.filter((p) => !inCart.has(p.id)).slice(0, 8);
+    return products.filter((p) => !inCart.has(p.id) && isProductListedForSale(p)).slice(0, 8);
   }, [products, items]);
 
   const sortedSizesFor = (p: Product) => {
