@@ -12,7 +12,7 @@ import {
   cancelPendingCartSidebarOpen,
   FAVORIS_ADDED_EVENT,
 } from "@/lib/favorisUx";
-import { isProductOutOfStock } from "@/lib/productSizesDisplay";
+import { isProductAvailableForPurchase } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
 import { getCartItemCount, getWishlistCount } from "@/lib/shopClientStorage";
 import type { Product } from "@/lib/types";
@@ -69,7 +69,10 @@ export default function SiteHeader() {
     fetch("/api/products", { cache: "no-store", signal: controller.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((data: { products?: Product[] }) => {
-        if (!cancelled) setSearchProducts(data.products ?? []);
+        if (!cancelled) {
+          const list = (data.products ?? []).filter(isProductAvailableForPurchase);
+          setSearchProducts(list);
+        }
       })
       .catch(() => {
         if (!cancelled) setSearchProducts([]);
@@ -383,11 +386,6 @@ export default function SiteHeader() {
                                           —
                                         </span>
                                       )}
-                                      {isProductOutOfStock({ sizes: p.sizes, stock: p.stock }) && (
-                                        <span className="absolute right-0.5 top-0.5 rounded bg-red-600 px-1 py-0.5 text-[7px] font-semibold uppercase leading-none text-white">
-                                          OUT
-                                        </span>
-                                      )}
                                     </span>
                                     <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
                                       <span className="truncate">{p.name ?? "Produit"}</span>
@@ -409,7 +407,7 @@ export default function SiteHeader() {
                           </ul>
                         )}
                         {!searchProductsLoading && searchProducts.length === 0 && (
-                          <p className="py-2 text-sm text-zinc-500">Aucun produit dans le catalogue.</p>
+                          <p className="py-2 text-sm text-zinc-500">Aucun produit disponible pour le moment.</p>
                         )}
                         {!searchProductsLoading && q && filteredProducts.length === 0 && (
                           <p className="py-2 text-sm text-zinc-500">Aucun resultat pour votre recherche.</p>
