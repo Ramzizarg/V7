@@ -148,20 +148,12 @@ export default function Home() {
   };
 
   const carouselCategories = useMemo((): StorefrontCategory[] => {
+    /** Même principe que les vedettes : pas de tuiles « fausses » puis remplacement. */
+    if (collectionProducts === undefined) return [];
+
     if (dbCategories.length > 0) return dbCategories;
 
-    const cms: StorefrontCategory[] = [];
-    if (homeContent) {
-      const u1 = homeContent.category1ImageUrl?.trim();
-      const n1 = homeContent.category1Name?.trim();
-      if (u1) cms.push({ id: -1, name: n1 || "À la une", slug: "shop", sort_order: 0, image: u1 });
-      const u2 = homeContent.category2ImageUrl?.trim();
-      const n2 = homeContent.category2Name?.trim();
-      if (u2) cms.push({ id: -2, name: n2 || "Collection", slug: "shop-2", sort_order: 1, image: u2 });
-    }
-    if (cms.length > 0) return cms;
-
-    if (collectionProducts && collectionProducts.length > 0) {
+    if (collectionProducts.length > 0) {
       const firstImageByCat = new Map<number, string>();
       const nameByCat = new Map<number, string>();
       for (const p of collectionProducts) {
@@ -186,6 +178,17 @@ export default function Home() {
         }));
       }
     }
+
+    const cms: StorefrontCategory[] = [];
+    if (homeContent) {
+      const u1 = homeContent.category1ImageUrl?.trim();
+      const n1 = homeContent.category1Name?.trim();
+      if (u1) cms.push({ id: -1, name: n1 || "À la une", slug: "shop", sort_order: 0, image: u1 });
+      const u2 = homeContent.category2ImageUrl?.trim();
+      const n2 = homeContent.category2Name?.trim();
+      if (u2) cms.push({ id: -2, name: n2 || "Collection", slug: "shop-2", sort_order: 1, image: u2 });
+    }
+    if (cms.length > 0) return cms;
 
     return [...CAROUSEL_STATIC_FALLBACK];
   }, [dbCategories, homeContent, collectionProducts]);
@@ -339,12 +342,14 @@ export default function Home() {
         </section>
 
         <section id="categories" className="w-full py-14">
-          <div className="mb-5 w-full px-3 sm:px-4">
-            <h2 className="text-left text-2xl font-black uppercase tracking-[0.02em] text-black sm:text-3xl">
-              Acheter par Categorie
-            </h2>
-          </div>
-          {carouselCategories.length > 0 ? (
+          {collectionProducts !== undefined ? (
+            <>
+              <div className="mb-5 w-full px-3 sm:px-4">
+                <h2 className="text-left text-2xl font-black uppercase tracking-[0.02em] text-black sm:text-3xl">
+                  Acheter par Categorie
+                </h2>
+              </div>
+              {carouselCategories.length > 0 ? (
             <div className="categories-marquee px-1 sm:px-2">
               <div className="categories-loop-track gap-2">
                 {Array.from({ length: 2 }, (_, copy) => (
@@ -373,6 +378,8 @@ export default function Home() {
                 ))}
               </div>
             </div>
+              ) : null}
+            </>
           ) : null}
         </section>
 
