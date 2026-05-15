@@ -30,11 +30,14 @@ export default function Home() {
   const [heroSlide, setHeroSlide] = useState(0);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [homeContent, setHomeContent] = useState<HomeContent | null>(null);
-  const [hydrated, setHydrated] = useState(false);
-  const [homeContentLoaded, setHomeContentLoaded] = useState(false);
   const [dbCategories, setDbCategories] = useState<StorefrontCategory[]>([]);
   /** `undefined` = not loaded yet; then API products or empty. */
   const [collectionProducts, setCollectionProducts] = useState<Product[] | undefined>(undefined);
+
+  useEffect(() => {
+    const cached = getCachedHomeContentSync();
+    if (cached) setHomeContent(cached);
+  }, []);
 
   const featuredFallback = [
     { id: "f1", src: "/V7/2.jpeg", alt: "Maillot jersey rouge" },
@@ -87,7 +90,22 @@ export default function Home() {
       return [];
     }
     if (collectionProducts.length > 0) {
-      return collectionProducts.slice(0, 12).map(mapProduct);
+      /** Vedettes: first card = first product truly available (active + stock). */
+      const availabilityRank = (p: Product) => {
+        const listed = isProductListedForSale(p);
+        const oos = isProductOutOfStock({ sizes: p.sizes, stock: p.stock });
+        if (listed && !oos) return 0;
+        if (listed && oos) return 1;
+        return 2;
+      };
+      const withIdx = collectionProducts.map((p, idx) => ({ p, idx }));
+      withIdx.sort((a, b) => {
+        const ra = availabilityRank(a.p);
+        const rb = availabilityRank(b.p);
+        if (ra !== rb) return ra - rb;
+        return a.idx - b.idx;
+      });
+      return withIdx.map(({ p }) => p).slice(0, 12).map(mapProduct);
     }
     const fallbackColors: { label: string; hex: string | null }[][] = [
       [{ label: "Rouge", hex: "#9f1239" }, { label: "Marine", hex: "#1e3a5f" }],
@@ -149,12 +167,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setHydrated(true);
-    const cached = getCachedHomeContentSync();
-    if (cached) setHomeContent(cached);
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     getHomeContent()
       .then((c) => {
@@ -162,10 +174,8 @@ export default function Home() {
         setHomeContent(c);
       })
       .catch(() => {
-        if (!cancelled) setHomeContent(null);
-      })
-      .finally(() => {
-        if (!cancelled) setHomeContentLoaded(true);
+        if (cancelled) return;
+        setHomeContent((prev) => getCachedHomeContentSync() ?? prev);
       });
     return () => {
       cancelled = true;
@@ -173,11 +183,12 @@ export default function Home() {
   }, []);
 
   const heroImages = useMemo(() => {
-    if (!hydrated || !homeContentLoaded) return [];
-    const list =
-      (homeContent?.heroImageUrls ?? []).filter((x) => typeof x === "string" && x.trim().length > 0) ?? [];
-    return list.length ? list : [...HERO_FALLBACK_IMAGES];
-  }, [hydrated, homeContentLoaded, homeContent]);
+    const list = (homeContent?.heroImageUrls ?? []).filter(
+      (x): x is string => typeof x === "string" && x.trim().length > 0
+    );
+    if (list.length > 0) return list;
+    return [...HERO_FALLBACK_IMAGES];
+  }, [homeContent]);
 
   const heroCollectionText = homeContent?.heroCollection || "Collection Sport x Casual";
   const heroHeadlineText = homeContent?.heroHeadline || "Renverse Les Regles";
