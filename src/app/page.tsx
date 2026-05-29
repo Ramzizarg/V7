@@ -609,8 +609,8 @@ export default function Home() {
 
             <div className="mt-8 overflow-hidden">
               <Image
-                src="/V7/img-1.jpg"
-                alt="Membres du club Vero7"
+                src="/V7/10%25.jpg"
+                alt="Rejoignez le club — 10 % sur la première commande"
                 width={1200}
                 height={700}
                 className="h-auto w-full object-cover"
