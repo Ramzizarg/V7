@@ -204,13 +204,13 @@ export default function SiteHeader() {
           <Link href="/collection" className="transition hover:opacity-70">
             Hommes
           </Link>
-          <Link href="/#categories" className="transition hover:opacity-70">
+          <Link href="/collection" className="transition hover:opacity-70">
             Femmes
           </Link>
-          <Link href="/#story" className="transition hover:opacity-70">
+          <Link href="/collection" className="transition hover:opacity-70">
             Enfants
           </Link>
-          <Link href="/#newsletter" className="transition hover:opacity-70">
+          <Link href="/collection" className="transition hover:opacity-70">
             Lifestyle
           </Link>
           <Link href="/collection" className="transition hover:opacity-70">
@@ -279,13 +279,13 @@ export default function SiteHeader() {
             <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
               Hommes
             </Link>
-            <Link href="/#categories" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
               Femmes
             </Link>
-            <Link href="/#club" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
               Enfants
             </Link>
-            <Link href="/#club" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
+            <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
               Lifestyle
             </Link>
             <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
