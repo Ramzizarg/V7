@@ -22,6 +22,14 @@ import type { Product } from "@/lib/types";
 
 const PLACEHOLDER = "/V7/1.jpg";
 
+/** Warm browser cache so gallery thumb / arrow clicks feel instant. */
+function preloadImageSrc(src: string) {
+  if (typeof window === "undefined" || !src.trim()) return;
+  const img = new window.Image();
+  img.decoding = "async";
+  img.src = src;
+}
+
 type AudioTheme = "red" | "yellow";
 type AudioTrack = { src: string; title: string; theme: AudioTheme };
 
@@ -291,6 +299,17 @@ export default function ProductDetailView({ product }: Props) {
     setImageZoomOpen(false);
     setHoverMagNorm(null);
   }, [product.id]);
+
+  useEffect(() => {
+    images.forEach((src, i) => {
+      if (i < 4) preloadImageSrc(src);
+    });
+  }, [images]);
+
+  useEffect(() => {
+    preloadImageSrc(images[active + 1] ?? "");
+    preloadImageSrc(images[active - 1] ?? "");
+  }, [active, images]);
 
   useEffect(() => {
     if (outOfStock || inactiveListing) return;
@@ -703,6 +722,8 @@ export default function ProductDetailView({ product }: Props) {
                   key={`${src}-${i}`}
                   type="button"
                   onClick={() => setActive(i)}
+                  onPointerEnter={() => preloadImageSrc(src)}
+                  onFocus={() => preloadImageSrc(src)}
                   aria-label={`Image ${i + 1}`}
                   aria-current={active === i ? "true" : undefined}
                   className={`relative h-[4.5rem] w-[3.25rem] shrink-0 overflow-hidden bg-zinc-100 ring-2 ring-offset-1 ring-offset-zinc-100 transition sm:h-24 sm:w-[4.5rem] lg:h-20 lg:w-full ${
@@ -714,7 +735,7 @@ export default function ProductDetailView({ product }: Props) {
                     alt=""
                     fill
                     sizes="80px"
-                    loading={i === 0 ? "eager" : "lazy"}
+                    loading={i < 4 ? "eager" : "lazy"}
                     priority={i === 0}
                     unoptimized={shouldBypassImageOptimization(src)}
                     className="object-cover object-center"
@@ -723,21 +744,35 @@ export default function ProductDetailView({ product }: Props) {
               ))}
             </div>
             <div className="group/main-gallery relative order-1 aspect-[3/4] w-full min-h-[280px] overflow-hidden bg-zinc-100 ring-1 ring-black/[0.04] transition-shadow hover:ring-black/10 sm:min-h-[360px] lg:order-2 lg:min-h-[420px]">
-                <Image
-                  src={mainSrc}
-                  alt={product.name}
-                  fill
-                  priority
-                  loading="eager"
-                  fetchPriority="high"
-                  sizes="(max-width: 1024px) 100vw, 55vw"
-                  unoptimized={shouldBypassImageOptimization(mainSrc)}
-                  className={`object-cover object-center transition-transform duration-500 ease-out motion-reduce:transition-none sm:object-contain ${
-                    inactiveListing
-                      ? ""
-                      : "lg:group-hover/main-gallery:scale-[1.02] motion-reduce:lg:group-hover/main-gallery:scale-100"
-                  }`}
-                />
+              {images.map((src, i) => {
+                const isActive = active === i;
+                return (
+                  <Image
+                    key={`${product.id}-gallery-${src}-${i}`}
+                    src={src}
+                    alt={isActive ? product.name : ""}
+                    fill
+                    priority={i === 0}
+                    loading={i < 3 ? "eager" : "lazy"}
+                    fetchPriority={i === 0 ? "high" : isActive ? "high" : "auto"}
+                    sizes="(max-width: 1024px) 100vw, 55vw"
+                    unoptimized={shouldBypassImageOptimization(src)}
+                    aria-hidden={!isActive}
+                    className={`absolute inset-0 object-cover object-center transition-opacity duration-150 ease-out motion-reduce:transition-none sm:object-contain ${
+                      isActive ? "z-[1] opacity-100" : "z-0 opacity-0"
+                    } ${
+                      inactiveListing || !isActive
+                        ? ""
+                        : "lg:group-hover/main-gallery:scale-[1.02] motion-reduce:lg:group-hover/main-gallery:scale-100"
+                    }`}
+                    style={
+                      !inactiveListing && isActive
+                        ? { transition: "opacity 150ms ease-out, transform 500ms ease-out" }
+                        : undefined
+                    }
+                  />
+                );
+              })}
               {hoverMagNorm && !inactiveListing ? (
                 <div
                   className="pointer-events-none absolute bottom-[4.25rem] right-3 z-[11] hidden h-[34%] max-h-[200px] w-[26%] max-w-[148px] overflow-hidden rounded-2xl border border-white/95 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/10 [@media(hover:hover)_and_(min-width:1024px)]:block [@media(pointer:coarse)]:hidden"

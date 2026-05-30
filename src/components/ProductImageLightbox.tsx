@@ -4,6 +4,13 @@ import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 
+function preloadImageSrc(src: string) {
+  if (typeof window === "undefined" || !src.trim()) return;
+  const img = new window.Image();
+  img.decoding = "async";
+  img.src = src;
+}
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -24,10 +31,22 @@ export function ProductImageLightbox({
   const [zoomed2x, setZoomed2x] = useState(false);
 
   const safeIndex = Math.min(Math.max(0, activeIndex), Math.max(0, images.length - 1));
-  const src = images[safeIndex] ?? images[0];
   const count = images.length;
   const canPrev = safeIndex > 0;
   const canNext = safeIndex < count - 1;
+
+  useEffect(() => {
+    if (!open) return;
+    images.forEach((src, i) => {
+      if (i < 4) preloadImageSrc(src);
+    });
+  }, [open, images]);
+
+  useEffect(() => {
+    if (!open) return;
+    preloadImageSrc(images[safeIndex + 1] ?? "");
+    preloadImageSrc(images[safeIndex - 1] ?? "");
+  }, [open, safeIndex, images]);
 
   useEffect(() => {
     if (!open) return;
@@ -72,7 +91,7 @@ export function ProductImageLightbox({
     if (canNext) onActiveChange(safeIndex + 1);
   }, [canNext, onActiveChange, safeIndex]);
 
-  if (!open || !src) return null;
+  if (!open || count === 0) return null;
 
   const navBtn =
     "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/50 text-white shadow-lg backdrop-blur-md transition hover:border-white/30 hover:bg-black/70 disabled:pointer-events-none disabled:opacity-25";
@@ -152,23 +171,32 @@ export function ProductImageLightbox({
             role="presentation"
           >
             <div
-              className={`relative aspect-[3/4] w-full max-h-full min-h-[200px] rounded-lg sm:rounded-xl ${
-                zoomed2x ? "cursor-zoom-out overflow-auto touch-pan-x touch-pan-y" : "cursor-zoom-in overflow-hidden"
+              className={`relative aspect-[3/4] w-full max-h-full min-h-[200px] rounded-lg transition-transform duration-300 ease-out motion-reduce:transition-none sm:rounded-xl ${
+                zoomed2x ? "cursor-zoom-out overflow-auto touch-pan-x touch-pan-y scale-[2]" : "cursor-zoom-in overflow-hidden scale-100"
               }`}
+              style={{ transformOrigin: "center center" }}
             >
-              <Image
-                src={src}
-                alt={productName}
-                fill
-                sizes="(max-width: 768px) 100vw, 720px"
-                unoptimized={shouldBypassImageOptimization(src)}
-                priority
-                className={`object-contain transition-transform duration-300 ease-out motion-reduce:transition-none ${
-                  zoomed2x ? "scale-[2]" : "scale-100"
-                }`}
-                style={{ transformOrigin: "center center" }}
-                draggable={false}
-              />
+              {images.map((imgSrc, i) => {
+                const isActive = i === safeIndex;
+                return (
+                  <Image
+                    key={`lightbox-${imgSrc}-${i}`}
+                    src={imgSrc}
+                    alt={isActive ? productName : ""}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 720px"
+                    unoptimized={shouldBypassImageOptimization(imgSrc)}
+                    priority={i === 0}
+                    loading={i < 3 ? "eager" : "lazy"}
+                    fetchPriority={isActive ? "high" : "auto"}
+                    aria-hidden={!isActive}
+                    className={`absolute inset-0 object-contain transition-opacity duration-150 ease-out motion-reduce:transition-none ${
+                      isActive ? "z-[1] opacity-100" : "z-0 opacity-0"
+                    }`}
+                    draggable={false}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
@@ -183,6 +211,8 @@ export function ProductImageLightbox({
                 key={`${thumb}-${i}`}
                 type="button"
                 onClick={() => onActiveChange(i)}
+                onPointerEnter={() => preloadImageSrc(thumb)}
+                onFocus={() => preloadImageSrc(thumb)}
                 aria-label={`Image ${i + 1}`}
                 aria-current={i === safeIndex ? "true" : undefined}
                 className={`relative h-14 w-11 shrink-0 overflow-hidden rounded-md border-2 transition sm:h-16 sm:w-12 ${
