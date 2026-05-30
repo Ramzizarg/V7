@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 
 type Props = {
   className?: string;
@@ -16,7 +17,6 @@ type Props = {
  */
 export function ComingSoonPlaceholder({ className = "", compact, imageUrl }: Props) {
   const src = typeof imageUrl === "string" && imageUrl.trim().length > 0 ? imageUrl.trim() : null;
-  const isRemote = src != null && src.startsWith("http");
 
   return (
     <div
@@ -32,7 +32,8 @@ export function ComingSoonPlaceholder({ className = "", compact, imageUrl }: Pro
             fill
             className="object-cover object-center opacity-40"
             sizes={compact ? "(max-width: 640px) 200px, 240px" : "(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"}
-            unoptimized={isRemote}
+            loading="lazy"
+            unoptimized={shouldBypassImageOptimization(src)}
           />
           <div
             className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-black/45"

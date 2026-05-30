@@ -4,17 +4,22 @@ import {
   BACKOFFICE_SESSION_COOKIE,
   verifyBackofficeSessionToken,
 } from "@/lib/backofficeAuth";
+import {
+  applyApiCacheHeaders,
+  applyDocumentCacheHeaders,
+  isApiPath,
+  isDocumentNavigation,
+  isNextInternalAssetPath,
+} from "@/lib/cacheHeaders";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/backoffice"];
 const PUBLIC_BACKOFFICE_PATHS = ["/login", "/api/backoffice/login"];
 
-export async function proxy(request: NextRequest) {
+async function handleBackofficeAuth(request: NextRequest): Promise<NextResponse | null> {
   const { pathname } = request.nextUrl;
 
-  const isProtected = PROTECTED_PREFIXES.some((prefix) =>
-    pathname.startsWith(prefix)
-  );
-  if (!isProtected) return NextResponse.next();
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  if (!isProtected) return null;
 
   const isPublicBackofficePath = PUBLIC_BACKOFFICE_PATHS.some((path) =>
     pathname.startsWith(path)
@@ -27,16 +32,51 @@ export async function proxy(request: NextRequest) {
     if (isAuthenticated) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
-    return NextResponse.next();
+    return null;
   }
 
   if (!isAuthenticated) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  return NextResponse.next();
+  return null;
+}
+
+function applyRouteCacheHeaders(request: NextRequest, response: NextResponse): NextResponse {
+  const { pathname } = request.nextUrl;
+
+  if (isNextInternalAssetPath(pathname)) {
+    return response;
+  }
+
+  if (isApiPath(pathname)) {
+    applyApiCacheHeaders(response);
+    return response;
+  }
+
+  if (isDocumentNavigation(pathname)) {
+    applyDocumentCacheHeaders(response);
+  }
+
+  return response;
+}
+
+export async function proxy(request: NextRequest) {
+  const authResponse = await handleBackofficeAuth(request);
+  if (authResponse) {
+    return applyRouteCacheHeaders(request, authResponse);
+  }
+
+  const response = NextResponse.next();
+  return applyRouteCacheHeaders(request, response);
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/backoffice/:path*", "/login", "/api/backoffice/:path*"],
+  matcher: [
+    /*
+     * Run on all routes except Next hashed static assets and optimized images.
+     * HTML gets no-store; API gets no-store; public files keep next.config headers.
+     */
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
 };

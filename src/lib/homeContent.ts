@@ -1,5 +1,7 @@
 import { cache } from "react";
-import { supabaseBrowserClient, supabaseServerOnlyClient } from "@/lib/supabaseClient";
+import { syncClientCachesWithDeployment } from "@/lib/appBuildId";
+import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
+import { supabaseBrowserClient } from "@/lib/supabaseClient";
 
 export interface HomeProduct {
   product_id?: number | null;
@@ -43,13 +45,13 @@ export const defaultHomeContent: HomeContent = {
   heroImageUrls: [],
   heroImageUrl: "",
   heroImagePositionMobile: 50,
-  heroSubtitle: "New in",
+  heroSubtitle: "Nouveauté",
   heroSubtitleColor: "#ffffff",
-  heroCollection: "SPRING COLLECTION",
+  heroCollection: "Collection Sport x Casual",
   heroCollectionColor: "#ffffff",
-  heroHeadline: "BUILT RAW.\nWORN FORWARD.",
+  heroHeadline: "Renverse Les Regles",
   heroHeadlineColor: "#ffffff",
-  heroDescription: "BlackTephra isn't inspired by form. It's built from it.",
+  heroDescription: "Signe par Vero7.",
   heroDescriptionColor: "#999999",
   heroButtonText: "SHOP NOW",
   heroButtonTextColor: "#000000",
@@ -63,13 +65,13 @@ export const defaultHomeContent: HomeContent = {
   category2Name: "SweatShirts",
   category2ImageUrl: "",
   newsletterText: "Sign up to our newsletter & get a gift on your birthday",
-  socialHandle: "@BlackTephra",
+  socialHandle: "@Vero7",
   bannerPhrases: [
-    "Easy Returns",
-    "Highest Quality Since 2026",
-    "BlackTephra Club",
-    "New Collection Available",
-    "Premium Streetwear",
+    "Retours faciles",
+    "Qualité premium",
+    "Club Vero7",
+    "Nouvelle collection",
+    "Streetwear & sport",
   ],
 };
 
@@ -91,11 +93,9 @@ function toPositionNumber(v: number | "left" | "center" | "right" | undefined): 
 }
 
 function mergeWithDefaults(partial: Partial<HomeContent> | null): HomeContent {
-  if (!partial || typeof partial !== "object") return defaultHomeContent;
+  if (!partial || typeof partial !== "object") return { ...defaultHomeContent };
   const merged = { ...defaultHomeContent, ...partial };
   merged.heroImagePositionMobile = toPositionNumber(merged.heroImagePositionMobile as number | "left" | "center" | "right");
-  merged.category1Name = defaultHomeContent.category1Name;
-  merged.category2Name = defaultHomeContent.category2Name;
   if (!Array.isArray(merged.bannerPhrases) || merged.bannerPhrases.length === 0) {
     merged.bannerPhrases = [...defaultHomeContent.bannerPhrases];
   }
@@ -110,25 +110,31 @@ function mergeWithDefaults(partial: Partial<HomeContent> | null): HomeContent {
   return merged;
 }
 
-/** Get home content from Supabase (server-side only). Cached per request so safe to call from page + generateMetadata. */
-export const getHomeContentServer = cache(async (): Promise<HomeContent> => {
-  if (homeContentTableMissing) return defaultHomeContent;
+/** Load CMS home row from Neon (works on server — no relative /api fetch). */
+async function loadHomeContentFromDatabase(): Promise<HomeContent | null> {
+  if (homeContentTableMissing || !resolveDatabaseUrl()) return null;
   try {
-    const supabase = supabaseServerOnlyClient();
-    const { data, error } = await supabase
-      .from("home_content")
-      .select("content")
-      .eq("id", ROW_ID)
-      .single();
-    if (error && isMissingHomeContentTableMessage(error.message)) {
-      homeContentTableMissing = true;
-      return defaultHomeContent;
+    const { rows } = await neonQuery<{ content: unknown }>(
+      `SELECT content FROM home_content WHERE id = $1 LIMIT 1`,
+      [ROW_ID]
+    );
+    const raw = rows?.[0]?.content;
+    if (raw && typeof raw === "object") {
+      return mergeWithDefaults(raw as Partial<HomeContent>);
     }
-    if (!error && data?.content) return mergeWithDefaults(data.content as Partial<HomeContent>);
-  } catch {
-    // Supabase not configured or network error
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (isMissingHomeContentTableMessage(message)) {
+      homeContentTableMissing = true;
+    }
   }
-  return defaultHomeContent;
+  return null;
+}
+
+/** Server-side home CMS (first paint on reload). Cached per request. */
+export const getHomeContentServer = cache(async (): Promise<HomeContent> => {
+  const fromDb = await loadHomeContentFromDatabase();
+  return fromDb ?? { ...defaultHomeContent };
 });
 
 /** Get home content from Supabase, then localStorage fallback, then defaults. */
@@ -182,6 +188,7 @@ export async function getHomeContent(): Promise<HomeContent> {
 /** Fast client-side read to avoid first-render flicker on homepage reload. */
 export function getCachedHomeContentSync(): HomeContent | null {
   if (typeof window === "undefined") return null;
+  syncClientCachesWithDeployment();
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return null;

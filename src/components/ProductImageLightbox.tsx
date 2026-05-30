@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
+import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 
 type Props = {
   open: boolean;
@@ -10,7 +11,6 @@ type Props = {
   activeIndex: number;
   onActiveChange: (index: number) => void;
   productName: string;
-  isRemote: (url: string) => boolean;
 };
 
 export function ProductImageLightbox({
@@ -20,7 +20,6 @@ export function ProductImageLightbox({
   activeIndex,
   onActiveChange,
   productName,
-  isRemote,
 }: Props) {
   const [zoomed2x, setZoomed2x] = useState(false);
 
@@ -162,7 +161,7 @@ export function ProductImageLightbox({
                 alt={productName}
                 fill
                 sizes="(max-width: 768px) 100vw, 720px"
-                unoptimized={isRemote(src)}
+                unoptimized={shouldBypassImageOptimization(src)}
                 priority
                 className={`object-contain transition-transform duration-300 ease-out motion-reduce:transition-none ${
                   zoomed2x ? "scale-[2]" : "scale-100"
@@ -190,7 +189,15 @@ export function ProductImageLightbox({
                   i === safeIndex ? "border-white ring-1 ring-white/40" : "border-transparent opacity-60 hover:opacity-100"
                 }`}
               >
-                <Image src={thumb} alt="" fill sizes="48px" className="object-cover" unoptimized={isRemote(thumb)} />
+                <Image
+                  src={thumb}
+                  alt=""
+                  fill
+                  sizes="48px"
+                  className="object-cover"
+                  loading="lazy"
+                  unoptimized={shouldBypassImageOptimization(thumb)}
+                />
               </button>
             ))}
           </div>

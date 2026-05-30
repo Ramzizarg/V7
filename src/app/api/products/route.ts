@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { withApiNoStoreHeaders } from "@/lib/apiResponse";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
 import { parseProductActive } from "@/lib/productListing";
 import type { Product, StorefrontCategory } from "@/lib/types";
@@ -274,14 +275,16 @@ function errMessage(e: unknown): string {
 
 export async function GET() {
   if (!resolveDatabaseUrl()) {
-    return new NextResponse(
-      serializeJson({
-        products: [],
-        categories: [],
-        error:
-          "DATABASE_URL (ou POSTGRES_URL) manquant. Ajoutez-le dans .env.local puis redemarrez npm run dev.",
-      }),
-      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    return withApiNoStoreHeaders(
+      new NextResponse(
+        serializeJson({
+          products: [],
+          categories: [],
+          error:
+            "DATABASE_URL (ou POSTGRES_URL) manquant. Ajoutez-le dans .env.local puis redemarrez npm run dev.",
+        }),
+        { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+      )
     );
   }
 
@@ -303,25 +306,29 @@ export async function GET() {
     }
 
     const payload = { products, categories };
-    return new NextResponse(serializeJson(payload), {
-      status: 200,
-      headers: { "content-type": "application/json; charset=utf-8" },
-    });
+    return withApiNoStoreHeaders(
+      new NextResponse(serializeJson(payload), {
+        status: 200,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      })
+    );
   } catch (e) {
     const message = errMessage(e);
     if (process.env.NODE_ENV === "development") {
       console.error("[api/products]", message, e);
     }
-    return new NextResponse(
-      serializeJson({
-        products: [],
-        categories: [],
-        error:
-          process.env.NODE_ENV === "development"
-            ? message
-            : "Impossible de lire les produits. Verifiez la connexion Neon et le schema des tables.",
-      }),
-      { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+    return withApiNoStoreHeaders(
+      new NextResponse(
+        serializeJson({
+          products: [],
+          categories: [],
+          error:
+            process.env.NODE_ENV === "development"
+              ? message
+              : "Impossible de lire les produits. Verifiez la connexion Neon et le schema des tables.",
+        }),
+        { status: 200, headers: { "content-type": "application/json; charset=utf-8" } }
+      )
     );
   }
 }

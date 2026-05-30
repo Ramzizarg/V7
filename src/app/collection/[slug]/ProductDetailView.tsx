@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ProductImageLightbox } from "@/components/ProductImageLightbox";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
+import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 import { productPathSlug } from "@/lib/productUrl";
 import {
   dispatchCartAdded,
@@ -654,7 +655,6 @@ export default function ProductDetailView({ product }: Props) {
   const titleUpper = product.name.toUpperCase();
 
   const mainSrc = images[Math.min(active, images.length - 1)] ?? PLACEHOLDER;
-  const isRemote = (u: string) => u.startsWith("http");
   const hasMultipleImages = images.length > 1;
   const canGoPrev = active > 0;
   const canGoNext = active < images.length - 1;
@@ -716,7 +716,7 @@ export default function ProductDetailView({ product }: Props) {
                     sizes="80px"
                     loading={i === 0 ? "eager" : "lazy"}
                     priority={i === 0}
-                    unoptimized={isRemote(src)}
+                    unoptimized={shouldBypassImageOptimization(src)}
                     className="object-cover object-center"
                   />
                 </button>
@@ -731,7 +731,7 @@ export default function ProductDetailView({ product }: Props) {
                   loading="eager"
                   fetchPriority="high"
                   sizes="(max-width: 1024px) 100vw, 55vw"
-                  unoptimized={isRemote(mainSrc)}
+                  unoptimized={shouldBypassImageOptimization(mainSrc)}
                   className={`object-cover object-center transition-transform duration-500 ease-out motion-reduce:transition-none sm:object-contain ${
                     inactiveListing
                       ? ""
@@ -1242,7 +1242,7 @@ export default function ProductDetailView({ product }: Props) {
                         priority={idx < 2}
                         loading={idx < 2 ? "eager" : "lazy"}
                         fetchPriority={idx < 2 ? "high" : "auto"}
-                        unoptimized={isRemote(src)}
+                        unoptimized={shouldBypassImageOptimization(src)}
                         sizes="(max-width: 768px) 50vw, 25vw"
                         className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                       />
@@ -1520,7 +1520,6 @@ export default function ProductDetailView({ product }: Props) {
         activeIndex={active}
         onActiveChange={setActive}
         productName={product.name}
-        isRemote={isRemote}
       />
 
       <SiteFooter />
@@ -1569,7 +1568,7 @@ export default function ProductDetailView({ product }: Props) {
                   width={1200}
                   height={1600}
                   className="h-auto w-full object-contain"
-                  unoptimized={isRemote(product.size_guide_image)}
+                  unoptimized={shouldBypassImageOptimization(product.size_guide_image)}
                 />
               </div>
             </div>
@@ -1592,7 +1591,7 @@ export default function ProductDetailView({ product }: Props) {
                   fill
                   className="object-contain"
                   sizes="44px"
-                  unoptimized={isRemote(mainSrc)}
+                  unoptimized={shouldBypassImageOptimization(mainSrc)}
                 />
               </div>
               <div className="min-w-0 flex-1">

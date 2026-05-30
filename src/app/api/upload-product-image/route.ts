@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { optimizeUploadedImage } from "@/lib/optimizeUploadedImage";
 
 export const runtime = "nodejs";
 
@@ -47,8 +48,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
     }
 
-    const bytes = Buffer.from(await file.arrayBuffer());
-    const ext = getExt(file.name, file.type);
+    const rawBytes = Buffer.from(await file.arrayBuffer());
+    const extIn = getExt(file.name, file.type);
+    const uploadType = type === "sizeGuide" ? "sizeGuide" : type === "home" ? "home" : "product";
+    const { bytes, ext, contentType } = await optimizeUploadedImage(rawBytes, extIn, uploadType);
     const folder = type === "sizeGuide" ? "size-guides" : type === "home" ? "home" : "products";
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
@@ -67,7 +70,7 @@ export async function POST(request: NextRequest) {
       const pathname = `uploads/${folder}/${filename}`;
       const blob = await put(pathname, bytes, {
         access: "public",
-        contentType: file.type || "application/octet-stream",
+        contentType,
         addRandomSuffix: false,
       });
       return NextResponse.json({ url: blob.url });

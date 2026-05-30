@@ -48,6 +48,57 @@ body {
     linear-gradient(180deg, rgba(0, 0, 0, 0.04), transparent 40%);
 }
 
+/** Reload splash — logo V7 petit → grand sur fond blanc */
+html.vero7-splash-active body {
+  overflow: hidden;
+}
+
+html.vero7-splash-active #vero7-app-root {
+  visibility: hidden;
+}
+
+.vero7-splash-overlay {
+  opacity: 1;
+}
+
+.vero7-splash-overlay--exit {
+  animation: vero7-splash-fade-out 450ms ease-out forwards;
+}
+
+@keyframes vero7-splash-logo-in {
+  from {
+    transform: scale(0.28);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes vero7-splash-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.vero7-splash-logo--animate {
+  animation: vero7-splash-logo-in 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.vero7-splash-active #vero7-app-root {
+    visibility: visible;
+  }
+
+  .vero7-splash-overlay {
+    display: none !important;
+  }
+}
+
 /** Remplissage des barres sous le hero (durée alignée avec le carrousel). */
 @keyframes hero-slide-progress {
   from {

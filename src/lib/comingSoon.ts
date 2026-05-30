@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { syncClientCachesWithDeployment } from "@/lib/appBuildId";
 import { supabaseBrowserClient, supabaseServerOnlyClient } from "@/lib/supabaseClient";
 import { uploadHomeImage } from "@/lib/uploadHeroImage";
 
@@ -79,6 +80,7 @@ export const getComingSoonSettingsServer = cache(async (): Promise<ComingSoonSet
 
 /** Get coming soon settings from Supabase, then localStorage fallback, then defaults. */
 export async function getComingSoonSettings(): Promise<ComingSoonSettings> {
+  if (typeof window !== "undefined") syncClientCachesWithDeployment();
   try {
     const supabase = supabaseBrowserClient();
     const { data, error } = await supabase

@@ -196,7 +196,14 @@ export function CartSidebar({ open, onClose }: Props) {
                     <div className="flex gap-4">
                       <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded bg-zinc-100">
                         {item.image ? (
-                          <Image src={item.image} alt={item.name} fill sizes="96px" className="object-cover" />
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            fill
+                            sizes="96px"
+                            loading="lazy"
+                            className="object-cover"
+                          />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-sm text-zinc-400">—</div>
                         )}

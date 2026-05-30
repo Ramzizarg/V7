@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Image from "next/image";
+import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
@@ -390,7 +391,6 @@ export default function CollectionView() {
                     : product.price;
                 const discountPercent =
                   list != null && list > 0 ? Math.round(((list - sale) / list) * 100) : null;
-                const isRemote = product.image.startsWith("http");
                 const href = `/collection/${encodeURIComponent(product.slug)}`;
                 const quickAddSizes = getSizeOptionsForProduct({ sizes: product.sizes, stock: product.stock });
                 const cardOos = isProductOutOfStock({ sizes: product.sizes, stock: product.stock });
@@ -409,7 +409,7 @@ export default function CollectionView() {
                           priority={index < 4}
                           loading={index < 4 ? "eager" : "lazy"}
                           fetchPriority={index < 2 ? "high" : "auto"}
-                          unoptimized={isRemote}
+                          unoptimized={shouldBypassImageOptimization(product.image)}
                           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
                           className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                         />
@@ -675,7 +675,7 @@ export default function CollectionView() {
                   fill
                   className="object-contain"
                   sizes="44px"
-                  unoptimized={wishlistToast.image.startsWith("http")}
+                  unoptimized={shouldBypassImageOptimization(wishlistToast.image)}
                 />
               </div>
               <div className="min-w-0 flex-1">
