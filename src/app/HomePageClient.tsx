@@ -11,7 +11,6 @@ import { isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 import {
-  CategoryCarouselSkeleton,
   FeaturedProductsSkeleton,
 } from "@/components/home/HomeReloadSkeletons";
 import {
@@ -32,15 +31,13 @@ type Props = {
 const HERO_FALLBACK_IMAGES = ["/V7/img.jpg", "/V7/imgg.png", "/V7/imggg.png", "/V7/imgggg.png"] as const;
 const HERO_SLIDE_MS = 5000;
 
-/** Images locales si la table `categories` est vide (pas de SVG placeholder). */
-const CATEGORY_COVER_FALLBACK_IMAGES = ["/V7/2.jpeg", "/V7/3.jpeg", "/V7/4.jpeg", "/V7/1.jpg", "/V7/img-1.jpg"] as const;
-
-/** Dernier recours si aucune catégorie API ni produits catégorisés. */
-const CAROUSEL_STATIC_FALLBACK: StorefrontCategory[] = [
-  { id: 0, name: "Hoodies", slug: "hoodies", sort_order: 0, image: CATEGORY_COVER_FALLBACK_IMAGES[0] },
-  { id: 0, name: "T-shirts", slug: "t-shirts", sort_order: 1, image: CATEGORY_COVER_FALLBACK_IMAGES[1] },
-  { id: 0, name: "Shorts", slug: "shorts", sort_order: 2, image: CATEGORY_COVER_FALLBACK_IMAGES[2] },
-  { id: 0, name: "Joggers", slug: "joggers", sort_order: 3, image: CATEGORY_COVER_FALLBACK_IMAGES[3] },
+/** Tuiles « Acheter par catégorie » — images + libellés fixes. */
+const SHOP_BY_CATEGORY: StorefrontCategory[] = [
+  { id: 1, name: "Maillots", slug: "maillots", sort_order: 0, image: "/V7/jersey.jpg" },
+  { id: 2, name: "Shorts", slug: "shorts", sort_order: 1, image: "/V7/shorts.jpg" },
+  { id: 3, name: "T-shirts", slug: "t-shirts", sort_order: 2, image: "/V7/tshirt.jpg" },
+  { id: 4, name: "Soldes", slug: "soldes", sort_order: 3, image: "/V7/solde.jpg" },
+  { id: 5, name: "Vestes", slug: "vestes", sort_order: 4, image: "/V7/veste.jpg" },
 ];
 
 export default function HomePageClient({ initialHomeContent }: Props) {
@@ -50,7 +47,6 @@ export default function HomePageClient({ initialHomeContent }: Props) {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [homeContent, setHomeContent] = useState<HomeContent>(initialHomeContent);
   const [homeContentFetched, setHomeContentFetched] = useState(false);
-  const [dbCategories, setDbCategories] = useState<StorefrontCategory[]>([]);
   /** `undefined` = not loaded yet; then API products or empty. */
   const [collectionProducts, setCollectionProducts] = useState<Product[] | undefined>(undefined);
 
@@ -58,7 +54,6 @@ export default function HomePageClient({ initialHomeContent }: Props) {
     // Do not replace `initialHomeContent` (from DB on server) with localStorage — it can be stale (old "BUILT RAW" copy).
     const cachedCatalog = getCachedStorefrontSync();
     if (cachedCatalog) {
-      setDbCategories(cachedCatalog.categories);
       setCollectionProducts(cachedCatalog.products);
     }
   }, []);
@@ -168,51 +163,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
     el.scrollBy({ left: dir === "prev" ? -step * 2 : step * 2, behavior: "smooth" });
   };
 
-  const carouselCategories = useMemo((): StorefrontCategory[] => {
-    /** Même principe que les vedettes : pas de tuiles « fausses » puis remplacement. */
-    if (collectionProducts === undefined) return [];
-
-    if (dbCategories.length > 0) return dbCategories;
-
-    if (collectionProducts.length > 0) {
-      const firstImageByCat = new Map<number, string>();
-      const nameByCat = new Map<number, string>();
-      for (const p of collectionProducts) {
-        if (p.category_id == null) continue;
-        const cid = p.category_id;
-        if (!nameByCat.has(cid)) nameByCat.set(cid, p.category_name?.trim() || "Collection");
-        if (!firstImageByCat.has(cid)) {
-          const img = p.images?.[0]?.trim();
-          if (img) firstImageByCat.set(cid, img);
-        }
-      }
-      const ids = [...new Set(collectionProducts.map((p) => p.category_id).filter((id): id is number => id != null))];
-      if (ids.length > 0) {
-        return ids.map((catId, i) => ({
-          id: catId,
-          name: nameByCat.get(catId) ?? "Collection",
-          slug: `categorie-${catId}`,
-          sort_order: i,
-          image:
-            firstImageByCat.get(catId) ??
-            CATEGORY_COVER_FALLBACK_IMAGES[i % CATEGORY_COVER_FALLBACK_IMAGES.length],
-        }));
-      }
-    }
-
-    const cms: StorefrontCategory[] = [];
-    if (homeContent) {
-      const u1 = homeContent.category1ImageUrl?.trim();
-      const n1 = homeContent.category1Name?.trim();
-      if (u1) cms.push({ id: -1, name: n1 || "À la une", slug: "shop", sort_order: 0, image: u1 });
-      const u2 = homeContent.category2ImageUrl?.trim();
-      const n2 = homeContent.category2Name?.trim();
-      if (u2) cms.push({ id: -2, name: n2 || "Collection", slug: "shop-2", sort_order: 1, image: u2 });
-    }
-    if (cms.length > 0) return cms;
-
-    return [...CAROUSEL_STATIC_FALLBACK];
-  }, [dbCategories, homeContent, collectionProducts]);
+  const carouselCategories = SHOP_BY_CATEGORY;
 
   useEffect(() => {
     let cancelled = false;
@@ -225,14 +176,12 @@ export default function HomePageClient({ initialHomeContent }: Props) {
         setHomeContent(home);
         const categories = Array.isArray(d?.categories) ? (d.categories as StorefrontCategory[]) : [];
         const products = Array.isArray(d?.products) ? (d.products as Product[]) : [];
-        setDbCategories(categories);
         setCollectionProducts(products);
         setCachedStorefront({ categories, products });
       })
       .catch(() => {
         if (cancelled) return;
         setHomeContent((prev) => getCachedHomeContentSync() ?? prev);
-        setDbCategories((prev) => prev);
         setCollectionProducts((prev) => (prev === undefined ? [] : prev));
       })
       .finally(() => {
@@ -392,43 +341,37 @@ export default function HomePageClient({ initialHomeContent }: Props) {
               Acheter par Categorie
             </h2>
           </div>
-          {catalogLoading ? (
-            <CategoryCarouselSkeleton />
-          ) : carouselCategories.length > 0 ? (
-            <div className="categories-marquee px-1 sm:px-2">
-              <div className="categories-loop-track gap-2">
-                {Array.from({ length: 2 }, (_, copy) => (
-                  <div key={copy} className="flex gap-2" aria-hidden={copy > 0}>
-                    {carouselCategories.map((item) => (
-                      <a
-                        key={`${copy}-${item.slug}-${item.id}`}
-                        href="/collection"
-                        className="group relative block h-[320px] w-[280px] shrink-0 overflow-hidden rounded-sm border border-black/10"
-                      >
-                        <Image
-                          src={item.image}
-                          alt=""
-                          fill
-                          loading="lazy"
-                          sizes="280px"
-                          unoptimized={shouldBypassImageOptimization(item.image)}
-                          className={`object-center transition duration-500 group-hover:scale-105 ${
-                            item.image.endsWith(".svg") ? "object-contain" : "object-cover"
-                          }`}
-                        />
-                        <div className="absolute inset-0 bg-black/22" />
-                        <div className="relative z-10 flex h-full items-end p-4">
-                          <h3 className="text-4xl font-extrabold uppercase tracking-[0.06em] text-white">
-                            {item.name}
-                          </h3>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                ))}
-              </div>
+          <div className="categories-marquee px-1 sm:px-2">
+            <div className="categories-loop-track gap-2">
+              {Array.from({ length: 2 }, (_, copy) => (
+                <div key={copy} className="flex gap-2" aria-hidden={copy > 0}>
+                  {carouselCategories.map((item) => (
+                    <a
+                      key={`${copy}-${item.slug}-${item.id}`}
+                      href="/collection"
+                      className="group relative block h-[320px] w-[280px] shrink-0 overflow-hidden rounded-sm border border-black/10"
+                    >
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        loading="lazy"
+                        sizes="280px"
+                        unoptimized={shouldBypassImageOptimization(item.image)}
+                        className="object-cover object-center transition duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/22" />
+                      <div className="relative z-10 flex h-full items-end p-4">
+                        <h3 className="text-4xl font-extrabold uppercase tracking-[0.06em] text-white">
+                          {item.name}
+                        </h3>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ))}
             </div>
-          ) : null}
+          </div>
         </section>
 
         <section className="relative w-full overflow-hidden">
