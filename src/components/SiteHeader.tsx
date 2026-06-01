@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -29,6 +30,7 @@ const promoMessages = [
  * Liens ancres pointent vers `/#...` pour fonctionner depuis /collection etc.
  */
 export default function SiteHeader() {
+  const pathname = usePathname();
   const [favIconBump, setFavIconBump] = useState(false);
   const [cartIconBump, setCartIconBump] = useState(false);
   const [cartCount, setCartCount] = useState(0);
@@ -187,15 +189,21 @@ export default function SiteHeader() {
         </div>
         <Link
           href="/"
-          className="absolute left-1/2 -translate-x-1/2 flex items-center lg:static lg:left-auto lg:translate-x-0"
-          aria-label="Accueil Vero7"
+          className="absolute left-1/2 z-20 flex -translate-x-1/2 items-center lg:static lg:left-auto lg:z-auto lg:translate-x-0"
+          aria-label="Accueil Vero7 — retour à la page d'accueil"
+          onClick={(e) => {
+            if (pathname === "/") {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
         >
           <Image
             src="/vero7-logo.png"
-            alt="Vero7 logo"
+            alt="Vero7"
             width={72}
             height={72}
-            className="h-14 w-auto object-contain"
+            className="h-12 w-auto object-contain sm:h-14"
             priority
             loading="eager"
           />

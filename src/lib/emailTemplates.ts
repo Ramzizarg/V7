@@ -380,8 +380,9 @@ ${END_WRAPPER}
 // Newsletter welcome
 // ---------------------------------------------------------------------------
 
-export function templateNewsletterWelcome(email: string): string {
+export function templateNewsletterWelcome(email: string, name?: string): string {
   const base = getSiteUrl();
+  const greeting = name ? `Bonjour ${escapeHtml(name)},` : "Bonjour,";
   return `
 <!DOCTYPE html>
 <html lang="fr">
@@ -395,6 +396,7 @@ ${getHeaderHtml()}
     </td></tr>
     <tr><td style="padding: 0 0 24px;">
       <p style="margin:0 0 16px; color: #333;">
+        ${greeting}<br><br>
         Merci de vous être abonné(e) à notre newsletter.
         Profitez de <strong>-10&nbsp;%</strong> sur votre première commande&nbsp;:
       </p>

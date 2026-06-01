@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ShopEmptyState } from "@/components/shop/ShopEmptyState";
-import { ShopHeader } from "@/components/shop/ShopHeader";
+import SiteHeader from "@/components/SiteHeader";
 import { productPathSlug } from "@/lib/productUrl";
 import { isProductListedForSale } from "@/lib/productListing";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
@@ -282,7 +282,7 @@ export default function PanierClient() {
 
   return (
     <div className="min-h-screen bg-white text-black">
-      <ShopHeader active="panier" breadcrumb={[{ label: "Panier" }]} />
+      <SiteHeader />
       <main className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-10 sm:pb-14">
         <div className="mb-4 sm:mb-5">
           <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Panier</p>

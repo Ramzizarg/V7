@@ -14,17 +14,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { email } = (await req.json()) as { email?: string };
+    const { email, name } = (await req.json()) as { email?: string; name?: string };
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: "Adresse email invalide." }, { status: 400 });
     }
 
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: "Bienvenue chez VERO7 — Votre code -10%",
-      html: templateNewsletterWelcome(email),
+      html: templateNewsletterWelcome(email, trimmedName || undefined),
     });
 
     if (error) {

@@ -1,4 +1,4 @@
-﻿import { getHomeContentServer } from "@/lib/homeContent";
+import { getHomeContentServer } from "@/lib/homeContent";
 import HomePageClient from "./HomePageClient";
 
 /** Server-fetched CMS content → correct hero on first paint after reload. */

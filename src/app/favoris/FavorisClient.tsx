@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ShopEmptyState } from "@/components/shop/ShopEmptyState";
-import { ShopHeader } from "@/components/shop/ShopHeader";
+import SiteHeader from "@/components/SiteHeader";
 import type { Product } from "@/lib/types";
 import { addToCart, getWishlistIds, setWishlistIds } from "@/lib/shopClientStorage";
 
@@ -72,7 +72,7 @@ export default function FavorisClient() {
 
   return (
     <div className="min-h-screen bg-white text-black">
-      <ShopHeader active="favoris" breadcrumb={[{ label: "Favoris" }]} />
+      <SiteHeader />
       <main className="mx-auto w-full max-w-[1600px] px-2 pb-20 pt-8 sm:px-5 lg:px-8">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Favoris</h1>
         <p className="mt-2 text-sm text-zinc-500">

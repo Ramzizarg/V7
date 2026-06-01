@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppBuildCacheGuard } from "@/components/AppBuildCacheGuard";
 import { PageLoadSplash } from "@/components/PageLoadSplash";
+import { WelcomeOfferModal } from "@/components/WelcomeOfferModal";
 import { brandIcons, siteMetadataBase } from "@/lib/siteIconsMeta";
 import "./globals.css";
 
@@ -56,6 +57,7 @@ export default function RootLayout({
         <div id="vero7-app-root" className="flex min-h-full flex-1 flex-col">
           <AppBuildCacheGuard />
           {children}
+          <WelcomeOfferModal />
         </div>
         <Analytics />
       </body>

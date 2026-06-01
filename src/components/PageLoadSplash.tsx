@@ -27,6 +27,7 @@ export function PageLoadSplash() {
     if (!active || !shouldPlaySplash()) {
       document.documentElement.classList.remove("vero7-splash-active");
       document.documentElement.style.overflow = "";
+      window.dispatchEvent(new Event("vero7-splash-done"));
       return;
     }
 
@@ -39,6 +40,7 @@ export function PageLoadSplash() {
       document.documentElement.style.overflow = "";
       setVisible(false);
       setExiting(false);
+      window.dispatchEvent(new Event("vero7-splash-done"));
     }, SCALE_MS + HOLD_MS + FADE_MS);
 
     return () => {
