@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { ClubBenefitsList } from "@/components/ClubBenefitsList";
 import { brandIcons } from "@/lib/siteIconsMeta";
 import { LoginFormPanel } from "./LoginFormPanel";
 
@@ -57,23 +58,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </a>
 
               <h3 className="mt-10 text-2xl font-black uppercase">Avantages exclusifs</h3>
-              <div className="mt-5 grid grid-cols-1 gap-3 text-sm font-semibold uppercase sm:grid-cols-2">
-                {[
-                  "10 % sur votre première commande",
-                  "Retour gratuit",
-                  "Cadeau d’anniversaire",
-                  "Aperçu produits",
-                  "Offres spéciales",
-                  "Newsletter hebdomadaire",
-                ].map((benefit) => (
-                  <div key={benefit} className="flex items-center gap-2">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/30 text-[10px]">
-                      *
-                    </span>
-                    <span>{benefit}</span>
-                  </div>
-                ))}
-              </div>
+              <ClubBenefitsList
+                className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2"
+                itemClassName="flex items-center gap-2.5 text-sm font-semibold uppercase"
+                iconWrapClassName="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-black/25 bg-zinc-50 text-black"
+              />
             </section>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ClubBenefitsList } from "@/components/ClubBenefitsList";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { ComingSoonPlaceholder } from "@/components/ComingSoonPlaceholder";
@@ -588,26 +589,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                   Rejoindre
                 </a>
 
-                <div className="mt-8 grid grid-cols-1 gap-3 text-black sm:grid-cols-2 sm:gap-x-6 sm:gap-y-4 lg:mt-10">
-                  {[
-                    "10 % sur votre première commande",
-                    "Cadeau d’anniversaire",
-                    "Retour gratuit",
-                    "Aperçu produits",
-                    "Offres spéciales",
-                    "Newsletter hebdomadaire",
-                  ].map((benefit) => (
-                    <div
-                      key={benefit}
-                      className="flex items-start gap-3 text-sm font-semibold uppercase leading-snug sm:text-base lg:text-[15px]"
-                    >
-                      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-black/30 text-xs">
-                        *
-                      </span>
-                      <span>{benefit}</span>
-                    </div>
-                  ))}
-                </div>
+                <ClubBenefitsList className="mt-8 lg:mt-10" itemClassName="flex min-h-8 items-center gap-3 text-sm font-semibold uppercase leading-tight sm:text-base lg:text-[15px]" />
               </div>
 
               <div className="relative mx-auto w-full max-w-sm overflow-hidden sm:max-w-md lg:mx-0 lg:max-w-none lg:min-h-[480px] lg:self-stretch">

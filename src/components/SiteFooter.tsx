@@ -2,6 +2,30 @@
 
 import { useState } from "react";
 
+const INSTAGRAM_URL = "https://www.instagram.com/vero7.tn/";
+
+function InstagramIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
+
+const instagramLinkText =
+  "items-center gap-2.5 text-sm font-bold text-white transition hover:text-white/90 sm:text-base";
+
 export default function SiteFooter() {
   const [nlEmail, setNlEmail] = useState("");
   const [nlStatus, setNlStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -35,8 +59,18 @@ export default function SiteFooter() {
               <li><a href="/a-propos" className="transition hover:text-white">A propos de nous</a></li>
               <li><a href="/collection" className="transition hover:text-white">Nos collections</a></li>
               <li><a href="#" className="transition hover:text-white">Athletes</a></li>
-              <li><a href="#" className="transition hover:text-white">Club Vero7</a></li>
+              <li><a href="/#club" className="transition hover:text-white">Club Vero7</a></li>
             </ul>
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`mt-6 hidden lg:inline-flex ${instagramLinkText}`}
+              aria-label="Suivez Vero7 sur Instagram"
+            >
+              <InstagramIcon className="h-5 w-5 shrink-0" />
+              Instagram
+            </a>
           </div>
 
           <div>
@@ -82,8 +116,21 @@ export default function SiteFooter() {
           </div>
         </div>
 
-        <div className="pt-6 text-xs text-white/55">
-          Copyright © {new Date().getFullYear()} Vero7 - Tous droits reserves
+        {/* Mobile : Instagram uniquement au-dessus du copyright (pas sous Club Vero7) */}
+        <div className="flex flex-col gap-2 border-t border-white/20 pt-6 lg:border-t-0 lg:pt-4">
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex lg:hidden ${instagramLinkText}`}
+            aria-label="Suivez Vero7 sur Instagram"
+          >
+            <InstagramIcon className="h-5 w-5 shrink-0" />
+            Instagram
+          </a>
+          <p className="text-xs text-white/55">
+            Copyright © {new Date().getFullYear()} Vero7 - Tous droits reserves
+          </p>
         </div>
       </div>
     </footer>
