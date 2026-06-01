@@ -16,6 +16,7 @@ import {
 import { isProductAvailableForPurchase } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
 import { getCartItemCount, getWishlistCount } from "@/lib/shopClientStorage";
+import { requestSplashTransition } from "@/lib/splashTransition";
 import type { Product } from "@/lib/types";
 
 const promoMessages = [
@@ -195,7 +196,9 @@ export default function SiteHeader() {
             if (pathname === "/") {
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: "smooth" });
+              return;
             }
+            requestSplashTransition();
           }}
         >
           <Image

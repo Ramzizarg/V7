@@ -3,11 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ZoomIn } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ProductImageLightbox } from "@/components/ProductImageLightbox";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
+import { requestSplashTransition, SPLASH_DONE_EVENT } from "@/lib/splashTransition";
 import { productPathSlug } from "@/lib/productUrl";
 import {
   dispatchCartAdded,
@@ -21,6 +22,61 @@ import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
 
 const PLACEHOLDER = "/V7/1.jpg";
+
+/** Petit cadre de zoom desktop — a droite du curseur (style infobulle). */
+const MAG_LENS_W = 118;
+const MAG_LENS_H = 148;
+const MAG_LENS_PAD = 10;
+/** Espace entre le curseur et le bord gauche du cadre. */
+const MAG_CURSOR_GAP = 20;
+/** Inertie du cadre (0–1, plus haut = suit plus vite). */
+const MAG_LERP = 0.18;
+
+type HoverMagState = {
+  nx: number;
+  ny: number;
+  left: number;
+  top: number;
+};
+
+function hoverMagFromPointer(px: number, py: number, cw: number, ch: number): HoverMagState {
+  // Par defaut : cadre a droite du curseur, centre verticalement (le curseur reste visible).
+  let left = px + MAG_CURSOR_GAP;
+  let top = py - MAG_LENS_H / 2;
+
+  if (left + MAG_LENS_W > cw - MAG_LENS_PAD) {
+    left = px - MAG_LENS_W - MAG_CURSOR_GAP;
+  }
+
+  left = Math.max(MAG_LENS_PAD, Math.min(left, cw - MAG_LENS_W - MAG_LENS_PAD));
+  top = Math.max(MAG_LENS_PAD, Math.min(top, ch - MAG_LENS_H - MAG_LENS_PAD));
+
+  return {
+    nx: Math.min(1, Math.max(0, px / cw)),
+    ny: Math.min(1, Math.max(0, py / ch)),
+    left,
+    top,
+  };
+}
+
+function lerpHoverMag(current: HoverMagState, target: HoverMagState): HoverMagState {
+  const t = MAG_LERP;
+  return {
+    nx: current.nx + (target.nx - current.nx) * t,
+    ny: current.ny + (target.ny - current.ny) * t,
+    left: current.left + (target.left - current.left) * t,
+    top: current.top + (target.top - current.top) * t,
+  };
+}
+
+function hoverMagNear(a: HoverMagState, b: HoverMagState) {
+  return (
+    Math.abs(a.left - b.left) < 0.6 &&
+    Math.abs(a.top - b.top) < 0.6 &&
+    Math.abs(a.nx - b.nx) < 0.0015 &&
+    Math.abs(a.ny - b.ny) < 0.0015
+  );
+}
 
 /** Warm browser cache so gallery thumb / arrow clicks feel instant. */
 function preloadImageSrc(src: string) {
@@ -229,8 +285,12 @@ export default function ProductDetailView({ product }: Props) {
   const [mobileQuickAddOpen, setMobileQuickAddOpen] = useState(false);
   const [mobileQuickSize, setMobileQuickSize] = useState<string | null>(null);
   const [imageZoomOpen, setImageZoomOpen] = useState(false);
-  /** Normalized 0–1 pointer position for desktop hover magnifier. */
-  const [hoverMagNorm, setHoverMagNorm] = useState<{ nx: number; ny: number } | null>(null);
+  /** Index affiche dans la lightbox (aligne sur l'image principale au clic). */
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  /** Position affichee du cadre de zoom (interpolation fluide). */
+  const [hoverMag, setHoverMag] = useState<HoverMagState | null>(null);
+  const magTargetRef = useRef<HoverMagState | null>(null);
+  const magRafRef = useRef<number | null>(null);
   const [addQty, setAddQty] = useState(1);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -243,11 +303,78 @@ export default function ProductDetailView({ product }: Props) {
   const [audioGateState, setAudioGateState] = useState<"pending" | "visible" | "dismissed">(
     "pending"
   );
+  /** After V7 splash + fonts: show header, gallery and infos in one block (no image-first flash). */
+  const [pageRevealed, setPageRevealed] = useState(false);
   const favBtnRef = useRef<HTMLButtonElement>(null);
   const mainAddBtnRef = useRef<HTMLButtonElement>(null);
   const sizeSectionRef = useRef<HTMLDivElement>(null);
   const favToastTimerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+
+    const reveal = () => {
+      if (cancelled) return;
+      void (async () => {
+        try {
+          await document.fonts?.ready;
+        } catch {
+          /* ignore */
+        }
+        if (cancelled) return;
+        requestAnimationFrame(() => {
+          if (cancelled) return;
+          requestAnimationFrame(() => {
+            if (!cancelled) setPageRevealed(true);
+          });
+        });
+      })();
+    };
+
+    const onSplashDone = () => reveal();
+
+    if (!document.documentElement.classList.contains("vero7-splash-active")) {
+      reveal();
+    } else {
+      window.addEventListener(SPLASH_DONE_EVENT, onSplashDone, { once: true });
+    }
+
+    const fallback = window.setTimeout(reveal, 4500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(fallback);
+      window.removeEventListener(SPLASH_DONE_EVENT, onSplashDone);
+    };
+  }, []);
+
+  const stopMagLoop = useCallback(() => {
+    if (magRafRef.current != null) {
+      cancelAnimationFrame(magRafRef.current);
+      magRafRef.current = null;
+    }
+  }, []);
+
+  const runMagLoop = useCallback(() => {
+    const tick = () => {
+      const target = magTargetRef.current;
+      if (!target) {
+        setHoverMag(null);
+        magRafRef.current = null;
+        return;
+      }
+      setHoverMag((prev) => {
+        if (!prev) return target;
+        if (hoverMagNear(prev, target)) return target;
+        return lerpHoverMag(prev, target);
+      });
+      magRafRef.current = requestAnimationFrame(tick);
+    };
+    if (magRafRef.current == null) {
+      magRafRef.current = requestAnimationFrame(tick);
+    }
+  }, []);
 
   const audioTrack = useMemo(
     () => resolveAudioTrack({ name: product.name, slug: product.slug ?? null }),
@@ -297,8 +424,13 @@ export default function ProductDetailView({ product }: Props) {
     setAddQty(1);
     setSelectedSize(null);
     setImageZoomOpen(false);
-    setHoverMagNorm(null);
-  }, [product.id]);
+    setLightboxIndex(0);
+    magTargetRef.current = null;
+    stopMagLoop();
+    setHoverMag(null);
+  }, [product.id, stopMagLoop]);
+
+  useEffect(() => () => stopMagLoop(), [stopMagLoop]);
 
   useEffect(() => {
     images.forEach((src, i) => {
@@ -710,12 +842,18 @@ export default function ProductDetailView({ product }: Props) {
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+      <div
+        className={`transition-opacity duration-200 ease-out motion-reduce:transition-none ${
+          pageRevealed ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        aria-hidden={!pageRevealed}
+      >
       <SiteHeader />
 
       <main className="mx-auto w-full max-w-[1400px] px-0 pb-8 pt-0 sm:px-6 sm:pb-10 sm:pt-0 lg:px-10 lg:pb-12 lg:pt-0">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,26rem)] lg:gap-14 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,28rem)] xl:gap-16">
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] xl:gap-14">
           {/* Galerie */}
-          <div className="flex flex-col gap-3 lg:flex-row lg:gap-4">
+          <div className="flex flex-col gap-3 lg:mx-auto lg:w-full lg:max-w-[38rem] lg:flex-row lg:gap-4 xl:max-w-[40rem]">
             <div className="order-2 hidden flex-row gap-2 overflow-x-auto pb-1 lg:order-1 lg:flex lg:w-[4.75rem] lg:flex-col lg:overflow-y-auto lg:overflow-x-visible lg:pb-0 lg:pr-0 lg:pt-1">
               {images.map((src, i) => (
                 <button
@@ -743,7 +881,8 @@ export default function ProductDetailView({ product }: Props) {
                 </button>
               ))}
             </div>
-            <div className="group/main-gallery relative order-1 aspect-[3/4] w-full min-h-[280px] overflow-hidden bg-zinc-100 ring-1 ring-black/[0.04] transition-shadow hover:ring-black/10 sm:min-h-[360px] lg:order-2 lg:min-h-[420px]">
+            {/* 2:3 portrait frame — same ratio as product photos so object-contain fills the box */}
+            <div className="group/main-gallery relative order-1 mx-auto aspect-[2/3] w-full max-h-[min(82dvh,780px)] min-h-[280px] overflow-hidden bg-zinc-100 ring-1 ring-black/[0.04] transition-shadow hover:ring-black/10 sm:min-h-[360px] lg:order-2 lg:max-w-[34rem] lg:flex-1 xl:max-w-[36rem]">
               {images.map((src, i) => {
                 const isActive = active === i;
                 return (
@@ -753,17 +892,17 @@ export default function ProductDetailView({ product }: Props) {
                     alt={isActive ? product.name : ""}
                     fill
                     priority={i === 0}
-                    loading={i < 3 ? "eager" : "lazy"}
-                    fetchPriority={i === 0 ? "high" : isActive ? "high" : "auto"}
-                    sizes="(max-width: 1024px) 100vw, 55vw"
+                    loading={i === 0 ? "eager" : "lazy"}
+                    fetchPriority={i === 0 ? "high" : "low"}
+                    sizes="(max-width: 1024px) 100vw, 544px"
                     unoptimized={shouldBypassImageOptimization(src)}
                     aria-hidden={!isActive}
-                    className={`absolute inset-0 object-cover object-center transition-opacity duration-150 ease-out motion-reduce:transition-none sm:object-contain ${
-                      isActive ? "z-[1] opacity-100" : "z-0 opacity-0"
+                    className={`absolute inset-0 object-contain object-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${
+                      isActive ? "z-[1] opacity-100 visible" : "z-0 opacity-0 invisible"
                     } ${
                       inactiveListing || !isActive
                         ? ""
-                        : "lg:group-hover/main-gallery:scale-[1.02] motion-reduce:lg:group-hover/main-gallery:scale-100"
+                        : "max-lg:group-hover/main-gallery:scale-[1.02] motion-reduce:max-lg:group-hover/main-gallery:scale-100"
                     }`}
                     style={
                       !inactiveListing && isActive
@@ -773,23 +912,7 @@ export default function ProductDetailView({ product }: Props) {
                   />
                 );
               })}
-              {hoverMagNorm && !inactiveListing ? (
-                <div
-                  className="pointer-events-none absolute bottom-[4.25rem] right-3 z-[11] hidden h-[34%] max-h-[200px] w-[26%] max-w-[148px] overflow-hidden rounded-2xl border border-white/95 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/10 [@media(hover:hover)_and_(min-width:1024px)]:block [@media(pointer:coarse)]:hidden"
-                  aria-hidden
-                >
-                  <div
-                    className="h-full w-full bg-zinc-100"
-                    style={{
-                      backgroundImage: `url("${mainSrc.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`,
-                      backgroundSize: "240% 240%",
-                      backgroundPosition: `${hoverMagNorm.nx * 100}% ${hoverMagNorm.ny * 100}%`,
-                      backgroundRepeat: "no-repeat",
-                    }}
-                  />
-                </div>
-              ) : null}
-              {!inactiveListing ? (
+              {!inactiveListing && !hoverMag ? (
                 <div
                   className="pointer-events-none absolute bottom-3 left-3 z-[11] hidden max-w-[14rem] items-center gap-1.5 rounded-full border border-black/10 bg-white/95 px-2.5 py-1.5 text-[10px] font-medium text-zinc-700 shadow-md backdrop-blur-sm sm:gap-2 sm:text-[11px] [@media(hover:hover)_and_(min-width:1024px)]:flex [@media(pointer:coarse)]:hidden"
                   aria-hidden
@@ -800,18 +923,27 @@ export default function ProductDetailView({ product }: Props) {
               ) : null}
               <button
                 type="button"
-                onClick={() => setImageZoomOpen(true)}
+                onClick={() => {
+                  setLightboxIndex(active);
+                  setImageZoomOpen(true);
+                }}
                 onPointerMove={(e) => {
                   if (e.pointerType !== "mouse") return;
                   const el = e.currentTarget;
                   const r = el.getBoundingClientRect();
                   if (r.width < 1 || r.height < 1) return;
-                  setHoverMagNorm({
-                    nx: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
-                    ny: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
-                  });
+                  const px = e.clientX - r.left;
+                  const py = e.clientY - r.top;
+                  const next = hoverMagFromPointer(px, py, r.width, r.height);
+                  magTargetRef.current = next;
+                  setHoverMag((prev) => prev ?? next);
+                  runMagLoop();
                 }}
-                onPointerLeave={() => setHoverMagNorm(null)}
+                onPointerLeave={() => {
+                  magTargetRef.current = null;
+                  stopMagLoop();
+                  setHoverMag(null);
+                }}
                 className="absolute inset-0 z-10 cursor-zoom-in outline-offset-[-2px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/40"
                 aria-label="Agrandir l'image du produit"
               />
@@ -881,18 +1013,43 @@ export default function ProductDetailView({ product }: Props) {
                   <HeartIcon filled={fav} className="h-5 w-5" />
                 </button>
               ) : null}
+              {hoverMag && !inactiveListing ? (
+                <div
+                  className="pointer-events-none absolute left-0 top-0 z-[11] hidden overflow-hidden rounded-2xl border border-white/95 bg-zinc-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/10 will-change-transform [@media(hover:hover)_and_(min-width:1024px)]:block [@media(pointer:coarse)]:hidden"
+                  style={{
+                    width: MAG_LENS_W,
+                    height: MAG_LENS_H,
+                    transform: `translate3d(${hoverMag.left}px, ${hoverMag.top}px, 0)`,
+                  }}
+                  aria-hidden
+                >
+                  <div
+                    className="h-full w-full"
+                    style={{
+                      backgroundImage: `url("${mainSrc.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`,
+                      backgroundSize: "240% 240%",
+                      backgroundPosition: `${hoverMag.nx * 100}% ${hoverMag.ny * 100}%`,
+                      backgroundRepeat: "no-repeat",
+                    }}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
 
           {/* Infos */}
-          <div className="flex min-w-0 flex-col px-4 sm:px-0 lg:pt-2">
+          <div className="mx-auto flex w-full min-w-0 max-w-sm flex-col px-4 sm:max-w-md sm:px-0 lg:mx-0 lg:max-w-none lg:pt-2">
             <div className="flex w-full min-w-0 items-center justify-between gap-3">
               <nav
                 className="min-w-0 flex-1 truncate whitespace-nowrap text-[11px] leading-relaxed text-zinc-500 sm:text-xs"
                 aria-label="Fil d'Ariane"
                 title={product.name}
               >
-                <Link href="/" className="transition hover:text-black">
+                <Link
+                  href="/"
+                  className="transition hover:text-black"
+                  onClick={() => requestSplashTransition()}
+                >
                   Accueil
                 </Link>
                 <span className="mx-1.5 text-zinc-300">/</span>
@@ -1162,7 +1319,7 @@ export default function ProductDetailView({ product }: Props) {
               <button
                 type="button"
                 disabled
-                className="mt-10 flex w-full cursor-not-allowed items-center justify-center gap-2 border-0 bg-zinc-600 py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white"
+                className="mt-10 flex w-full max-w-sm cursor-not-allowed items-center justify-center gap-2 border-0 bg-zinc-600 py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white lg:max-w-none"
               >
                 <ListingLockIcon className="h-4 w-4 shrink-0" />
                 Coming soon
@@ -1171,7 +1328,7 @@ export default function ProductDetailView({ product }: Props) {
               <button
                 type="button"
                 disabled
-                className="mt-10 w-full cursor-not-allowed border-0 bg-zinc-400 py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white"
+                className="mt-10 w-full max-w-sm cursor-not-allowed border-0 bg-zinc-400 py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white lg:max-w-none"
               >
                 RUPTURE DE STOCK
               </button>
@@ -1185,7 +1342,7 @@ export default function ProductDetailView({ product }: Props) {
                   if (!size) return;
                   addToCartWithFeedback(mainAddBtnRef.current, size);
                 }}
-                className="mt-10 w-full border border-black bg-black py-3.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-200 disabled:text-zinc-500"
+                className="mt-10 w-full max-w-sm border border-black bg-black py-3.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-200 disabled:text-zinc-500 lg:max-w-none"
               >
                 Ajouter au panier
               </button>
@@ -1548,16 +1705,20 @@ export default function ProductDetailView({ product }: Props) {
         </div>
       ) : null}
 
+      <SiteFooter />
+      </div>
+
       <ProductImageLightbox
         open={imageZoomOpen}
         onClose={() => setImageZoomOpen(false)}
         images={images}
-        activeIndex={active}
-        onActiveChange={setActive}
+        activeIndex={lightboxIndex}
+        onActiveChange={(i) => {
+          setLightboxIndex(i);
+          setActive(i);
+        }}
         productName={product.name}
       />
-
-      <SiteFooter />
 
       {audioTrack ? (
         <audio

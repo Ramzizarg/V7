@@ -8,7 +8,7 @@ import {
   WELCOME_OFFER_IMAGE_SRC,
 } from "@/lib/welcomeOfferStorage";
 
-const SPLASH_DONE_EVENT = "vero7-splash-done";
+import { SPLASH_DONE_EVENT } from "@/lib/splashTransition";
 const OPEN_DELAY_MS = 400;
 const SPLASH_FALLBACK_MS = 2600;
 
