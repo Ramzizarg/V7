@@ -8,6 +8,7 @@ import { ProductImageLightbox } from "@/components/ProductImageLightbox";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
+import { PRODUCT_GALLERY_SIZES } from "@/lib/productGallery";
 import { requestSplashTransition, SPLASH_DONE_EVENT } from "@/lib/splashTransition";
 import { productPathSlug } from "@/lib/productUrl";
 import {
@@ -433,9 +434,7 @@ export default function ProductDetailView({ product }: Props) {
   useEffect(() => () => stopMagLoop(), [stopMagLoop]);
 
   useEffect(() => {
-    images.forEach((src, i) => {
-      if (i < 4) preloadImageSrc(src);
-    });
+    images.forEach((src) => preloadImageSrc(src));
   }, [images]);
 
   useEffect(() => {
@@ -864,7 +863,7 @@ export default function ProductDetailView({ product }: Props) {
                   onFocus={() => preloadImageSrc(src)}
                   aria-label={`Image ${i + 1}`}
                   aria-current={active === i ? "true" : undefined}
-                  className={`relative h-[4.5rem] w-[3.25rem] shrink-0 overflow-hidden bg-zinc-100 ring-2 ring-offset-1 ring-offset-zinc-100 transition sm:h-24 sm:w-[4.5rem] lg:h-20 lg:w-full ${
+                  className={`relative h-[4.5rem] w-[3.25rem] shrink-0 overflow-hidden bg-white ring-2 ring-offset-1 ring-offset-white transition sm:h-24 sm:w-[4.5rem] lg:h-20 lg:w-full ${
                     active === i ? "ring-black" : "ring-transparent hover:ring-black/20"
                   }`}
                 >
@@ -881,8 +880,8 @@ export default function ProductDetailView({ product }: Props) {
                 </button>
               ))}
             </div>
-            {/* 2:3 portrait frame — same ratio as product photos so object-contain fills the box */}
-            <div className="group/main-gallery relative order-1 mx-auto aspect-[2/3] w-full max-h-[min(82dvh,780px)] min-h-[280px] overflow-hidden bg-zinc-100 ring-1 ring-black/[0.04] transition-shadow hover:ring-black/10 sm:min-h-[360px] lg:order-2 lg:max-w-[34rem] lg:flex-1 xl:max-w-[36rem]">
+            {/* Cadre fixe 544×580 — fond blanc, object-contain pour image complète */}
+            <div className="group/main-gallery relative order-1 mx-auto aspect-[544/580] w-full max-w-[544px] max-h-[min(85dvh,580px)] shrink-0 overflow-hidden bg-white ring-1 ring-black/[0.04] transition-shadow hover:ring-black/10 lg:order-2 lg:aspect-auto lg:h-[580px] lg:w-[544px] lg:max-h-[580px] lg:flex-none">
               {images.map((src, i) => {
                 const isActive = active === i;
                 return (
@@ -894,15 +893,11 @@ export default function ProductDetailView({ product }: Props) {
                     priority={i === 0}
                     loading={i === 0 ? "eager" : "lazy"}
                     fetchPriority={i === 0 ? "high" : "low"}
-                    sizes="(max-width: 1024px) 100vw, 544px"
+                    sizes={PRODUCT_GALLERY_SIZES}
                     unoptimized={shouldBypassImageOptimization(src)}
                     aria-hidden={!isActive}
                     className={`absolute inset-0 object-contain object-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${
-                      isActive ? "z-[1] opacity-100 visible" : "z-0 opacity-0 invisible"
-                    } ${
-                      inactiveListing || !isActive
-                        ? ""
-                        : "max-lg:group-hover/main-gallery:scale-[1.02] motion-reduce:max-lg:group-hover/main-gallery:scale-100"
+                      isActive ? "z-[1] opacity-100" : "z-0 hidden opacity-0"
                     }`}
                     style={
                       !inactiveListing && isActive
@@ -1015,7 +1010,7 @@ export default function ProductDetailView({ product }: Props) {
               ) : null}
               {hoverMag && !inactiveListing ? (
                 <div
-                  className="pointer-events-none absolute left-0 top-0 z-[11] hidden overflow-hidden rounded-2xl border border-white/95 bg-zinc-100 shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/10 will-change-transform [@media(hover:hover)_and_(min-width:1024px)]:block [@media(pointer:coarse)]:hidden"
+                  className="pointer-events-none absolute left-0 top-0 z-[11] hidden overflow-hidden rounded-2xl border border-white/95 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/10 will-change-transform [@media(hover:hover)_and_(min-width:1024px)]:block [@media(pointer:coarse)]:hidden"
                   style={{
                     width: MAG_LENS_W,
                     height: MAG_LENS_H,

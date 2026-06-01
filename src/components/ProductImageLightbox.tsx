@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
+import { PRODUCT_GALLERY_SIZES } from "@/lib/productGallery";
 
 function preloadImageSrc(src: string) {
   if (typeof window === "undefined" || !src.trim()) return;
@@ -166,7 +167,7 @@ export function ProductImageLightbox({
           ) : null}
 
           <div
-            className="relative mx-auto h-[min(calc(100dvh-11rem),720px)] w-[min(92vw,640px)]"
+            className="relative mx-auto aspect-[544/580] w-full max-w-[544px] max-h-[min(calc(100dvh-11rem),580px)] lg:aspect-auto lg:h-[580px] lg:w-[544px] lg:max-h-[580px]"
             onDoubleClick={() => setZoomed2x((z) => !z)}
             role="presentation"
           >
@@ -186,14 +187,14 @@ export function ProductImageLightbox({
                     src={imgSrc}
                     alt={isActive ? productName : ""}
                     fill
-                    sizes="(max-width: 768px) 92vw, 640px"
+                    sizes={PRODUCT_GALLERY_SIZES}
                     unoptimized={shouldBypassImageOptimization(imgSrc)}
                     priority={i === 0}
                     loading={i < 3 ? "eager" : "lazy"}
                     fetchPriority={isActive ? "high" : "auto"}
                     aria-hidden={!isActive}
-                    className={`absolute inset-0 object-contain transition-opacity duration-150 ease-out motion-reduce:transition-none ${
-                      isActive ? "z-[1] opacity-100" : "z-0 opacity-0"
+                    className={`absolute inset-0 object-contain object-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${
+                      isActive ? "z-[1] opacity-100" : "z-0 hidden opacity-0"
                     }`}
                     draggable={false}
                   />
