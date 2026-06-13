@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppBuildCacheGuard } from "@/components/AppBuildCacheGuard";
+import { MetaPixel } from "@/components/MetaPixel";
 import { PageLoadSplash } from "@/components/PageLoadSplash";
 import { WelcomeOfferModal } from "@/components/WelcomeOfferModal";
 import { brandIcons, siteMetadataBase } from "@/lib/siteIconsMeta";
@@ -60,6 +61,7 @@ export default function RootLayout({
           <WelcomeOfferModal />
         </div>
         <Analytics />
+        <MetaPixel />
       </body>
     </html>
   );

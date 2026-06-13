@@ -1,3 +1,4 @@
+import { trackMetaAddToCart } from "@/lib/metaPixel";
 import type { CartItem } from "@/lib/types";
 
 const WISHLIST_KEY = "vero7-wishlist-ids";
@@ -108,6 +109,7 @@ export function addToCart(item: Omit<CartItem, "quantity"> & { quantity?: number
   } else {
     writeCart([...list, { ...item, quantity: q, discountPrice: item.discountPrice ?? null }]);
   }
+  trackMetaAddToCart({ ...item, quantity: q });
 }
 
 function sameLine(

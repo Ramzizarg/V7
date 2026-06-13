@@ -10,6 +10,7 @@ import { isProductListedForSale } from "@/lib/productListing";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import type { CartItem, Coupon, Product } from "@/lib/types";
 import { addToCart, getCart, removeFromCartLine, setCart, updateCartQuantity } from "@/lib/shopClientStorage";
+import { trackMetaInitiateCheckout, trackMetaPurchase } from "@/lib/metaPixel";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
 const TUNISIA_GOVERNORATES = [
@@ -110,6 +111,8 @@ export default function PanierClient() {
     setCart([]);
   }, []);
 
+  const initiateCheckoutSent = useRef(false);
+
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
       if (governorateRef.current && !governorateRef.current.contains(e.target as Node)) {
@@ -119,6 +122,16 @@ export default function PanierClient() {
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      initiateCheckoutSent.current = false;
+      return;
+    }
+    if (initiateCheckoutSent.current) return;
+    initiateCheckoutSent.current = true;
+    trackMetaInitiateCheckout(items, total);
+  }, [items, total]);
 
   const suggestionProducts = useMemo(() => {
     const inCart = new Set(items.map((x) => x.productId));
@@ -221,6 +234,8 @@ export default function PanierClient() {
           governorate: gov,
         }),
       }).catch(() => {});
+
+      trackMetaPurchase(orderId, items, total);
 
       setCart([]);
       setOrderSuccess(true);

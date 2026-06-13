@@ -18,6 +18,7 @@ import {
   flyProductThumbnailToFavorites,
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
+import { trackMetaViewContent } from "@/lib/metaPixel";
 import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
@@ -430,6 +431,10 @@ export default function ProductDetailView({ product }: Props) {
     stopMagLoop();
     setHoverMag(null);
   }, [product.id, stopMagLoop]);
+
+  useEffect(() => {
+    trackMetaViewContent(product);
+  }, [product]);
 
   useEffect(() => () => stopMagLoop(), [stopMagLoop]);
 
