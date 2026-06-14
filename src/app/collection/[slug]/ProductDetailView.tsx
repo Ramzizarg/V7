@@ -296,15 +296,6 @@ export default function ProductDetailView({ product }: Props) {
   const [addQty, setAddQty] = useState(1);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  /**
-   * Splash d'entree pour activer la bande-son (necessaire car les navigateurs
-   * exigent un geste utilisateur avant le son automatique). 'pending' = pas
-   * encore decide, 'visible' = on l'affiche, 'dismissed' = utilisateur a deja
-   * choisi (active ou refuse) dans cet onglet/session.
-   */
-  const [audioGateState, setAudioGateState] = useState<"pending" | "visible" | "dismissed">(
-    "pending"
-  );
   /** After V7 splash + fonts: show header, gallery and infos in one block (no image-first flash). */
   const [pageRevealed, setPageRevealed] = useState(false);
   const favBtnRef = useRef<HTMLButtonElement>(null);
@@ -490,21 +481,12 @@ export default function ProductDetailView({ product }: Props) {
     if (!audioTrack) {
       setIsAudioPlaying(false);
       setIsAudioMuted(false);
-      setAudioGateState("dismissed");
       return;
     }
     const audio = audioRef.current;
     if (!audio) return;
 
     const storageKey = `vero7:audio-pos:${audioTrack.src}`;
-    const gateKey = `vero7:audio-gate:${audioTrack.src}`;
-    const alreadyDismissed = (() => {
-      try {
-        return window.sessionStorage.getItem(gateKey) === "1";
-      } catch {
-        return false;
-      }
-    })();
 
     const savedPos = (() => {
       try {
@@ -615,26 +597,15 @@ export default function ProductDetailView({ product }: Props) {
       try {
         await audio.play();
         setIsAudioMuted(audio.muted);
-        // Lecture audible reussie : pas besoin du splash.
-        setAudioGateState("dismissed");
       } catch {
-        // Autoplay sonore bloque : on tente la lecture en muet
-        // (toujours autorisee), puis on retire le muet au 1er geste.
         try {
           audio.muted = true;
           setIsAudioMuted(true);
           await audio.play();
         } catch {
-          // Meme la lecture muette a echoue : on attend un geste.
+          // Attend un geste utilisateur (bouton bande-son).
         }
         armUnlockListeners();
-        // Le son a ete bloque : si l'utilisateur n'a pas deja choisi dans
-        // cette session, on affiche le splash d'entree.
-        if (!alreadyDismissed) {
-          setAudioGateState("visible");
-        } else {
-          setAudioGateState("dismissed");
-        }
       }
     };
 
@@ -673,39 +644,6 @@ export default function ProductDetailView({ product }: Props) {
       audio.pause();
     }
   }, []);
-
-  const persistGateDismissal = useCallback((src: string) => {
-    try {
-      window.sessionStorage.setItem(`vero7:audio-gate:${src}`, "1");
-    } catch {
-      // ignore quota / privacy errors
-    }
-  }, []);
-
-  const acceptAudioGate = useCallback(() => {
-    if (!audioTrack) return;
-    const audio = audioRef.current;
-    if (audio) {
-      audio.muted = false;
-      audio.volume = 0.6;
-      setIsAudioMuted(false);
-      void audio.play().catch(() => {});
-    }
-    persistGateDismissal(audioTrack.src);
-    setAudioGateState("dismissed");
-  }, [audioTrack, persistGateDismissal]);
-
-  const declineAudioGate = useCallback(() => {
-    if (!audioTrack) return;
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
-      audio.muted = true;
-      setIsAudioMuted(true);
-    }
-    persistGateDismissal(audioTrack.src);
-    setAudioGateState("dismissed");
-  }, [audioTrack, persistGateDismissal]);
 
   useEffect(() => {
     if (!sizeGuideOpen) return;
@@ -1838,61 +1776,6 @@ export default function ProductDetailView({ product }: Props) {
           ) : (
             <p className="pr-1 text-sm font-medium text-black">Retiré de vos favoris</p>
           )}
-        </div>
-      ) : null}
-
-      {audioTrack && audioGateState === "visible" ? (
-        <div
-          className={`audio-gate audio-gate--${audioTrack.theme}`}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="audio-gate-title"
-          aria-describedby="audio-gate-desc"
-        >
-          <button
-            type="button"
-            className="audio-gate__backdrop"
-            aria-label="Continuer en silence"
-            onClick={declineAudioGate}
-          />
-          <div className="audio-gate__card">
-            <button
-              type="button"
-              className="audio-gate__close"
-              aria-label="Fermer"
-              onClick={declineAudioGate}
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-              </svg>
-            </button>
-
-            <span className="audio-gate__eyebrow">Bande-son officielle</span>
-            <h2 id="audio-gate-title" className="audio-gate__title">
-              Entrez dans l&apos;ambiance
-            </h2>
-            <p id="audio-gate-desc" className="audio-gate__desc">
-              Activez <strong>{audioTrack.title}</strong> pour vivre la collection comme dans le stade.
-            </p>
-
-            <button
-              type="button"
-              className="audio-gate__cta"
-              onClick={acceptAudioGate}
-              autoFocus
-            >
-              <span className="audio-gate__cta-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                  <path d="M8 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 8 5.5Z" />
-                </svg>
-              </span>
-              <span>Activer la musique</span>
-            </button>
-
-            <button type="button" className="audio-gate__skip" onClick={declineAudioGate}>
-              Continuer en silence
-            </button>
-          </div>
         </div>
       ) : null}
     </div>
