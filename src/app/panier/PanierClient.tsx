@@ -200,49 +200,24 @@ export default function PanierClient() {
       const minProcessingDelay = new Promise<void>((resolve) => {
         window.setTimeout(() => resolve(), 2000);
       });
-      const supabase = supabaseBrowserClient();
-      const { data: orderData, error: orderErr } = await supabase
-        .from("orders")
-        .insert({
-          full_name: fn,
-          email: em,
-          phone_number: ph,
-          address: addr,
-          city: ct,
-          governorate: gov,
-          coupon_code: appliedCoupon ? coupon.trim() || null : null,
-          discount_amount: discountAmount > 0 ? discountAmount : 0,
-          total_price: total,
-          status: "pending",
-        });
-      if (orderErr) throw new Error(orderErr.message);
-      const inserted = Array.isArray(orderData) ? orderData[0] : null;
-      const orderId = inserted?.id;
-      if (!orderId) throw new Error("Commande non creee.");
 
-      const payload = items.map((it) => ({
-        order_id: orderId,
-        product_id: it.productId,
-        product_name: it.name,
-        quantity: it.quantity,
-        price: it.discountPrice ?? it.price,
-        size: it.size ?? null,
-        color: it.color ?? null,
-      }));
-      const { error: itemsErr } = await supabase.from("order_items").insert(payload);
-      if (itemsErr) throw new Error(itemsErr.message);
-
-      await minProcessingDelay;
-
-      fetch("/api/send-email", {
+      const placeOrderRequest = fetch("/api/place-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: em,
           fullName: fn,
+          email: em,
           phone: ph,
-          orderId,
+          address: addr,
+          city: ct,
+          governorate: gov,
+          couponCode: appliedCoupon ? coupon.trim() || null : null,
+          discountAmount: discountAmount > 0 ? discountAmount : 0,
+          total,
+          subtotal,
+          shipping,
           items: items.map((it) => ({
+            productId: it.productId,
             product_name: it.name,
             quantity: it.quantity,
             price: it.discountPrice ?? it.price,
@@ -250,15 +225,27 @@ export default function PanierClient() {
             color: it.color ?? null,
             image_url: it.image ?? null,
           })),
-          subtotal,
-          shipping,
-          discount: discountAmount,
-          total,
-          address: addr,
-          city: ct,
-          governorate: gov,
         }),
-      }).catch(() => {});
+      });
+
+      const [, res] = await Promise.all([minProcessingDelay, placeOrderRequest]);
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        orderId?: number;
+        emailFailed?: boolean;
+      } | null;
+
+      if (!res.ok) {
+        if (data?.emailFailed && data.orderId) {
+          throw new Error(
+            data.error || "Commande enregistrée, mais l'envoi des emails a échoué. Contactez-nous."
+          );
+        }
+        throw new Error(data?.error || "Impossible de confirmer la commande.");
+      }
+
+      const orderId = data?.orderId;
+      if (!orderId) throw new Error("Commande non créée.");
 
       trackMetaPurchase(orderId, items, total, {
         email: em,

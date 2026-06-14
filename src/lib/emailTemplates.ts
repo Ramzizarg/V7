@@ -78,20 +78,13 @@ function getFooterHtml(): string {
   return `
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #e5e5e5;">
     <tr>
-      <td style="padding: 24px 40px 12px 40px; font-size: 11px; color: #888888; text-align: center;">
-        <p style="margin: 0 0 8px;">VERO7 — Premium sportswear</p>
+      <td style="padding: 24px 40px 32px 40px; font-size: 11px; color: #888888; text-align: center;">
+        <p style="margin: 0 0 12px;">VERO7 — Premium sportswear</p>
         <p style="margin: 0;">
           <a href="${escapeHtml(base + "/collection")}" style="color:#000; text-decoration:underline;">Collection</a> &nbsp;&middot;&nbsp;
           <a href="${escapeHtml(base + "/shipping-terms")}" style="color:#000; text-decoration:underline;">Livraison</a> &nbsp;&middot;&nbsp;
           <a href="${escapeHtml(base)}" style="color:#000; text-decoration:underline;">Accueil</a>
         </p>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 0 40px 32px 40px; text-align: center;">
-        <p style="margin: 0 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #888;">FOLLOW US</p>
-        <a href="https://www.facebook.com/vero7.tn" style="display:inline-block; background-color:#000; color:#fff; border-radius:20px; font-size:12px; font-weight:700; font-family:Arial,sans-serif; text-decoration:none; margin:0 4px; padding:8px 16px; letter-spacing:0.03em;">Facebook</a>
-        <a href="https://www.instagram.com/vero7.tn" style="display:inline-block; background-color:#000; color:#fff; border-radius:20px; font-size:12px; font-weight:700; font-family:Arial,sans-serif; text-decoration:none; margin:0 4px; padding:8px 16px; letter-spacing:0.03em;">Instagram</a>
       </td>
     </tr>
   </table>
