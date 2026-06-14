@@ -253,9 +253,14 @@ export default function PanierClient() {
         const parts: string[] = [];
         if (!data?.adminEmailSent) parts.push("notification admin");
         if (!data?.clientEmailSent) parts.push("confirmation client");
+        const resendDetail = [data?.adminError, data?.clientError]
+          .filter((msg, i, arr) => typeof msg === "string" && msg.trim() && arr.indexOf(msg) === i)
+          .join(" — ");
         setOrderEmailWarning(
           parts.length > 0
-            ? `Commande enregistrée, mais email(s) non envoyé(s) : ${parts.join(", ")}. Vérifiez RESEND sur Vercel.`
+            ? resendDetail
+              ? `Commande enregistrée, mais email(s) non envoyé(s) : ${parts.join(", ")}. ${resendDetail}`
+              : `Commande enregistrée, mais email(s) non envoyé(s) : ${parts.join(", ")}. Vérifiez RESEND sur Vercel.`
             : data?.emailWarning || "Commande enregistrée, mais les emails n'ont pas pu être envoyés."
         );
       }
