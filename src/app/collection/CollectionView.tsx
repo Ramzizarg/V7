@@ -131,7 +131,7 @@ export default function CollectionView() {
   const [favoriteFx, setFavoriteFx] = useState<Record<string, boolean>>({});
   const [quickAddProductId, setQuickAddProductId] = useState<number | null>(null);
   const [wishlistToast, setWishlistToast] = useState<WishlistToast | null>(null);
-  const [comingSoonModalProduct, setComingSoonModalProduct] = useState<string | null>(null);
+  const [comingSoonModalOpen, setComingSoonModalOpen] = useState(false);
   const wishlistToastTimerRef = useRef<number | null>(null);
   const viewCategoryTrackedRef = useRef("");
 
@@ -581,7 +581,7 @@ export default function CollectionView() {
                         type="button"
                         className="group block w-full cursor-pointer text-left transition hover:opacity-95"
                         aria-label={`${product.name} — bientôt disponible`}
-                        onClick={() => setComingSoonModalProduct(product.name)}
+                        onClick={() => setComingSoonModalOpen(true)}
                       >
                         {comingSoonProductCard}
                       </button>
@@ -728,11 +728,7 @@ export default function CollectionView() {
         </div>
       ) : null}
 
-      <ComingSoonProductModal
-        open={comingSoonModalProduct != null}
-        productName={comingSoonModalProduct}
-        onClose={() => setComingSoonModalProduct(null)}
-      />
+      <ComingSoonProductModal open={comingSoonModalOpen} onClose={() => setComingSoonModalOpen(false)} />
     </div>
   );
 }

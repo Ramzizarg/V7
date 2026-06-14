@@ -51,7 +51,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
   const [homeContentFetched, setHomeContentFetched] = useState(false);
   /** `undefined` = not loaded yet; then API products or empty. */
   const [collectionProducts, setCollectionProducts] = useState<Product[] | undefined>(undefined);
-  const [comingSoonModalProduct, setComingSoonModalProduct] = useState<string | null>(null);
+  const [comingSoonModalOpen, setComingSoonModalOpen] = useState(false);
 
   useLayoutEffect(() => {
     // Do not replace `initialHomeContent` (from DB on server) with localStorage — it can be stale (old "BUILT RAW" copy).
@@ -559,7 +559,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                       type="button"
                       className={`${shellClass} cursor-pointer text-left`}
                       aria-label={`${item.name} — bientôt disponible`}
-                      onClick={() => setComingSoonModalProduct(item.name)}
+                      onClick={() => setComingSoonModalOpen(true)}
                     >
                       {featuredInner}
                     </button>
@@ -613,11 +613,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
         </section>
       </main>
 
-      <ComingSoonProductModal
-        open={comingSoonModalProduct != null}
-        productName={comingSoonModalProduct}
-        onClose={() => setComingSoonModalProduct(null)}
-      />
+      <ComingSoonProductModal open={comingSoonModalOpen} onClose={() => setComingSoonModalOpen(false)} />
 
       <SiteFooter />
     </div>

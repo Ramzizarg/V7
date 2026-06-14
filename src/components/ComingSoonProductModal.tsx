@@ -4,11 +4,10 @@ import { useEffect } from "react";
 
 type Props = {
   open: boolean;
-  productName?: string | null;
   onClose: () => void;
 };
 
-export function ComingSoonProductModal({ open, productName, onClose }: Props) {
+export function ComingSoonProductModal({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -28,8 +27,6 @@ export function ComingSoonProductModal({ open, productName, onClose }: Props) {
   }, [open, onClose]);
 
   if (!open) return null;
-
-  const trimmedName = productName?.trim();
 
   return (
     <div
@@ -75,14 +72,7 @@ export function ComingSoonProductModal({ open, productName, onClose }: Props) {
             Bientôt disponible
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-zinc-600">
-            {trimmedName ? (
-              <>
-                <span className="font-semibold text-black">{trimmedName}</span> arrive bientôt. Revenez plus tard pour le
-                découvrir.
-              </>
-            ) : (
-              <>Ce produit arrive bientôt. Revenez plus tard pour le découvrir.</>
-            )}
+            Ce produit arrive bientôt. Revenez plus tard pour le découvrir.
           </p>
           <button
             type="button"

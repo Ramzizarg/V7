@@ -61,6 +61,7 @@ export default function PanierClient() {
   const [placingOrder, setPlacingOrder] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderEmailWarning, setOrderEmailWarning] = useState<string | null>(null);
   const [showOrderProcessPopup, setShowOrderProcessPopup] = useState(false);
 
   useEffect(() => {
@@ -181,6 +182,7 @@ export default function PanierClient() {
 
   const handlePlaceOrder = async () => {
     setOrderError(null);
+    setOrderEmailWarning(null);
     const fn = fullName.trim();
     const em = email.trim();
     const ph = phone.trim();
@@ -232,20 +234,31 @@ export default function PanierClient() {
       const data = (await res.json().catch(() => null)) as {
         error?: string;
         orderId?: number;
-        emailFailed?: boolean;
+        emailsSent?: boolean;
+        adminEmailSent?: boolean;
+        clientEmailSent?: boolean;
+        emailWarning?: string;
+        adminError?: string;
+        clientError?: string;
       } | null;
 
       if (!res.ok) {
-        if (data?.emailFailed && data.orderId) {
-          throw new Error(
-            data.error || "Commande enregistrée, mais l'envoi des emails a échoué. Contactez-nous."
-          );
-        }
         throw new Error(data?.error || "Impossible de confirmer la commande.");
       }
 
       const orderId = data?.orderId;
       if (!orderId) throw new Error("Commande non créée.");
+
+      if (!data?.emailsSent) {
+        const parts: string[] = [];
+        if (!data?.adminEmailSent) parts.push("notification admin");
+        if (!data?.clientEmailSent) parts.push("confirmation client");
+        setOrderEmailWarning(
+          parts.length > 0
+            ? `Commande enregistrée, mais email(s) non envoyé(s) : ${parts.join(", ")}. Vérifiez RESEND sur Vercel.`
+            : data?.emailWarning || "Commande enregistrée, mais les emails n'ont pas pu être envoyés."
+        );
+      }
 
       trackMetaPurchase(orderId, items, total, {
         email: em,
@@ -537,6 +550,11 @@ export default function PanierClient() {
             Commande envoyee avec succes. Nous vous contacterons bientot.
           </p>
         ) : null}
+        {orderEmailWarning ? (
+          <p className="mx-auto mt-3 max-w-5xl rounded bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+            {orderEmailWarning}
+          </p>
+        ) : null}
 
         {suggestionProducts.length > 0 ? (
           <section className="mt-14">
@@ -626,7 +644,7 @@ export default function PanierClient() {
       {showOrderProcessPopup ? (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-xl bg-white p-5 sm:p-6 shadow-2xl">
-            <h3 className="text-base font-semibold text-black">Commande en cours</h3>
+            <h3 className="text-base font-semibold text-black">Commande en cours ✅</h3>
             <p className="mt-2 text-sm leading-relaxed text-zinc-700">
               Votre commande est en cours de traitement. Le service client va vous appeler pour confirmer la
               commande.

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
           adminError: result.adminError,
           clientError: result.clientError,
         },
-        { status: result.error.includes("RESEND_API_KEY") ? 503 : 502 }
+        { status: result.error?.includes("RESEND_API_KEY") ? 503 : 502 }
       );
     }
 
@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
       success: true,
       adminId: result.adminId,
       clientId: result.clientId,
+      adminEmailSent: result.adminSent,
+      clientEmailSent: result.clientSent,
+      emailWarning: result.error,
     });
   } catch (err) {
     console.error("[send-email] unexpected error:", err);

@@ -10,10 +10,11 @@ import {
 } from "@/lib/emailTemplates";
 import { getResend } from "@/lib/resendClient";
 
-export const ADMIN_EMAIL = "vero7.tn@gmail.com";
+export const ADMIN_EMAIL =
+  process.env.RESEND_ADMIN_EMAIL?.trim() || "vero7.tn@gmail.com";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "VERO7 <onboarding@resend.dev>";
-const domainVerified = Boolean(process.env.RESEND_FROM_EMAIL);
+const domainVerified = Boolean(process.env.RESEND_FROM_EMAIL?.trim());
 
 const MIME: Record<string, string> = {
   jpg: "image/jpeg",
@@ -81,14 +82,35 @@ export type OrderEmailPayload = {
   governorate: string;
 };
 
-export type SendOrderEmailsResult =
-  | { ok: true; adminId?: string; clientId?: string }
-  | { ok: false; error: string; adminError?: string; clientError?: string };
+export type SendOrderEmailsResult = {
+  ok: boolean;
+  adminSent: boolean;
+  clientSent: boolean;
+  error?: string;
+  adminError?: string;
+  clientError?: string;
+  adminId?: string;
+  clientId?: string;
+};
+
+async function sendWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (first) {
+    await new Promise((r) => setTimeout(r, 600));
+    return await fn();
+  }
+}
 
 export async function sendOrderEmails(body: OrderEmailPayload): Promise<SendOrderEmailsResult> {
   const resend = getResend();
   if (!resend) {
-    return { ok: false, error: "Configuration email manquante (RESEND_API_KEY)." };
+    return {
+      ok: false,
+      adminSent: false,
+      clientSent: false,
+      error: "Configuration email manquante (RESEND_API_KEY).",
+    };
   }
 
   const order: OrderForEmail = {
@@ -119,29 +141,39 @@ export async function sendOrderEmails(body: OrderEmailPayload): Promise<SendOrde
   );
 
   const [adminResult, clientResult] = await Promise.all([
-    resend.emails.send({
-      from: FROM_EMAIL,
-      to: ADMIN_EMAIL,
-      subject: `Nouvelle commande #${body.orderId} — ${body.fullName}`,
-      html: templateNewOrderAdmin(order, items),
-    }),
-    resend.emails.send({
-      from: FROM_EMAIL,
-      to: domainVerified ? body.to : ADMIN_EMAIL,
-      replyTo: body.to,
-      subject: domainVerified
-        ? `Votre commande est confirmée — VERO7`
-        : `[Client: ${body.to}] Votre commande est confirmée — VERO7`,
-      html: templateOrderReceivedClient(order, items),
-      text: textOrderReceivedClient(order, items),
-    }),
+    sendWithRetry(() =>
+      resend.emails.send({
+        from: FROM_EMAIL,
+        to: ADMIN_EMAIL,
+        subject: `Nouvelle commande #${body.orderId} — ${body.fullName}`,
+        html: templateNewOrderAdmin(order, items),
+      })
+    ),
+    sendWithRetry(() =>
+      resend.emails.send({
+        from: FROM_EMAIL,
+        to: domainVerified ? body.to : ADMIN_EMAIL,
+        replyTo: body.to,
+        subject: domainVerified
+          ? `Votre commande est confirmée — VERO7`
+          : `[Client: ${body.to}] Votre commande est confirmée — VERO7`,
+        html: templateOrderReceivedClient(order, items),
+        text: textOrderReceivedClient(order, items),
+      })
+    ),
   ]);
 
-  if (adminResult.error || clientResult.error) {
-    if (adminResult.error) console.error("[Resend] admin email error:", adminResult.error);
-    if (clientResult.error) console.error("[Resend] client email error:", clientResult.error);
+  const adminSent = !adminResult.error;
+  const clientSent = !clientResult.error;
+
+  if (adminResult.error) console.error("[Resend] admin email error:", adminResult.error);
+  if (clientResult.error) console.error("[Resend] client email error:", clientResult.error);
+
+  if (!adminSent && !clientSent) {
     return {
       ok: false,
+      adminSent: false,
+      clientSent: false,
       error: "Erreur lors de l'envoi des emails.",
       adminError: adminResult.error?.message,
       clientError: clientResult.error?.message,
@@ -150,7 +182,16 @@ export async function sendOrderEmails(body: OrderEmailPayload): Promise<SendOrde
 
   return {
     ok: true,
+    adminSent,
+    clientSent,
     adminId: adminResult.data?.id,
     clientId: clientResult.data?.id,
+    error: !clientSent
+      ? "Email client non envoyé."
+      : !adminSent
+        ? "Email admin non envoyé."
+        : undefined,
+    adminError: adminResult.error?.message,
+    clientError: clientResult.error?.message,
   };
 }

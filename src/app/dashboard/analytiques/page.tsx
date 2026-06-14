@@ -42,6 +42,26 @@ const STATUS_OPTIONS = [
 
 type EditableStatus = (typeof STATUS_OPTIONS)[number]["value"];
 
+type OrderItemRow = {
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  price: number;
+  color: string | null;
+  size: string | null;
+  image_url: string | null;
+};
+
+function formatOrderItemLabel(item: Pick<OrderItemRow, "product_name" | "quantity" | "color" | "size">) {
+  const details = [
+    item.size?.trim() ? `Taille ${item.size.trim()}` : null,
+    item.color?.trim() || null,
+  ].filter(Boolean);
+  return details.length
+    ? `${item.product_name} — ${details.join(" · ")} × ${item.quantity}`
+    : `${item.product_name} × ${item.quantity}`;
+}
+
 function normalizeStatus(status: string): EditableStatus {
   const s = status?.toLowerCase();
   if (s === "confirmed" || s === "delivered") return "delivered";
@@ -57,7 +77,7 @@ export default function DashboardAnalytiquesPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [savingPhoneId, setSavingPhoneId] = useState<number | null>(null);
   const [savingStatusId, setSavingStatusId] = useState<number | null>(null);
-  const [orderItems, setOrderItems] = useState<Record<number, { product_id: number; product_name: string; quantity: number; price: number; color: string | null; image_url: string | null }[]>>({});
+  const [orderItems, setOrderItems] = useState<Record<number, OrderItemRow[]>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const getStatusStyle = (status: string) => {
@@ -191,9 +211,17 @@ export default function DashboardAnalytiquesPage() {
 
         const { data: itemsData, error: itemsErr } = await supabase
           .from("order_items")
-          .select("order_id, product_id, product_name, quantity, price, color");
+          .select("order_id, product_id, product_name, quantity, price, color, size");
         if (itemsErr) throw itemsErr;
-        const items = (itemsData ?? []) as { order_id: number; product_id: number; product_name: string; quantity: number; price: number; color: string | null }[];
+        const items = (itemsData ?? []) as {
+          order_id: number;
+          product_id: number;
+          product_name: string;
+          quantity: number;
+          price: number;
+          color: string | null;
+          size: string | null;
+        }[];
 
         const productIds = [...new Set(items.map((i) => i.product_id))];
         const { data: productsData } = await supabase
@@ -208,7 +236,7 @@ export default function DashboardAnalytiquesPage() {
         }
 
         const countByOrder: Record<number, number> = {};
-        const itemsByOrder: Record<number, { product_id: number; product_name: string; quantity: number; price: number; color: string | null; image_url: string | null }[]> = {};
+        const itemsByOrder: Record<number, OrderItemRow[]> = {};
         for (const item of items) {
           countByOrder[item.order_id] = (countByOrder[item.order_id] ?? 0) + item.quantity;
           if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
@@ -420,7 +448,7 @@ export default function DashboardAnalytiquesPage() {
                         <p className="text-xs font-semibold text-zinc-700 mb-2">Items</p>
                         <div className="space-y-2">
                           {orderItems[o.id].map((item, i) => {
-                            const label = item.color ? `${item.product_name} - ${item.color} × ${item.quantity}` : `${item.product_name} × ${item.quantity}`;
+                            const label = formatOrderItemLabel(item);
                             return (
                               <div key={i} className="flex items-center gap-3 py-1.5">
                                 <div className="h-10 w-10 rounded border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0">
@@ -511,9 +539,7 @@ export default function DashboardAnalytiquesPage() {
                           <div className="pl-0 sm:pl-4 space-y-1 text-xs">
                             <p className="font-semibold text-zinc-700 mb-2">Items</p>
                             {orderItems[o.id].map((item, i) => {
-                              const label = item.color
-                                ? `${item.product_name} - ${item.color} × ${item.quantity}`
-                                : `${item.product_name} × ${item.quantity}`;
+                              const label = formatOrderItemLabel(item);
                               return (
                                 <div key={i} className="flex items-center gap-3 py-1.5">
                                   <div className="h-12 w-12 rounded border border-zinc-200 overflow-hidden bg-zinc-100 flex-shrink-0">

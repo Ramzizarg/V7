@@ -3,6 +3,7 @@ import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
 import { sendOrderEmails, type OrderEmailPayload } from "@/lib/sendOrderEmails";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type PlaceOrderItem = {
   productId: number;
@@ -121,25 +122,18 @@ export async function POST(req: NextRequest) {
     };
 
     const emailResult = await sendOrderEmails(emailPayload);
-    if (!emailResult.ok) {
-      return NextResponse.json(
-        {
-          error: emailResult.error,
-          orderId,
-          emailFailed: true,
-          adminError: emailResult.adminError,
-          clientError: emailResult.clientError,
-        },
-        { status: 502 }
-      );
-    }
 
     return NextResponse.json({
       success: true,
       orderId,
-      emailsSent: true,
+      emailsSent: emailResult.adminSent && emailResult.clientSent,
+      adminEmailSent: emailResult.adminSent,
+      clientEmailSent: emailResult.clientSent,
       adminEmailId: emailResult.adminId,
       clientEmailId: emailResult.clientId,
+      emailWarning: emailResult.error,
+      adminError: emailResult.adminError,
+      clientError: emailResult.clientError,
     });
   } catch (err) {
     console.error("[place-order] unexpected error:", err);
