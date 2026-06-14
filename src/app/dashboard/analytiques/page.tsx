@@ -33,29 +33,147 @@ type OrderRow = {
 
 type StatusFilter = "all" | "pending" | "rejected" | "delivered" | "out_for_delivery";
 
+const STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "rejected", label: "Rejected" },
+  { value: "out_for_delivery", label: "Out for delivery" },
+  { value: "delivered", label: "Delivered" },
+] as const;
+
+type EditableStatus = (typeof STATUS_OPTIONS)[number]["value"];
+
+function normalizeStatus(status: string): EditableStatus {
+  const s = status?.toLowerCase();
+  if (s === "confirmed" || s === "delivered") return "delivered";
+  if (s === "shipped" || s === "out_for_delivery") return "out_for_delivery";
+  if (s === "rejected") return "rejected";
+  return "pending";
+}
+
 export default function DashboardAnalytiquesPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [savingPhoneId, setSavingPhoneId] = useState<number | null>(null);
+  const [savingStatusId, setSavingStatusId] = useState<number | null>(null);
   const [orderItems, setOrderItems] = useState<Record<number, { product_id: number; product_name: string; quantity: number; price: number; color: string | null; image_url: string | null }[]>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const getStatusStyle = (status: string) => {
-    const s = status?.toLowerCase();
+    const s = normalizeStatus(status);
     if (s === "rejected") return "bg-red-100 text-red-800";
-    if (s === "delivered" || s === "confirmed") return "bg-emerald-100 text-emerald-800";
+    if (s === "delivered") return "bg-emerald-100 text-emerald-800";
     if (s === "pending") return "bg-amber-100 text-amber-800";
-    if (s === "out_for_delivery" || s === "shipped") return "bg-blue-100 text-blue-800";
+    if (s === "out_for_delivery") return "bg-blue-100 text-blue-800";
     return "bg-zinc-100 text-zinc-700";
   };
-  const getStatusLabel = (status: string) => {
-    const s = status?.toLowerCase();
-    if (s === "rejected") return "Rejected";
-    if (s === "delivered" || s === "confirmed") return "Delivered";
-    if (s === "pending") return "Pending";
-    if (s === "out_for_delivery" || s === "shipped") return "Out for delivery";
-    return status ?? "—";
+  const patchOrder = (orderId: number, patch: Partial<OrderRow>) => {
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)));
+  };
+
+  const handlePhoneConfirm = async (order: OrderRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (order.confirmed_by_phone || savingPhoneId === order.id) return;
+
+    setSavingPhoneId(order.id);
+    setError(null);
+    const previous = order.confirmed_by_phone;
+    patchOrder(order.id, { confirmed_by_phone: true });
+
+    try {
+      const supabase = supabaseBrowserClient();
+      const { error: updateErr } = await supabase
+        .from("orders")
+        .update({ confirmed_by_phone: true })
+        .eq("id", order.id);
+      if (updateErr) throw updateErr;
+    } catch (err) {
+      patchOrder(order.id, { confirmed_by_phone: previous });
+      setError(err instanceof Error ? err.message : "Impossible de confirmer le téléphone.");
+    } finally {
+      setSavingPhoneId(null);
+    }
+  };
+
+  const handleStatusChange = async (order: OrderRow, nextStatus: EditableStatus, e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    if (normalizeStatus(order.status) === nextStatus || savingStatusId === order.id) return;
+
+    setSavingStatusId(order.id);
+    setError(null);
+    const previous = order.status;
+    patchOrder(order.id, { status: nextStatus });
+
+    try {
+      const supabase = supabaseBrowserClient();
+      const { error: updateErr } = await supabase
+        .from("orders")
+        .update({ status: nextStatus })
+        .eq("id", order.id);
+      if (updateErr) throw updateErr;
+    } catch (err) {
+      patchOrder(order.id, { status: previous });
+      setError(err instanceof Error ? err.message : "Impossible de changer le statut.");
+    } finally {
+      setSavingStatusId(null);
+    }
+  };
+
+  const renderPhoneConfirm = (order: OrderRow, compact = false) => {
+    const confirmed = Boolean(order.confirmed_by_phone);
+    const saving = savingPhoneId === order.id;
+
+    if (confirmed) {
+      return (
+        <span
+          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 ${
+            compact ? "text-[10px] px-2 py-0.5" : ""
+          }`}
+        >
+          Oui
+        </span>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={(e) => handlePhoneConfirm(order, e)}
+        disabled={saving}
+        title="Cliquer pour confirmer par téléphone"
+        className={`inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60 ${
+          compact ? "text-[10px] px-2 py-0.5" : ""
+        }`}
+      >
+        {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+        Non
+      </button>
+    );
+  };
+
+  const renderStatusSelect = (order: OrderRow, compact = false) => {
+    const current = normalizeStatus(order.status);
+    const saving = savingStatusId === order.id;
+
+    return (
+      <select
+        value={current}
+        disabled={saving}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => handleStatusChange(order, e.target.value as EditableStatus, e)}
+        className={`rounded-full border-0 py-1 pl-2.5 pr-7 text-xs font-semibold uppercase cursor-pointer focus:outline-none focus:ring-2 focus:ring-black/20 disabled:opacity-60 ${getStatusStyle(
+          current
+        )} ${compact ? "text-[10px] py-0.5" : ""}`}
+        aria-label={`Statut commande #${order.id}`}
+      >
+        {STATUS_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    );
   };
 
   useEffect(() => {
@@ -289,15 +407,12 @@ export default function DashboardAnalytiquesPage() {
                         <p className="text-xs text-zinc-600 truncate">{o.full_name}</p>
                         <p className="text-[11px] text-zinc-500">{formatDateShort(o.created_at)}</p>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
                         <p className="text-sm font-semibold text-black">{formatPrice(Number(o.total_price))}</p>
                         <p className="text-[10px] text-zinc-500">{o.items_count ?? 0} item{(o.items_count ?? 0) !== 1 ? "s" : ""}</p>
+                        {renderPhoneConfirm(o, true)}
+                        {renderStatusSelect(o, true)}
                       </div>
-                      <span
-                        className={`shrink-0 inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${getStatusStyle(o.status)}`}
-                      >
-                        {getStatusLabel(o.status)}
-                      </span>
                       {expandedId === o.id ? <ChevronUp className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" />}
                     </div>
                     {expandedId === o.id && orderItems[o.id] && (
@@ -374,25 +489,13 @@ export default function DashboardAnalytiquesPage() {
                         {o.phone_number && <span className="block text-xs text-zinc-500 mt-0.5">{o.phone_number}</span>}
                       </td>
                       <td className="px-4 py-3 text-zinc-600">{formatDate(o.created_at)}</td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <span
-                          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            o.confirmed_by_phone
-                              ? "bg-emerald-50 text-emerald-800"
-                              : "bg-red-50 text-red-700"
-                          }`}
-                        >
-                          {o.confirmed_by_phone ? "Yes" : "Non"}
-                        </span>
+                      <td className="px-4 py-3 hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
+                        {renderPhoneConfirm(o)}
                       </td>
                       <td className="px-4 py-3 text-right text-zinc-600">{o.items_count ?? 0}</td>
                       <td className="px-4 py-3 text-right font-semibold text-black">{formatPrice(Number(o.total_price))}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${getStatusStyle(o.status)}`}
-                        >
-                          {getStatusLabel(o.status)}
-                        </span>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        {renderStatusSelect(o)}
                       </td>
                       <td className="px-4 py-3">
                         {expandedId === o.id ? (
