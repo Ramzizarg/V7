@@ -13,6 +13,7 @@ import {
   flyProductThumbnailToFavorites,
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
+import { trackMetaAddToWishlist, trackMetaViewCategory } from "@/lib/metaPixel";
 import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { isProductAvailableForPurchase, isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
@@ -130,6 +131,7 @@ export default function CollectionView() {
   const [quickAddProductId, setQuickAddProductId] = useState<number | null>(null);
   const [wishlistToast, setWishlistToast] = useState<WishlistToast | null>(null);
   const wishlistToastTimerRef = useRef<number | null>(null);
+  const viewCategoryTrackedRef = useRef("");
 
   const showWishlistToast = useCallback((t: WishlistToast) => {
     if (wishlistToastTimerRef.current != null) window.clearTimeout(wishlistToastTimerRef.current);
@@ -243,6 +245,22 @@ export default function CollectionView() {
     });
     return withIdx.map(({ p }) => p);
   }, [selectedCategories, sortKey, products]);
+
+  useEffect(() => {
+    if (loading) return;
+    const categoryName =
+      selectedCategories.length === 1
+        ? selectedCategories[0]!
+        : selectedCategories.length > 1
+          ? selectedCategories.join(", ")
+          : "Toute la collection";
+    if (viewCategoryTrackedRef.current === categoryName) return;
+    viewCategoryTrackedRef.current = categoryName;
+    trackMetaViewCategory(
+      categoryName,
+      visibleProducts.slice(0, 50).map((product) => String(product.id)),
+    );
+  }, [loading, selectedCategories, visibleProducts]);
 
   const toggleCategory = (cat: string) => {
     setSelectedCategories((prev) =>
@@ -569,6 +587,12 @@ export default function CollectionView() {
                           e.stopPropagation();
                           const isNowFavorite = toggleWishlistId(product.id);
                           if (isNowFavorite) {
+                            trackMetaAddToWishlist({
+                              id: product.id,
+                              name: product.name,
+                              price: product.price,
+                              discountPrice: product.discountPrice,
+                            });
                             setFavoriteFx((prev) => ({ ...prev, [String(product.id)]: true }));
                             window.setTimeout(() => {
                               setFavoriteFx((prev) => ({ ...prev, [String(product.id)]: false }));

@@ -10,7 +10,7 @@ import { isProductListedForSale } from "@/lib/productListing";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import type { CartItem, Coupon, Product } from "@/lib/types";
 import { addToCart, getCart, removeFromCartLine, setCart, updateCartQuantity } from "@/lib/shopClientStorage";
-import { trackMetaInitiateCheckout, trackMetaPurchase } from "@/lib/metaPixel";
+import { trackMetaInitiateCheckout, trackMetaPurchase, setMetaAdvancedMatching } from "@/lib/metaPixel";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
 const TUNISIA_GOVERNORATES = [
@@ -130,8 +130,33 @@ export default function PanierClient() {
     }
     if (initiateCheckoutSent.current) return;
     initiateCheckoutSent.current = true;
-    trackMetaInitiateCheckout(items, total);
-  }, [items, total]);
+    trackMetaInitiateCheckout(items, total, {
+      email: email.trim() || undefined,
+      phone: phone.trim() || undefined,
+      fullName: fullName.trim() || undefined,
+      city: city.trim() || undefined,
+      state: governorate.trim() || undefined,
+      country: "tn",
+    });
+  }, [items, total, email, phone, fullName, city, governorate]);
+
+  useEffect(() => {
+    const fn = fullName.trim();
+    const em = email.trim();
+    const ph = phone.trim();
+    if (!fn && !em && !ph) return;
+    const t = window.setTimeout(() => {
+      setMetaAdvancedMatching({
+        email: em || undefined,
+        phone: ph || undefined,
+        fullName: fn || undefined,
+        city: city.trim() || undefined,
+        state: governorate.trim() || undefined,
+        country: "tn",
+      });
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [fullName, email, phone, city, governorate]);
 
   const suggestionProducts = useMemo(() => {
     const inCart = new Set(items.map((x) => x.productId));
@@ -235,7 +260,14 @@ export default function PanierClient() {
         }),
       }).catch(() => {});
 
-      trackMetaPurchase(orderId, items, total);
+      trackMetaPurchase(orderId, items, total, {
+        email: em,
+        phone: ph,
+        fullName: fn,
+        city: ct,
+        state: gov,
+        country: "tn",
+      });
 
       setCart([]);
       setOrderSuccess(true);

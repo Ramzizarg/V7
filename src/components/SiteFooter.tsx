@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { trackMetaLead } from "@/lib/metaPixel";
 
 const INSTAGRAM_URL = "https://www.instagram.com/vero7.tn/";
 
@@ -36,10 +37,11 @@ export default function SiteFooter() {
     if (!trimmed) return;
     setNlStatus("loading");
     try {
+      const metaEventId = trackMetaLead({ email: trimmed, country: "tn" });
       const res = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed }),
+        body: JSON.stringify({ email: trimmed, metaEventId }),
       });
       if (!res.ok) throw new Error();
       setNlStatus("success");

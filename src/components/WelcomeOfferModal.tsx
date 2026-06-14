@@ -7,6 +7,7 @@ import {
   shouldShowWelcomeOffer,
   WELCOME_OFFER_IMAGE_SRC,
 } from "@/lib/welcomeOfferStorage";
+import { trackMetaLead } from "@/lib/metaPixel";
 
 import { SPLASH_DONE_EVENT } from "@/lib/splashTransition";
 const OPEN_DELAY_MS = 400;
@@ -82,10 +83,15 @@ export function WelcomeOfferModal() {
     if (!trimmedEmail || !trimmedName) return;
     setStatus("loading");
     try {
+      const metaEventId = trackMetaLead({
+        email: trimmedEmail,
+        fullName: trimmedName,
+        country: "tn",
+      });
       const res = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, name: trimmedName }),
+        body: JSON.stringify({ email: trimmedEmail, name: trimmedName, metaEventId }),
       });
       if (!res.ok) throw new Error();
       setStatus("success");

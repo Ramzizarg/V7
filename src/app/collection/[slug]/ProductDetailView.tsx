@@ -18,7 +18,7 @@ import {
   flyProductThumbnailToFavorites,
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
-import { trackMetaViewContent } from "@/lib/metaPixel";
+import { trackMetaViewContent, trackMetaAddToWishlist } from "@/lib/metaPixel";
 import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
@@ -795,6 +795,12 @@ export default function ProductDetailView({ product }: Props) {
     const isNowFavorite = toggleWishlistId(product.id);
     syncFav();
     if (isNowFavorite) {
+      trackMetaAddToWishlist({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        discountPrice: product.discount_price,
+      });
       setFavFx(true);
       window.setTimeout(() => setFavFx(false), 520);
       dispatchFavorisAdded();
@@ -1448,6 +1454,12 @@ export default function ProductDetailView({ product }: Props) {
                         e.stopPropagation();
                         const isNowFavorite = toggleWishlistId(p.id);
                         if (isNowFavorite) {
+                          trackMetaAddToWishlist({
+                            id: p.id,
+                            name: p.name,
+                            price: p.price,
+                            discountPrice: p.discount_price,
+                          });
                           dispatchFavorisAdded();
                           flyProductThumbnailToFavorites(e.currentTarget, src);
                         }

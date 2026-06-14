@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CartSidebar } from "@/components/shop/CartSidebar";
+import { trackMetaSearch } from "@/lib/metaPixel";
 import {
   CART_ADDED_EVENT,
   CART_SIDEBAR_OPEN_EVENT,
@@ -44,6 +45,7 @@ export default function SiteHeader() {
   const [searchProducts, setSearchProducts] = useState<Product[]>([]);
   const [searchProductsLoading, setSearchProductsLoading] = useState(false);
   const [cartSidebarOpen, setCartSidebarOpen] = useState(false);
+  const lastSearchTrackedRef = useRef("");
 
   const closeSearch = useCallback(() => {
     setSearchClosing(true);
@@ -104,6 +106,17 @@ export default function SiteHeader() {
       document.body.style.overflow = "";
     };
   }, [searchOpen, searchClosing, closeSearch]);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) return;
+    const timeoutId = window.setTimeout(() => {
+      if (lastSearchTrackedRef.current === q) return;
+      lastSearchTrackedRef.current = q;
+      trackMetaSearch(q);
+    }, 600);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   useEffect(() => {
     const sync = () => {

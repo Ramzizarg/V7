@@ -3,7 +3,8 @@
 import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { META_PIXEL_ID, trackMetaPageView } from "@/lib/metaPixel";
+import { META_PIXEL_ID } from "@/lib/metaPixel.shared";
+import { trackMetaPageView } from "@/lib/metaPixel";
 
 const SKIP_PREFIXES = ["/dashboard", "/backoffice"];
 
