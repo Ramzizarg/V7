@@ -20,9 +20,9 @@ export function ComingSoonPlaceholder({ className = "", compact, imageUrl }: Pro
 
   return (
     <div
-      className={`relative aspect-[3/4] w-full overflow-hidden border border-black/50 bg-zinc-950 antialiased selection:bg-transparent ${className}`.trim()}
+      className={`relative aspect-[3/4] w-full overflow-hidden border border-black bg-black antialiased selection:bg-transparent ${className}`.trim()}
       role="status"
-      aria-label="Coming soon"
+      aria-label="Bientôt disponible"
     >
       {src ? (
         <>
@@ -30,25 +30,25 @@ export function ComingSoonPlaceholder({ className = "", compact, imageUrl }: Pro
             src={src}
             alt=""
             fill
-            className="object-cover object-center opacity-40"
+            className="object-cover object-center opacity-25"
             sizes={compact ? "(max-width: 640px) 200px, 240px" : "(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"}
             loading="lazy"
             unoptimized={shouldBypassImageOptimization(src)}
           />
           <div
-            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-black/45"
+            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/90 via-black/75 to-black/85"
             aria-hidden
           />
         </>
       ) : (
-        <div className="absolute inset-0 bg-zinc-950" aria-hidden />
+        <div className="absolute inset-0 bg-black" aria-hidden />
       )}
       <div
         className={`absolute inset-0 z-10 flex flex-col items-center justify-center text-white ${compact ? "gap-3 sm:gap-4" : "gap-4 sm:gap-5"}`}
       >
         <svg
           viewBox="0 0 24 24"
-          className={`shrink-0 text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${compact ? "h-9 w-9 sm:h-10 sm:w-10" : "h-10 w-10 sm:h-11 sm:w-11"}`}
+          className={`shrink-0 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${compact ? "h-9 w-9 sm:h-10 sm:w-10" : "h-10 w-10 sm:h-11 sm:w-11"}`}
           fill="none"
           stroke="currentColor"
           strokeWidth="1.25"
@@ -60,9 +60,9 @@ export function ComingSoonPlaceholder({ className = "", compact, imageUrl }: Pro
           <path d="M9 11V7.75a3 3 0 0 1 6 0V11" />
         </svg>
         <span
-          className={`max-w-[90%] px-2 text-center font-semibold uppercase leading-tight tracking-[0.28em] text-white/95 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] sm:tracking-[0.32em] ${compact ? "text-[9px] sm:text-[10px]" : "text-[10px] sm:text-[11px]"}`}
+          className={`max-w-[90%] rounded-sm bg-black/80 px-3 py-1.5 text-center font-bold uppercase leading-tight tracking-[0.28em] text-white ring-1 ring-white/20 sm:tracking-[0.32em] ${compact ? "text-[9px] sm:text-[10px]" : "text-[10px] sm:text-[11px]"}`}
         >
-          Coming soon
+          Bientôt disponible
         </span>
       </div>
     </div>

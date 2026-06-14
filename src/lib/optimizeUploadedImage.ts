@@ -2,8 +2,14 @@ import sharp from "sharp";
 
 const MAX_WIDTH: Record<"product" | "home" | "sizeGuide", number> = {
   product: 2000,
-  home: 2560,
+  home: 3840,
   sizeGuide: 2400,
+};
+
+const UPLOAD_QUALITY: Record<"product" | "home" | "sizeGuide", number> = {
+  product: 82,
+  home: 95,
+  sizeGuide: 88,
 };
 
 const SKIP_OPTIMIZE_EXT = new Set(["svg", "gif", "ico"]);
@@ -29,10 +35,11 @@ export async function optimizeUploadedImage(
   }
 
   const maxWidth = MAX_WIDTH[type];
+  const quality = UPLOAD_QUALITY[type];
   const optimized = await sharp(bytes, { failOn: "none" })
     .rotate()
     .resize({ width: maxWidth, withoutEnlargement: true })
-    .webp({ quality: 82, effort: 4 })
+    .webp({ quality, effort: 4 })
     .toBuffer();
 
   return { bytes: optimized, ext: "webp", contentType: "image/webp" };

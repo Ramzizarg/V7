@@ -416,6 +416,60 @@ export default function CollectionView() {
 
                 const comingSoonPlaceholder = <ComingSoonPlaceholder imageUrl={product.image} />;
 
+                const comingSoonProductCard = comingSoonPlaceholder;
+
+                const productMeta = (
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <h2 className="min-w-0 flex-1 line-clamp-2 text-sm font-medium leading-snug text-black sm:text-[15px]">
+                        {product.name}
+                      </h2>
+                      {discountPercent != null && discountPercent > 0 ? (
+                        <span className="ml-auto shrink-0 text-sm font-bold text-red-600">-{discountPercent}%</span>
+                      ) : null}
+                    </div>
+                    <p className="flex items-baseline justify-between gap-2 text-sm text-zinc-500">
+                      {list != null ? (
+                        <span className="text-zinc-400 line-through">{list.toFixed(2)} DT</span>
+                      ) : (
+                        <span />
+                      )}
+                      <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
+                    </p>
+                    {cardOos ? (
+                      <p className="pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">
+                        Rupture de stock
+                      </p>
+                    ) : null}
+                    {product.color || product.color2 ? (
+                      <div className="flex items-center gap-1 pt-0.5" aria-hidden>
+                        {product.color ? (
+                          <span
+                            className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
+                            style={
+                              product.colorHex
+                                ? { backgroundColor: product.colorHex }
+                                : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
+                            }
+                            title={product.color}
+                          />
+                        ) : null}
+                        {product.color2 ? (
+                          <span
+                            className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
+                            style={
+                              product.color2Hex
+                                ? { backgroundColor: product.color2Hex }
+                                : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
+                            }
+                            title={product.color2}
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+
                 const activeProductCard = (
                   <>
                     <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100">
@@ -506,55 +560,7 @@ export default function CollectionView() {
                         </>
                       ) : null}
                     </div>
-                    <div className="mt-3 space-y-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <h2 className="min-w-0 flex-1 line-clamp-2 text-sm font-medium leading-snug text-black sm:text-[15px]">
-                          {product.name}
-                        </h2>
-                        {discountPercent != null && discountPercent > 0 ? (
-                          <span className="ml-auto shrink-0 text-sm font-bold text-red-600">-{discountPercent}%</span>
-                        ) : null}
-                      </div>
-                      <p className="flex items-baseline justify-between gap-2 text-sm text-zinc-500">
-                        {list != null ? (
-                          <span className="text-zinc-400 line-through">{list.toFixed(2)} DT</span>
-                        ) : (
-                          <span />
-                        )}
-                        <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
-                      </p>
-                      {cardOos ? (
-                        <p className="pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">
-                          Rupture de stock
-                        </p>
-                      ) : null}
-                      {product.color || product.color2 ? (
-                        <div className="flex items-center gap-1 pt-0.5" aria-hidden>
-                          {product.color ? (
-                            <span
-                              className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
-                              style={
-                                product.colorHex
-                                  ? { backgroundColor: product.colorHex }
-                                  : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
-                              }
-                              title={product.color}
-                            />
-                          ) : null}
-                          {product.color2 ? (
-                            <span
-                              className="inline-block h-4 w-4 shrink-0 rounded-sm border border-black/20"
-                              style={
-                                product.color2Hex
-                                  ? { backgroundColor: product.color2Hex }
-                                  : { background: "linear-gradient(to bottom right, rgb(244 244 245), rgb(212 212 216))" }
-                              }
-                              title={product.color2}
-                            />
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
+                    {productMeta}
                   </>
                 );
 
@@ -569,13 +575,9 @@ export default function CollectionView() {
                         {activeProductCard}
                       </Link>
                     ) : (
-                      <div
-                        className="block cursor-default"
-                        role="group"
-                        aria-label="Produit à venir — bientôt disponible"
-                      >
-                        {comingSoonPlaceholder}
-                      </div>
+                      <Link href={href} className="group block transition hover:opacity-95">
+                        {comingSoonProductCard}
+                      </Link>
                     )}
                     {listedForSale && !cardOos ? (
                       <button

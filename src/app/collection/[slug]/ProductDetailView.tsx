@@ -911,14 +911,14 @@ export default function ProductDetailView({ product }: Props) {
                       isActive ? "z-[1] opacity-100" : "z-0 hidden opacity-0"
                     }`}
                     style={
-                      !inactiveListing && isActive
+                      isActive
                         ? { transition: "opacity 150ms ease-out, transform 500ms ease-out" }
                         : undefined
                     }
                   />
                 );
               })}
-              {!inactiveListing && !hoverMag ? (
+              {!hoverMag ? (
                 <div
                   className="pointer-events-none absolute bottom-3 left-3 z-[11] hidden max-w-[14rem] items-center gap-1.5 rounded-full border border-black/10 bg-white/95 px-2.5 py-1.5 text-[10px] font-medium text-zinc-700 shadow-md backdrop-blur-sm sm:gap-2 sm:text-[11px] [@media(hover:hover)_and_(min-width:1024px)]:flex [@media(pointer:coarse)]:hidden"
                   aria-hidden
@@ -955,13 +955,13 @@ export default function ProductDetailView({ product }: Props) {
               />
               {inactiveListing ? (
                 <div
-                  className="pointer-events-none absolute inset-0 z-[12] flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-black/80 via-black/60 to-black/50 text-white"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-[12] bg-gradient-to-t from-black via-black/80 to-transparent px-4 pb-4 pt-10"
                   role="status"
                 >
-                  <ListingLockIcon className="h-10 w-10 shrink-0 text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] sm:h-11 sm:w-11" />
-                  <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/95 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] sm:text-xs">
-                    Coming soon
-                  </span>
+                  <p className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white sm:text-xs">
+                    <ListingLockIcon className="h-3.5 w-3.5 shrink-0" />
+                    Bientôt disponible
+                  </p>
                 </div>
               ) : outOfStock ? (
                 <div
@@ -1019,7 +1019,7 @@ export default function ProductDetailView({ product }: Props) {
                   <HeartIcon filled={fav} className="h-5 w-5" />
                 </button>
               ) : null}
-              {hoverMag && !inactiveListing ? (
+              {hoverMag ? (
                 <div
                   className="pointer-events-none absolute left-0 top-0 z-[11] hidden overflow-hidden rounded-2xl border border-white/95 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/10 will-change-transform [@media(hover:hover)_and_(min-width:1024px)]:block [@media(pointer:coarse)]:hidden"
                   style={{
@@ -1141,6 +1141,10 @@ export default function ProductDetailView({ product }: Props) {
                 <span className="shrink-0 rounded bg-red-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
                   Solde -{discountPercent}%
                 </span>
+              ) : inactiveListing ? (
+                <span className="shrink-0 rounded bg-black px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
+                  Bientôt disponible
+                </span>
               ) : (
                 <span />
               )}
@@ -1211,34 +1215,47 @@ export default function ProductDetailView({ product }: Props) {
             <div ref={sizeSectionRef} className="mt-10">
               {inactiveListing ? (
                 <>
-                  <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-                    {sizeOptions.map(({ label }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        disabled
-                        aria-disabled
-                        className="w-full cursor-not-allowed border border-zinc-300 bg-zinc-100 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400 [text-decoration-thickness:1px] sm:w-auto sm:min-w-[2.75rem] sm:py-2 sm:text-sm"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="mt-4 flex items-center gap-2 text-sm font-medium text-zinc-700" role="status">
-                    <ListingLockIcon className="h-4 w-4 shrink-0" />
-                    Coming soon — ce produit n&apos;est pas encore disponible à l&apos;achat.
-                  </p>
-                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-700">Taille :</p>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-sm font-semibold text-black">Tailles</p>
                     {product.size_guide_image ? (
                       <button
                         type="button"
                         onClick={() => setSizeGuideOpen(true)}
-                        className="text-xs font-semibold uppercase tracking-wider text-zinc-600 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
+                        className="text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
                       >
                         Guide des tailles
                       </button>
                     ) : null}
+                  </div>
+                  {sizeOptions.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {sizeOptions.map(({ label }) => (
+                        <span
+                          key={label}
+                          className="inline-flex min-w-[2.75rem] items-center justify-center border border-black bg-black px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white"
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div
+                    className="mt-6 rounded-xl bg-black px-4 py-4"
+                    role="status"
+                  >
+                    <p className="flex items-start gap-2.5 text-sm leading-relaxed text-white/90">
+                      <ListingLockIcon className="mt-0.5 h-4 w-4 shrink-0 text-white/80" />
+                      <span>
+                        Ce produit n&apos;est pas encore en vente. Revenez prochainement ou{" "}
+                        <Link
+                          href="/collection"
+                          className="font-semibold text-white underline decoration-white/40 underline-offset-2 transition hover:decoration-white"
+                        >
+                          parcourez la collection
+                        </Link>
+                        .
+                      </span>
+                    </p>
                   </div>
                 </>
               ) : outOfStock ? (
@@ -1311,7 +1328,6 @@ export default function ProductDetailView({ product }: Props) {
                       );
                     })}
                   </div>
-                  <p className="mt-4 text-xs text-zinc-500">Le mannequin mesure 187 cm et porte du M.</p>
                   {!hasPickedSize ? (
                     <p className="mt-2 text-xs font-medium text-zinc-600" role="status">
                       Choisissez une taille pour continuer.
@@ -1322,14 +1338,21 @@ export default function ProductDetailView({ product }: Props) {
             </div>
 
             {inactiveListing ? (
-              <button
-                type="button"
-                disabled
-                className="mt-10 flex w-full max-w-sm cursor-not-allowed items-center justify-center gap-2 border-0 bg-zinc-600 py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white lg:max-w-none"
-              >
-                <ListingLockIcon className="h-4 w-4 shrink-0" />
-                Coming soon
-              </button>
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  disabled
+                  className="flex-1 cursor-not-allowed bg-black py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white opacity-70"
+                >
+                  Bientôt disponible
+                </button>
+                <Link
+                  href="/collection"
+                  className="flex flex-1 items-center justify-center border-2 border-black bg-white py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-black transition hover:bg-black hover:text-white"
+                >
+                  Voir la collection
+                </Link>
+              </div>
             ) : outOfStock ? (
               <button
                 type="button"

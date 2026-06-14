@@ -8,3 +8,10 @@ export function isSvgImageSrc(src: string): boolean {
 export function shouldBypassImageOptimization(src: string): boolean {
   return isSvgImageSrc(src);
 }
+
+/** Uploaded blobs are already WebP — skip Next.js recompression for full-bleed hero delivery. */
+export function shouldServePreOptimizedImage(src: string): boolean {
+  if (shouldBypassImageOptimization(src)) return true;
+  if (src.startsWith("/uploads/")) return true;
+  return /blob\.vercel-storage\.com/i.test(src);
+}

@@ -10,7 +10,7 @@ import { ComingSoonPlaceholder } from "@/components/ComingSoonPlaceholder";
 import { isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
-import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
+import { shouldBypassImageOptimization, shouldServePreOptimizedImage } from "@/lib/imageOptimize";
 import {
   FeaturedProductsSkeleton,
 } from "@/components/home/HomeReloadSkeletons";
@@ -268,7 +268,8 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                   loading={isLcp || isActive ? "eager" : "lazy"}
                   fetchPriority={isLcp ? "high" : "auto"}
                   sizes="100vw"
-                  unoptimized={shouldBypassImageOptimization(src)}
+                  quality={100}
+                  unoptimized={shouldServePreOptimizedImage(src)}
                   onLoad={() => markHeroLoaded(i)}
                   className="object-cover transition-opacity duration-700 ease-out"
                   style={{
@@ -550,16 +551,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                       </div>
                     </>
                   );
-                  return item.comingSoon ? (
-                    <div
-                      key={`${copy}-${item.key}`}
-                      className={`${shellClass} cursor-default select-none`}
-                      role="group"
-                      aria-label="Produit à venir — bientôt disponible"
-                    >
-                      {featuredInner}
-                    </div>
-                  ) : (
+                  return (
                     <Link key={`${copy}-${item.key}`} href={item.href} className={shellClass}>
                       {featuredInner}
                     </Link>
