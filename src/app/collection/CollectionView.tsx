@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import { ComingSoonPlaceholder } from "@/components/ComingSoonPlaceholder";
+import { ComingSoonProductModal } from "@/components/ComingSoonProductModal";
 import {
   dispatchCartAdded,
   dispatchFavorisAdded,
@@ -130,6 +131,7 @@ export default function CollectionView() {
   const [favoriteFx, setFavoriteFx] = useState<Record<string, boolean>>({});
   const [quickAddProductId, setQuickAddProductId] = useState<number | null>(null);
   const [wishlistToast, setWishlistToast] = useState<WishlistToast | null>(null);
+  const [comingSoonModalProduct, setComingSoonModalProduct] = useState<string | null>(null);
   const wishlistToastTimerRef = useRef<number | null>(null);
   const viewCategoryTrackedRef = useRef("");
 
@@ -575,9 +577,14 @@ export default function CollectionView() {
                         {activeProductCard}
                       </Link>
                     ) : (
-                      <Link href={href} className="group block transition hover:opacity-95">
+                      <button
+                        type="button"
+                        className="group block w-full cursor-pointer text-left transition hover:opacity-95"
+                        aria-label={`${product.name} — bientôt disponible`}
+                        onClick={() => setComingSoonModalProduct(product.name)}
+                      >
                         {comingSoonProductCard}
-                      </Link>
+                      </button>
                     )}
                     {listedForSale && !cardOos ? (
                       <button
@@ -720,6 +727,12 @@ export default function CollectionView() {
           )}
         </div>
       ) : null}
+
+      <ComingSoonProductModal
+        open={comingSoonModalProduct != null}
+        productName={comingSoonModalProduct}
+        onClose={() => setComingSoonModalProduct(null)}
+      />
     </div>
   );
 }

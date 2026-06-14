@@ -7,6 +7,7 @@ import { ClubBenefitsList } from "@/components/ClubBenefitsList";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { ComingSoonPlaceholder } from "@/components/ComingSoonPlaceholder";
+import { ComingSoonProductModal } from "@/components/ComingSoonProductModal";
 import { isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
@@ -50,6 +51,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
   const [homeContentFetched, setHomeContentFetched] = useState(false);
   /** `undefined` = not loaded yet; then API products or empty. */
   const [collectionProducts, setCollectionProducts] = useState<Product[] | undefined>(undefined);
+  const [comingSoonModalProduct, setComingSoonModalProduct] = useState<string | null>(null);
 
   useLayoutEffect(() => {
     // Do not replace `initialHomeContent` (from DB on server) with localStorage — it can be stale (old "BUILT RAW" copy).
@@ -551,7 +553,17 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                       </div>
                     </>
                   );
-                  return (
+                  return item.comingSoon ? (
+                    <button
+                      key={`${copy}-${item.key}`}
+                      type="button"
+                      className={`${shellClass} cursor-pointer text-left`}
+                      aria-label={`${item.name} — bientôt disponible`}
+                      onClick={() => setComingSoonModalProduct(item.name)}
+                    >
+                      {featuredInner}
+                    </button>
+                  ) : (
                     <Link key={`${copy}-${item.key}`} href={item.href} className={shellClass}>
                       {featuredInner}
                     </Link>
@@ -600,6 +612,12 @@ export default function HomePageClient({ initialHomeContent }: Props) {
           </div>
         </section>
       </main>
+
+      <ComingSoonProductModal
+        open={comingSoonModalProduct != null}
+        productName={comingSoonModalProduct}
+        onClose={() => setComingSoonModalProduct(null)}
+      />
 
       <SiteFooter />
     </div>
