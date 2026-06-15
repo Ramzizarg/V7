@@ -11,6 +11,12 @@ import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import type { CartItem, Coupon, Product } from "@/lib/types";
 import { addToCart, getCart, removeFromCartLine, setCart, updateCartQuantity } from "@/lib/shopClientStorage";
 import { trackMetaInitiateCheckout, trackMetaPurchase, setMetaAdvancedMatching } from "@/lib/metaPixel";
+import {
+  isValidTunisiaPhone,
+  normalizeTunisiaPhoneDigits,
+  TUNISIA_PHONE_ERROR,
+  TUNISIA_PHONE_LENGTH,
+} from "@/lib/phoneValidation";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
 const TUNISIA_GOVERNORATES = [
@@ -185,12 +191,16 @@ export default function PanierClient() {
     setOrderEmailWarning(null);
     const fn = fullName.trim();
     const em = email.trim();
-    const ph = phone.trim();
+    const ph = normalizeTunisiaPhoneDigits(phone);
     const gov = governorate.trim();
     const ct = city.trim();
     const addr = address.trim();
     if (!fn || !em || !ph || !gov || !ct || !addr) {
       setOrderError("Remplissez tous les champs requis.");
+      return;
+    }
+    if (!isValidTunisiaPhone(ph)) {
+      setOrderError(TUNISIA_PHONE_ERROR);
       return;
     }
     if (items.length === 0) {
@@ -370,14 +380,23 @@ export default function PanierClient() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Numero de telephone</label>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">
+                    Numero de telephone <span className="text-red-600">*</span>
+                  </label>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    required
+                    minLength={TUNISIA_PHONE_LENGTH}
+                    maxLength={TUNISIA_PHONE_LENGTH}
+                    pattern="[0-9]{8}"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+216 12345678"
+                    onChange={(e) => setPhone(normalizeTunisiaPhoneDigits(e.target.value))}
+                    placeholder="12345678"
                     className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                   />
+                  <p className="mt-1 text-[11px] text-zinc-500">8 chiffres obligatoires (ex. 20123456)</p>
                 </div>
                 <div ref={governorateRef} className="relative">
                   <label className="block text-xs sm:text-sm font-medium text-black mb-1">Gouvernorat</label>

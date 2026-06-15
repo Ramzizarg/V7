@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
+import { isValidTunisiaPhone, normalizeTunisiaPhoneDigits, TUNISIA_PHONE_ERROR } from "@/lib/phoneValidation";
 import { sendOrderEmails, type OrderEmailPayload } from "@/lib/sendOrderEmails";
 
 export const runtime = "nodejs";
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as PlaceOrderBody;
     const fullName = body.fullName?.trim() ?? "";
     const email = body.email?.trim() ?? "";
-    const phone = body.phone?.trim() ?? "";
+    const phone = normalizeTunisiaPhoneDigits(body.phone ?? "");
     const address = body.address?.trim() ?? "";
     const city = body.city?.trim() ?? "";
     const governorate = body.governorate?.trim() ?? "";
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
 
     if (!fullName || !email || !phone || !address || !city || !governorate) {
       return NextResponse.json({ error: "Champs requis manquants." }, { status: 400 });
+    }
+    if (!isValidTunisiaPhone(phone)) {
+      return NextResponse.json({ error: TUNISIA_PHONE_ERROR }, { status: 400 });
     }
     if (items.length === 0) {
       return NextResponse.json({ error: "Panier vide." }, { status: 400 });
