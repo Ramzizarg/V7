@@ -16,6 +16,7 @@ import {
   Filter,
   X,
 } from "lucide-react";
+import { sumNetOrderRevenue } from "@/lib/orderRevenue";
 
 type OrderRow = {
   id: number;
@@ -280,16 +281,16 @@ export default function DashboardAnalytiquesPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const totalOrders = orders.length;
-  const totalRevenue = orders.reduce((s, o) => s + Number(o.total_price), 0);
+  const totalRevenue = sumNetOrderRevenue(orders);
   const pending = orders.filter((o) => o.status === "pending").length;
   const rejected = orders.filter((o) => o.status === "rejected").length;
   const delivered = orders.filter((o) => o.status === "delivered" || o.status === "confirmed").length;
   const outForDelivery = orders.filter((o) => o.status === "out_for_delivery" || o.status === "shipped").length;
 
   const ordersThisWeek = orders.filter((o) => new Date(o.created_at) >= startOfWeek);
-  const revenueThisWeek = ordersThisWeek.reduce((s, o) => s + Number(o.total_price), 0);
+  const revenueThisWeek = sumNetOrderRevenue(ordersThisWeek);
   const ordersThisMonth = orders.filter((o) => new Date(o.created_at) >= startOfMonth);
-  const revenueThisMonth = ordersThisMonth.reduce((s, o) => s + Number(o.total_price), 0);
+  const revenueThisMonth = sumNetOrderRevenue(ordersThisMonth);
 
   const filteredOrders = useMemo(() => {
     if (statusFilter === "all") return orders;
@@ -300,7 +301,15 @@ export default function DashboardAnalytiquesPage() {
 
   const stats = [
     { label: "Total orders", value: totalOrders, icon: ShoppingCart, bg: "bg-white", border: "border-black", text: "text-black" },
-    { label: "Total revenue", value: formatPrice(totalRevenue), icon: PiggyBank, bg: "bg-black", border: "border-black", text: "text-white" },
+    {
+      label: "Total revenue",
+      value: formatPrice(totalRevenue),
+      hint: "−8 DT livraison puis −3 % / cmd",
+      icon: PiggyBank,
+      bg: "bg-black",
+      border: "border-black",
+      text: "text-white",
+    },
     { label: "Pending", value: pending, icon: Clock, bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-800" },
     { label: "Rejected", value: rejected, icon: X, bg: "bg-red-50", border: "border-red-200", text: "text-red-800" },
     { label: "Delivered", value: delivered, icon: CheckCircle, bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800" },
@@ -351,6 +360,9 @@ export default function DashboardAnalytiquesPage() {
               <s.icon className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 opacity-70" />
             </div>
             <span className="text-lg sm:text-xl font-bold">{s.value}</span>
+            {"hint" in s && s.hint ? (
+              <span className="mt-1 text-[9px] sm:text-[10px] font-normal leading-tight opacity-75">{s.hint}</span>
+            ) : null}
           </div>
         ))}
       </div>
