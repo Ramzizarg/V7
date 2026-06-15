@@ -102,6 +102,10 @@ const PRODUCT_AUDIO_RULES: { keywords: string[]; track: AudioTrack }[] = [
     track: { src: "/CA.mp3", title: "Music du Club Africain", theme: "red" },
   },
   {
+    keywords: ["1920 champions"],
+    track: { src: "/CA.mp3", title: "Music du Club Africain", theme: "red" },
+  },
+  {
     keywords: ["esperance"],
     track: { src: "/EST.mp3", title: "Music de l'Esperance Sportive", theme: "yellow" },
   },
