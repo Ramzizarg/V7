@@ -13,8 +13,22 @@ async function getDashboardData() {
       "SELECT id, full_name, city, governorate, phone_number, email, total_price, status, created_at, confirmed_by_phone FROM orders ORDER BY created_at DESC"
     );
     const productsRes = await neonQuery<{ total: string }>("SELECT COUNT(*)::text as total FROM products");
+    const itemsRes = await neonQuery<{ order_id: number; size: string | null }>(
+      "SELECT order_id, size FROM order_items"
+    );
 
-    const ordersList = ordersRes.rows ?? [];
+    const sizesByOrder: Record<number, string[]> = {};
+    for (const item of itemsRes.rows ?? []) {
+      const size = typeof item.size === "string" ? item.size.trim() : "";
+      if (!size) continue;
+      if (!sizesByOrder[item.order_id]) sizesByOrder[item.order_id] = [];
+      sizesByOrder[item.order_id].push(size);
+    }
+
+    const ordersList = (ordersRes.rows ?? []).map((o: any) => ({
+      ...o,
+      sizes_label: (sizesByOrder[o.id] ?? []).join(", ") || "—",
+    }));
     const totalOrders = ordersList.length;
     const totalRevenue = ordersList.reduce((s: number, o: any) => s + Number(o.total_price ?? 0), 0);
 

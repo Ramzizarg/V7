@@ -62,6 +62,15 @@ function formatOrderItemLabel(item: Pick<OrderItemRow, "product_name" | "quantit
     : `${item.product_name} × ${item.quantity}`;
 }
 
+function formatOrderSizes(items: OrderItemRow[] | undefined): string {
+  if (!items?.length) return "—";
+  const sizes = items
+    .map((item) => item.size?.trim())
+    .filter((size): size is string => Boolean(size));
+  if (sizes.length === 0) return "—";
+  return sizes.join(", ");
+}
+
 function normalizeStatus(status: string): EditableStatus {
   const s = status?.toLowerCase();
   if (s === "confirmed" || s === "delivered") return "delivered";
@@ -438,6 +447,9 @@ export default function DashboardAnalytiquesPage() {
                       <div className="flex flex-col items-end gap-1.5 shrink-0">
                         <p className="text-sm font-semibold text-black">{formatPrice(Number(o.total_price))}</p>
                         <p className="text-[10px] text-zinc-500">{o.items_count ?? 0} item{(o.items_count ?? 0) !== 1 ? "s" : ""}</p>
+                        <p className="text-[10px] font-medium text-zinc-600">
+                          Taille : {formatOrderSizes(orderItems[o.id])}
+                        </p>
                         {renderPhoneConfirm(o, true)}
                         {renderStatusSelect(o, true)}
                       </div>
@@ -480,6 +492,7 @@ export default function DashboardAnalytiquesPage() {
                   <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-zinc-600">Date</th>
                   <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-zinc-600 hidden md:table-cell">Conf. téléphone</th>
                   <th className="px-4 py-3 text-right font-semibold uppercase tracking-wider text-zinc-600">Items</th>
+                  <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-zinc-600">Taille</th>
                   <th className="px-4 py-3 text-right font-semibold uppercase tracking-wider text-zinc-600">Total</th>
                   <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-zinc-600">Status</th>
                   <th className="px-4 py-3 w-10" />
@@ -521,6 +534,7 @@ export default function DashboardAnalytiquesPage() {
                         {renderPhoneConfirm(o)}
                       </td>
                       <td className="px-4 py-3 text-right text-zinc-600">{o.items_count ?? 0}</td>
+                      <td className="px-4 py-3 text-zinc-700 font-medium">{formatOrderSizes(orderItems[o.id])}</td>
                       <td className="px-4 py-3 text-right font-semibold text-black">{formatPrice(Number(o.total_price))}</td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         {renderStatusSelect(o)}
@@ -535,7 +549,7 @@ export default function DashboardAnalytiquesPage() {
                     </tr>
                     {expandedId === o.id && orderItems[o.id] && (
                       <tr className="bg-zinc-50/50">
-                        <td colSpan={8} className="px-4 py-3">
+                        <td colSpan={9} className="px-4 py-3">
                           <div className="pl-0 sm:pl-4 space-y-1 text-xs">
                             <p className="font-semibold text-zinc-700 mb-2">Items</p>
                             {orderItems[o.id].map((item, i) => {

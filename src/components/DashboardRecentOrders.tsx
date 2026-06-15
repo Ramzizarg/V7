@@ -8,6 +8,7 @@ type OrderRow = {
   total_price: number;
   status: string;
   created_at: string;
+  sizes_label?: string;
 };
 
 function formatPrice(n: number) {
@@ -27,6 +28,7 @@ export function DashboardRecentOrders({ orders }: { orders: OrderRow[] }) {
               <th className="px-4 py-3 text-left">Order</th>
               <th className="px-4 py-3 text-left">Client</th>
               <th className="px-4 py-3 text-left">Ville</th>
+              <th className="px-4 py-3 text-left">Taille</th>
               <th className="px-4 py-3 text-right">Total</th>
               <th className="px-4 py-3 text-left">Status</th>
             </tr>
@@ -37,12 +39,13 @@ export function DashboardRecentOrders({ orders }: { orders: OrderRow[] }) {
                 <td className="px-4 py-3 font-mono">#{o.id}</td>
                 <td className="px-4 py-3">{o.full_name}</td>
                 <td className="px-4 py-3">{o.city}, {o.governorate}</td>
+                <td className="px-4 py-3 font-medium text-zinc-700">{o.sizes_label ?? "—"}</td>
                 <td className="px-4 py-3 text-right font-semibold">{formatPrice(Number(o.total_price))}</td>
                 <td className="px-4 py-3">{o.status}</td>
               </tr>
             ))}
             {orders.length === 0 ? (
-              <tr><td className="px-4 py-8 text-center text-zinc-500" colSpan={5}>No orders yet.</td></tr>
+              <tr><td className="px-4 py-8 text-center text-zinc-500" colSpan={6}>No orders yet.</td></tr>
             ) : null}
           </tbody>
         </table>
