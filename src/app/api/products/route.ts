@@ -73,15 +73,13 @@ function normalizeDescription(d: unknown): string | null {
 function parseSizes(raw: unknown): string[] | undefined {
   if (raw == null) return undefined;
   if (Array.isArray(raw)) {
-    const arr = raw.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
-    return arr.length ? arr : undefined;
+    return raw.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
   }
   if (typeof raw === "string") {
     try {
       const j = JSON.parse(raw) as unknown;
       if (Array.isArray(j)) {
-        const arr = j.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
-        return arr.length ? arr : undefined;
+        return j.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
       }
     } catch {
       return undefined;

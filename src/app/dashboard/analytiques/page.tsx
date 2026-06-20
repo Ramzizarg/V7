@@ -34,6 +34,63 @@ type OrderRow = {
 
 type StatusFilter = "all" | "pending" | "rejected" | "delivered" | "out_for_delivery";
 
+type DatePreset = "all" | "today" | "week" | "month" | "custom";
+
+function toDateInputValue(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function startOfDay(d: Date) {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function endOfDay(d: Date) {
+  const copy = new Date(d);
+  copy.setHours(23, 59, 59, 999);
+  return copy;
+}
+
+function getPresetDateRange(preset: Exclude<DatePreset, "all" | "custom">, now = new Date()) {
+  if (preset === "today") {
+    return { from: toDateInputValue(now), to: toDateInputValue(now) };
+  }
+  if (preset === "week") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    return { from: toDateInputValue(start), to: toDateInputValue(now) };
+  }
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  return { from: toDateInputValue(start), to: toDateInputValue(now) };
+}
+
+function orderMatchesDateRange(createdAt: string, from: string, to: string) {
+  if (!from && !to) return true;
+  const d = new Date(createdAt);
+  if (from) {
+    const start = startOfDay(new Date(`${from}T00:00:00`));
+    if (d < start) return false;
+  }
+  if (to) {
+    const end = endOfDay(new Date(`${to}T00:00:00`));
+    if (d > end) return false;
+  }
+  return true;
+}
+
+function detectDatePreset(from: string, to: string, now = new Date()): DatePreset {
+  if (!from && !to) return "all";
+  for (const preset of ["today", "week", "month"] as const) {
+    const range = getPresetDateRange(preset, now);
+    if (from === range.from && to === range.to) return preset;
+  }
+  return "custom";
+}
+
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
   { value: "rejected", label: "Rejected" },
@@ -89,6 +146,22 @@ export default function DashboardAnalytiquesPage() {
   const [savingStatusId, setSavingStatusId] = useState<number | null>(null);
   const [orderItems, setOrderItems] = useState<Record<number, OrderItemRow[]>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const datePreset = useMemo(() => detectDatePreset(dateFrom, dateTo), [dateFrom, dateTo]);
+
+  const applyDatePreset = (preset: DatePreset) => {
+    if (preset === "all") {
+      setDateFrom("");
+      setDateTo("");
+      return;
+    }
+    if (preset === "custom") return;
+    const range = getPresetDateRange(preset);
+    setDateFrom(range.from);
+    setDateTo(range.to);
+  };
 
   const getStatusStyle = (status: string) => {
     const s = normalizeStatus(status);
@@ -293,11 +366,15 @@ export default function DashboardAnalytiquesPage() {
   const revenueThisMonth = sumNetOrderRevenue(ordersThisMonth);
 
   const filteredOrders = useMemo(() => {
-    if (statusFilter === "all") return orders;
-    if (statusFilter === "delivered") return orders.filter((o) => o.status === "delivered" || o.status === "confirmed");
-    if (statusFilter === "out_for_delivery") return orders.filter((o) => o.status === "out_for_delivery" || o.status === "shipped");
-    return orders.filter((o) => o.status === statusFilter);
-  }, [orders, statusFilter]);
+    let list = orders;
+    if (dateFrom || dateTo) {
+      list = list.filter((o) => orderMatchesDateRange(o.created_at, dateFrom, dateTo));
+    }
+    if (statusFilter === "all") return list;
+    if (statusFilter === "delivered") return list.filter((o) => o.status === "delivered" || o.status === "confirmed");
+    if (statusFilter === "out_for_delivery") return list.filter((o) => o.status === "out_for_delivery" || o.status === "shipped");
+    return list.filter((o) => o.status === statusFilter);
+  }, [orders, statusFilter, dateFrom, dateTo]);
 
   const stats = [
     { label: "Total orders", value: totalOrders, icon: ShoppingCart, bg: "bg-white", border: "border-black", text: "text-black" },
@@ -337,6 +414,25 @@ export default function DashboardAnalytiquesPage() {
     out_for_delivery: "Shipped",
   };
 
+  const datePresetLabels: Record<Exclude<DatePreset, "custom">, string> = {
+    all: "All dates",
+    today: "Today",
+    week: "This week",
+    month: "This month",
+  };
+
+  const hasActiveDateFilter = Boolean(dateFrom || dateTo);
+  const dateFilterSummary =
+    dateFrom && dateTo
+      ? dateFrom === dateTo
+        ? new Date(`${dateFrom}T12:00:00`).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
+        : `${new Date(`${dateFrom}T12:00:00`).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} – ${new Date(`${dateTo}T12:00:00`).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}`
+      : dateFrom
+        ? `From ${new Date(`${dateFrom}T12:00:00`).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}`
+        : dateTo
+          ? `Until ${new Date(`${dateTo}T12:00:00`).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}`
+          : null;
+
   return (
     <div className="max-w-6xl mx-auto w-full min-w-0" style={style}>
       <div className="mb-6 sm:mb-8">
@@ -369,7 +465,13 @@ export default function DashboardAnalytiquesPage() {
 
       {/* Period stats */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
-        <div className="rounded-xl border border-zinc-200 bg-white px-4 py-4 flex flex-col">
+        <button
+          type="button"
+          onClick={() => applyDatePreset("week")}
+          className={`rounded-xl border px-4 py-4 flex flex-col text-left transition-colors ${
+            datePreset === "week" ? "border-black bg-zinc-50 ring-1 ring-black/10" : "border-zinc-200 bg-white hover:border-zinc-300"
+          }`}
+        >
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="h-5 w-5 text-zinc-500" />
             <span className="text-xs font-medium uppercase tracking-wider text-zinc-600">This week</span>
@@ -378,8 +480,14 @@ export default function DashboardAnalytiquesPage() {
             <span className="text-lg font-bold text-black">{ordersThisWeek.length} orders</span>
             <span className="text-xl font-extrabold text-black">{formatPrice(revenueThisWeek)}</span>
           </div>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-white px-4 py-4 flex flex-col">
+        </button>
+        <button
+          type="button"
+          onClick={() => applyDatePreset("month")}
+          className={`rounded-xl border px-4 py-4 flex flex-col text-left transition-colors ${
+            datePreset === "month" ? "border-black bg-zinc-50 ring-1 ring-black/10" : "border-zinc-200 bg-white hover:border-zinc-300"
+          }`}
+        >
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="h-5 w-5 text-zinc-500" />
             <span className="text-xs font-medium uppercase tracking-wider text-zinc-600">This month</span>
@@ -388,7 +496,7 @@ export default function DashboardAnalytiquesPage() {
             <span className="text-lg font-bold text-black">{ordersThisMonth.length} orders</span>
             <span className="text-xl font-extrabold text-black">{formatPrice(revenueThisMonth)}</span>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Orders table */}
@@ -399,24 +507,77 @@ export default function DashboardAnalytiquesPage() {
               <h2 className="text-base sm:text-lg font-bold text-black uppercase tracking-wider">All orders</h2>
               <p className="text-xs text-zinc-500 mt-0.5">
                 {filteredOrders.length} / {totalOrders} commande{totalOrders !== 1 ? "s" : ""}
+                {dateFilterSummary ? ` · ${dateFilterSummary}` : null}
               </p>
             </div>
-            <div className="flex items-center gap-2 min-w-0">
-              <Filter className="h-4 w-4 text-zinc-500 shrink-0" />
-              <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-200 p-0.5 bg-zinc-50">
-                {(["all", "pending", "rejected", "delivered", "out_for_delivery"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setStatusFilter(f)}
-                    className={`px-2.5 py-1.5 text-xs font-medium uppercase rounded-md transition-colors whitespace-nowrap shrink-0 ${
-                      statusFilter === f
-                        ? "bg-white text-black shadow-sm border border-zinc-200"
-                        : "text-zinc-500 hover:text-zinc-700"
-                    }`}
-                  >
-                    {filterLabels[f]}
-                  </button>
-                ))}
+            <div className="flex flex-col gap-2 min-w-0 sm:items-end">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <Calendar className="h-4 w-4 text-zinc-500 shrink-0" />
+                <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-200 p-0.5 bg-zinc-50">
+                  {(["all", "today", "week", "month"] as const).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => applyDatePreset(preset)}
+                      className={`px-2.5 py-1.5 text-xs font-medium uppercase rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                        datePreset === preset
+                          ? "bg-white text-black shadow-sm border border-zinc-200"
+                          : "text-zinc-500 hover:text-zinc-700"
+                      }`}
+                    >
+                      {datePresetLabels[preset]}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    max={dateTo || undefined}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    aria-label="Date de début"
+                    className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                  />
+                  <span className="text-xs text-zinc-400">–</span>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    min={dateFrom || undefined}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    aria-label="Date de fin"
+                    className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                  />
+                  {hasActiveDateFilter ? (
+                    <button
+                      type="button"
+                      onClick={() => applyDatePreset("all")}
+                      className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
+                      aria-label="Effacer le filtre date"
+                      title="Effacer le filtre date"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <Filter className="h-4 w-4 text-zinc-500 shrink-0" />
+                <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-200 p-0.5 bg-zinc-50">
+                  {(["all", "pending", "rejected", "delivered", "out_for_delivery"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setStatusFilter(f)}
+                      className={`px-2.5 py-1.5 text-xs font-medium uppercase rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                        statusFilter === f
+                          ? "bg-white text-black shadow-sm border border-zinc-200"
+                          : "text-zinc-500 hover:text-zinc-700"
+                      }`}
+                    >
+                      {filterLabels[f]}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -424,7 +585,9 @@ export default function DashboardAnalytiquesPage() {
         <div className="overflow-x-auto">
           {filteredOrders.length === 0 ? (
             <p className="px-4 sm:px-6 py-12 text-center text-zinc-500 text-sm">
-              {statusFilter === "all" ? "No orders yet." : `No ${filterLabels[statusFilter].toLowerCase()} orders.`}
+              {statusFilter === "all" && !hasActiveDateFilter
+                ? "No orders yet."
+                : `No orders match the current filters.`}
             </p>
           ) : (
             <>

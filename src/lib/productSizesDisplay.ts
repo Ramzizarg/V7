@@ -15,13 +15,12 @@ type SizeInput = {
 };
 
 /**
- * - No explicit `sizes` in data → show default row; all are selectable if `stock` > 0.
- * - Explicit `sizes` (from dashboard) → show union of default row + any extra size; only listed sizes are selectable.
+ * - `sizes` null/undefined → legacy row; all default sizes selectable if `stock` > 0.
+ * - `sizes` = [] (dashboard cleared all) → rupture de stock; nothing selectable.
+ * - `sizes` with values → only listed sizes are selectable when `stock` > 0.
  */
 export function getSizeOptionsForProduct(p: SizeInput): { label: string; available: boolean }[] {
   const stockOk = Number(p.stock ?? 0) > 0;
-  const explicit = (p.sizes ?? []).filter((x) => typeof x === "string" && x.trim().length > 0);
-  const hasExplicit = explicit.length > 0;
 
   const order = new Map<string, number>(SIZE_ORDER.map((v, i) => [v, i]));
   const sortLabels = (labels: string[]) =>
@@ -36,8 +35,13 @@ export function getSizeOptionsForProduct(p: SizeInput): { label: string; availab
       return aa.localeCompare(bb, "fr");
     });
 
-  if (!hasExplicit) {
+  if (p.sizes == null) {
     return sortLabels([...DEFAULT_DISPLAY_SIZES]).map((label) => ({ label, available: stockOk }));
+  }
+
+  const explicit = p.sizes.filter((x) => typeof x === "string" && x.trim().length > 0);
+  if (explicit.length === 0) {
+    return sortLabels([...DEFAULT_DISPLAY_SIZES]).map((label) => ({ label, available: false }));
   }
 
   const allowed = new Set(explicit.map(normalizeSizeKey));

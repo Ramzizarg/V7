@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import { productPathSlug } from "@/lib/productUrl";
 import type { Product, Category, Color, Coupon } from "@/lib/types";
+import { isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { uploadSizeGuideImage, uploadProductImage } from "@/lib/uploadProductImage";
 import Link from "next/link";
 import {
@@ -146,7 +147,7 @@ export default function DashboardProduitsPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("100");
+  const [stock, setStock] = useState("0");
   const [discountPrice, setDiscountPrice] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [colorId, setColorId] = useState<string>("");
@@ -224,7 +225,7 @@ export default function DashboardProduitsPage() {
     setName("");
     setDescription("");
     setPrice("");
-    setStock("100");
+    setStock("0");
     setDiscountPrice("");
     setCategoryId("");
     setColorId("");
@@ -243,7 +244,8 @@ export default function DashboardProduitsPage() {
     setName(p.name);
     setDescription(p.description ?? "");
     setPrice(String(p.price));
-    setStock(String(p.stock));
+    const editSizes = p.sizes == null ? [...SIZES] : Array.isArray(p.sizes) ? p.sizes : [];
+    setStock(editSizes.length === 0 ? "0" : String(p.stock));
     setDiscountPrice(p.discount_price != null ? String(p.discount_price) : "");
     setCategoryId(p.category_id ? String(p.category_id) : "");
     setColorId(p.color_id ? String(p.color_id) : "");
@@ -251,16 +253,18 @@ export default function DashboardProduitsPage() {
     setImagesStr("");
     setSizeGuideUrl(p.size_guide_image ?? "");
     setMeasurementRows(parseMeasurementTable(p.measurement_table as unknown));
-    setSizes(Array.isArray(p.sizes) ? p.sizes : []);
+    setSizes(editSizes);
     setProductImageUrls(normalizeProductImages(p.images));
     setShowUrlImages(false);
     setFormOpen(true);
   };
 
   const toggleSize = (size: string) => {
-    setSizes((prev) =>
-      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
-    );
+    setSizes((prev) => {
+      const next = prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size];
+      if (next.length === 0) setStock("0");
+      return next;
+    });
   };
 
   const setPrincipalProductImage = (index: number) => {
@@ -295,11 +299,12 @@ export default function DashboardProduitsPage() {
       }
 
       const hasDescription = description.trim().length > 0;
+      const filteredSizes = sizes.filter((s) => typeof s === "string" && s.trim().length > 0);
       const payload: Record<string, unknown> = {
         name: name.trim(),
         description: hasDescription ? description : null,
         price: parseFloat(price) || 0,
-        stock: parseInt(stock, 10) || 0,
+        stock: filteredSizes.length === 0 ? 0 : parseInt(stock, 10) || 0,
         category_id: categoryId ? parseInt(categoryId, 10) : null,
         color_id: colorId ? parseInt(colorId, 10) : null,
         color_id_2: colorId2 ? parseInt(colorId2, 10) : null,
@@ -308,7 +313,7 @@ export default function DashboardProduitsPage() {
         size_guide_image: sizeGuideUrl || null,
         measurement_table:
           measurementRows.length > 0 ? measurementRows.map((r) => [...r]) : null,
-        sizes: sizes.filter((s) => typeof s === "string" && s.trim().length > 0),
+        sizes: filteredSizes,
         active: true,
       };
 
@@ -331,7 +336,7 @@ export default function DashboardProduitsPage() {
     }
   };
 
-  const isInStock = (p: Product) => Number(p.stock ?? 0) > 0;
+  const isInStock = (p: Product) => !isProductOutOfStock({ sizes: p.sizes ?? null, stock: p.stock });
 
   const isListedForShop = (p: Product) => p.active !== false;
 
@@ -1570,6 +1575,11 @@ export default function DashboardProduitsPage() {
                   </button>
                 ))}
               </div>
+              {sizes.length === 0 ? (
+                <p className="mt-2 text-xs font-medium text-red-600">
+                  Aucune taille sélectionnée — rupture de stock automatique
+                </p>
+              ) : null}
             </div>
 
             {/* Actions */}

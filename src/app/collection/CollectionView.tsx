@@ -35,7 +35,7 @@ type GridProduct = {
   colorHex: string | null;
   color2: string | null;
   color2Hex: string | null;
-  sizes: string[];
+  sizes?: string[];
   stock: number;
   listedForSale: boolean;
 };
@@ -55,7 +55,7 @@ function toGridProduct(p: Product): GridProduct {
     colorHex: /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(p.color_hex ?? "") ? p.color_hex ?? null : null,
     color2: p.color_2?.trim() || null,
     color2Hex: /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(p.color_2_hex ?? "") ? p.color_2_hex ?? null : null,
-    sizes: Array.isArray(p.sizes) ? p.sizes.filter((s) => typeof s === "string" && s.trim().length > 0) : [],
+    sizes: p.sizes,
     stock: Number(p.stock ?? 0),
     listedForSale: isProductListedForSale(p),
   };

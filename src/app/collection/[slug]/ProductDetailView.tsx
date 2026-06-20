@@ -907,7 +907,7 @@ export default function ProductDetailView({ product }: Props) {
                 </div>
               ) : outOfStock ? (
                 <div
-                  className="pointer-events-none absolute right-2 top-2 z-30 sm:right-3 sm:top-3"
+                  className="pointer-events-none absolute right-2 top-2 z-20 sm:right-3 sm:top-3"
                   role="status"
                 >
                   <span className="inline-block whitespace-nowrap rounded-md bg-red-600 px-2.5 py-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-white shadow-md sm:px-3 sm:text-xs sm:tracking-wider">
