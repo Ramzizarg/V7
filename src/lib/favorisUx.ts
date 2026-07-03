@@ -31,20 +31,30 @@ export function dispatchCartAdded(): void {
   }, 2000);
 }
 
+function getVisibleHeaderTarget(...ids: string[]): HTMLElement | null {
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) return el;
+  }
+  return null;
+}
+
 /**
  * Flying thumbnail from an origin element toward the header favoris icon.
  * No-op if the target is missing (e.g. SSR or layout change).
  */
 export function flyProductThumbnailToFavorites(originEl: HTMLElement | null, imageSrc: string): void {
   if (typeof document === "undefined" || !originEl || !imageSrc) return;
-  const target = document.getElementById("site-header-favoris");
+  const target = getVisibleHeaderTarget("site-header-favoris", "site-header-favoris-desktop");
   if (!target) return;
   flyProductThumbnailToTarget(originEl, imageSrc, target);
 }
 
 export function flyProductThumbnailToCart(originEl: HTMLElement | null, imageSrc: string): void {
   if (typeof document === "undefined" || !originEl || !imageSrc) return;
-  const target = document.getElementById("site-header-cart");
+  const target = getVisibleHeaderTarget("site-header-cart", "site-header-cart-desktop");
   if (!target) return;
   flyProductThumbnailToTarget(originEl, imageSrc, target);
 }

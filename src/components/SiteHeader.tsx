@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Search, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import HeaderMegaMenu, { type MegaMenuKey } from "@/components/HeaderMegaMenu";
 import { CartSidebar } from "@/components/shop/CartSidebar";
 import { trackMetaSearch } from "@/lib/metaPixel";
 import {
@@ -27,6 +28,18 @@ const promoMessages = [
   "Paiement securise et livraison rapide",
 ];
 
+const NAV_LINKS = [
+  { href: "/collection", label: "Homme", mega: "hommes" as const },
+  { href: "/collection", label: "Femme", mega: "femmes" as const },
+  { href: "/collection", label: "Lifestyle" },
+  { href: "/collection", label: "Accessoires" },
+] as const;
+
+const MEGA_MENU_CLOSE_DELAY_MS = 120;
+
+const desktopNavLinkClass =
+  "relative whitespace-nowrap pb-0.5 text-sm font-medium text-black transition after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:bg-black after:transition-transform hover:after:scale-x-100";
+
 /**
  * Header identique a l'accueil (`page.tsx`) : bandeau promo, menu, recherche.
  * Liens ancres pointent vers `/#...` pour fonctionner depuis /collection etc.
@@ -45,7 +58,48 @@ export default function SiteHeader() {
   const [searchProducts, setSearchProducts] = useState<Product[]>([]);
   const [searchProductsLoading, setSearchProductsLoading] = useState(false);
   const [cartSidebarOpen, setCartSidebarOpen] = useState(false);
+  const [activeMegaMenu, setActiveMegaMenu] = useState<MegaMenuKey | null>(null);
+  const megaMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSearchTrackedRef = useRef("");
+
+  const featuredMegaImages = useMemo(
+    () =>
+      searchProducts
+        .map((p) => (Array.isArray(p.images) && p.images[0] ? p.images[0] : null))
+        .filter((src): src is string => Boolean(src))
+        .slice(0, 4),
+    [searchProducts]
+  );
+
+  const openMegaMenu = useCallback((key: MegaMenuKey) => {
+    if (megaMenuCloseTimerRef.current != null) {
+      clearTimeout(megaMenuCloseTimerRef.current);
+      megaMenuCloseTimerRef.current = null;
+    }
+    setActiveMegaMenu(key);
+  }, []);
+
+  const scheduleMegaMenuClose = useCallback(() => {
+    if (megaMenuCloseTimerRef.current != null) clearTimeout(megaMenuCloseTimerRef.current);
+    megaMenuCloseTimerRef.current = setTimeout(() => {
+      setActiveMegaMenu(null);
+      megaMenuCloseTimerRef.current = null;
+    }, MEGA_MENU_CLOSE_DELAY_MS);
+  }, []);
+
+  const closeMegaMenu = useCallback(() => {
+    if (megaMenuCloseTimerRef.current != null) {
+      clearTimeout(megaMenuCloseTimerRef.current);
+      megaMenuCloseTimerRef.current = null;
+    }
+    setActiveMegaMenu(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (megaMenuCloseTimerRef.current != null) clearTimeout(megaMenuCloseTimerRef.current);
+    };
+  }, []);
 
   const closeSearch = useCallback(() => {
     setSearchClosing(true);
@@ -59,11 +113,12 @@ export default function SiteHeader() {
 
   const openSearch = useCallback(() => {
     setMobileMenuOpen(false);
+    closeMegaMenu();
     setSearchClosing(false);
     setSearchOpen(true);
     setSearchVisible(false);
     requestAnimationFrame(() => setSearchVisible(true));
-  }, []);
+  }, [closeMegaMenu]);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +211,22 @@ export default function SiteHeader() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-black/10 bg-white">
+    <>
+      {activeMegaMenu && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[25] hidden bg-white/30 backdrop-blur-[3px] lg:block"
+              style={{ top: "var(--site-header-height, 6.5rem)" }}
+              aria-hidden
+              onMouseEnter={scheduleMegaMenuClose}
+            />,
+            document.body
+          )
+        : null}
+    <header
+      className={`sticky top-0 z-30 bg-white ${activeMegaMenu ? "" : "border-b border-black/10"}`}
+      style={{ ["--site-header-height" as string]: "calc(2rem + 4.25rem)" }}
+    >
       <div className="bg-red-700 text-white">
         <div className="promo-marquee h-8">
           <div className="promo-marquee-track text-[11px]">
@@ -172,8 +242,9 @@ export default function SiteHeader() {
           </div>
         </div>
       </div>
-      <div className="mx-auto relative flex h-16 w-full max-w-7xl items-center justify-between px-2 sm:px-5 lg:px-8">
-        <div className="flex items-center gap-0.5 text-black lg:hidden">
+      {/* Mobile header */}
+      <div className="relative mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-2 sm:px-5 lg:hidden">
+        <div className="flex items-center gap-0.5 text-black">
           <button
             type="button"
             aria-label="Ouvrir le menu"
@@ -203,7 +274,7 @@ export default function SiteHeader() {
         </div>
         <Link
           href="/"
-          className="absolute left-1/2 z-20 flex -translate-x-1/2 items-center lg:static lg:left-auto lg:z-auto lg:translate-x-0"
+          className="absolute left-1/2 z-20 flex -translate-x-1/2 items-center"
           aria-label="Accueil Vero7 — retour à la page d'accueil"
           onClick={(e) => {
             if (pathname === "/") {
@@ -224,38 +295,7 @@ export default function SiteHeader() {
             loading="eager"
           />
         </Link>
-        <nav className="hidden items-center gap-6 text-sm font-medium text-black lg:flex">
-          <Link href="/collection" className="transition hover:opacity-70">
-            Hommes
-          </Link>
-          <Link href="/collection" className="transition hover:opacity-70">
-            Femmes
-          </Link>
-          <Link href="/collection" className="transition hover:opacity-70">
-            Enfants
-          </Link>
-          <Link href="/collection" className="transition hover:opacity-70">
-            Lifestyle
-          </Link>
-          <Link href="/collection" className="transition hover:opacity-70">
-            Sport
-          </Link>
-          <Link href="/collection" className="transition hover:opacity-70">
-            Soldes Mi-Saison
-          </Link>
-        </nav>
         <div className="flex items-center gap-1 text-black">
-          <button
-            type="button"
-            aria-label="Rechercher"
-            onClick={openSearch}
-            className="hidden rounded-full p-2 transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 lg:inline-flex"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" strokeLinecap="round" />
-            </svg>
-          </button>
           <Link
             id="site-header-favoris"
             href="/favoris"
@@ -297,27 +337,144 @@ export default function SiteHeader() {
           </button>
         </div>
       </div>
+
+      {/* Desktop header — nav left · logo center · search + favoris + panier right */}
+      <div className="relative hidden w-full lg:block" onMouseLeave={scheduleMegaMenuClose}>
+        <div className="relative flex h-[4.25rem] w-full items-center justify-between px-4 lg:px-6 xl:px-10">
+          <nav className="relative z-10 flex min-w-0 items-center gap-6 xl:gap-8" aria-label="Navigation principale">
+            {NAV_LINKS.map((item) => {
+              const isMega = "mega" in item && item.mega;
+              const isActiveMega = isMega && activeMegaMenu === item.mega;
+              const linkClass = `${desktopNavLinkClass}${isActiveMega ? " after:scale-x-100" : ""}`;
+
+              if (isMega) {
+                return (
+                  <div
+                    key={item.label}
+                    className="relative"
+                    onMouseEnter={() => openMegaMenu(item.mega)}
+                  >
+                    <Link href={item.href} className={linkClass} onClick={closeMegaMenu}>
+                      {item.label}
+                    </Link>
+                  </div>
+                );
+              }
+
+              return (
+                <Link key={item.label} href={item.href} className={linkClass} onMouseEnter={closeMegaMenu}>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <Link
+            href="/"
+            className="absolute left-1/2 top-1/2 z-0 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+            aria-label="Accueil Vero7 — retour à la page d'accueil"
+            onMouseEnter={closeMegaMenu}
+            onClick={(e) => {
+              if (pathname === "/") {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                return;
+              }
+              requestSplashTransition();
+            }}
+          >
+            <Image
+              src="/vero7-logo.png"
+              alt="Vero7"
+              width={72}
+              height={72}
+              className="h-12 w-auto object-contain xl:h-14"
+              priority
+              loading="eager"
+            />
+          </Link>
+
+          <div
+            className="relative z-10 flex min-w-0 shrink-0 items-center justify-end gap-1 text-black"
+            onMouseEnter={closeMegaMenu}
+          >
+            <button
+              type="button"
+              onClick={openSearch}
+              className="flex min-w-0 max-w-[15rem] items-center gap-2.5 rounded-full bg-zinc-100 px-4 py-2.5 text-left transition hover:bg-zinc-200/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 xl:max-w-[17rem]"
+              aria-label="Rechercher"
+            >
+              <Search className="h-4 w-4 shrink-0 text-black" strokeWidth={2} />
+              <span className="truncate text-sm text-zinc-500">Que recherchez-vous ?</span>
+            </button>
+            <Link
+              id="site-header-favoris-desktop"
+              href="/favoris"
+              className={`relative isolate rounded-full p-2 transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
+                favIconBump ? "favorite-pop" : ""
+              }`}
+              aria-label={favCount > 0 ? `Favoris, ${favCount} article${favCount > 1 ? "s" : ""}` : "Favoris"}
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path
+                  d="M12 20s-6-3.7-8.3-7C1.6 9.7 3 6 6.4 6c2.1 0 3.2 1.2 3.6 2 .4-.8 1.5-2 3.6-2C17 6 18.4 9.7 16.3 13c-2.3 3.3-8.3 7-8.3 7Z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {favCount > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-white">
+                  {favCount}
+                </span>
+              ) : null}
+            </Link>
+            <button
+              id="site-header-cart-desktop"
+              className={`relative isolate rounded-full p-2 transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
+                cartIconBump ? "favorite-pop" : ""
+              }`}
+              aria-label="Panier"
+              type="button"
+              onClick={() => setCartSidebarOpen(true)}
+            >
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12l-1 11H7L6 7Zm3 0a3 3 0 1 1 6 0" />
+              </svg>
+              {cartCount > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-white">
+                  {cartCount}
+                </span>
+              ) : null}
+            </button>
+          </div>
+        </div>
+
+        {activeMegaMenu ? (
+          <div
+            className="absolute inset-x-0 top-full z-40 border-t border-black/10 bg-white shadow-[0_24px_48px_rgba(0,0,0,0.08)]"
+            onMouseEnter={() => openMegaMenu(activeMegaMenu)}
+          >
+            <HeaderMegaMenu
+              active={activeMegaMenu}
+              featuredImages={featuredMegaImages}
+              onClose={closeMegaMenu}
+            />
+          </div>
+        ) : null}
+      </div>
       {mobileMenuOpen ? (
         <nav className="border-t border-black/10 bg-white px-5 py-4 text-sm font-medium text-black lg:hidden">
           <div className="flex flex-col gap-3">
-            <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
-              Hommes
-            </Link>
-            <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
-              Femmes
-            </Link>
-            <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
-              Enfants
-            </Link>
-            <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
-              Lifestyle
-            </Link>
-            <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
-              Sport
-            </Link>
-            <Link href="/collection" className="transition hover:opacity-70" onClick={() => setMobileMenuOpen(false)}>
-              Soldes Mi-Saison
-            </Link>
+            {NAV_LINKS.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className="transition hover:opacity-70"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
         </nav>
       ) : null}
@@ -447,5 +604,6 @@ export default function SiteHeader() {
         )}
       <CartSidebar open={cartSidebarOpen} onClose={() => setCartSidebarOpen(false)} />
     </header>
+    </>
   );
 }
