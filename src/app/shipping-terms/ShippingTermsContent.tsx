@@ -1,21 +1,13 @@
 "use client";
 
-import SiteHeader from "@/components/SiteHeader";
-import SiteFooter from "@/components/SiteFooter";
+import CustomerServiceLayout from "@/components/CustomerServiceLayout";
 
 export default function ShippingTermsContent() {
   return (
-    <>
-      <SiteHeader />
-
-      <main className="mx-auto w-full max-w-[860px] px-6 py-16 sm:px-8 lg:px-12">
-        <h1 className="mb-2 text-3xl font-black uppercase tracking-tight sm:text-4xl">
-          Livraison & Conditions
-        </h1>
-        <p className="mb-10 text-sm text-neutral-500">
-          Dernière mise à jour : Mai 2026
-        </p>
-
+    <CustomerServiceLayout
+      title="Livraison & Retours"
+      subtitle="Dernière mise à jour : Mai 2026"
+    >
         {/* Zones & Délais */}
         <section className="mb-10">
           <h2 className="mb-4 text-lg font-bold uppercase tracking-wide">
@@ -154,9 +146,6 @@ export default function ShippingTermsContent() {
             — nous répondons sous 24 à 48h.
           </p>
         </section>
-      </main>
-
-      <SiteFooter />
-    </>
+    </CustomerServiceLayout>
   );
 }

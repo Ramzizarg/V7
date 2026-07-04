@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import SiteHeader from "@/components/SiteHeader";
-import SiteFooter from "@/components/SiteFooter";
+import CustomerServiceLayout from "@/components/CustomerServiceLayout";
 
 interface FaqItem {
   question: string;
@@ -100,40 +99,30 @@ function FaqAccordionItem({ item }: { item: FaqItem }) {
 
 export default function FaqContent() {
   return (
-    <>
-      <SiteHeader />
+    <CustomerServiceLayout
+      title="Questions fréquentes"
+      subtitle="Retrouvez les réponses aux questions les plus posées par nos clients."
+    >
+      <div className="divide-y divide-neutral-200 border-t border-neutral-200">
+        {FAQ_DATA.map((item, i) => (
+          <FaqAccordionItem key={i} item={item} />
+        ))}
+      </div>
 
-      <main className="mx-auto w-full max-w-[860px] px-6 py-16 sm:px-8 lg:px-12">
-        <h1 className="mb-2 text-3xl font-black uppercase tracking-tight sm:text-4xl">
-          Questions Fréquentes
-        </h1>
-        <p className="mb-10 text-sm text-neutral-500">
-          Retrouvez les réponses aux questions les plus posées par nos clients.
+      <div className="mt-12 rounded-lg bg-neutral-50 p-6 text-center">
+        <p className="text-sm text-neutral-700">
+          Vous n&apos;avez pas trouvé votre réponse ?
         </p>
-
-        <div className="divide-y divide-neutral-200 border-t border-neutral-200">
-          {FAQ_DATA.map((item, i) => (
-            <FaqAccordionItem key={i} item={item} />
-          ))}
-        </div>
-
-        <div className="mt-12 rounded-lg bg-neutral-50 p-6 text-center">
-          <p className="text-sm text-neutral-700">
-            Vous n'avez pas trouvé votre réponse ?
-          </p>
-          <p className="mt-1 text-sm text-neutral-700">
-            Contactez-nous à{" "}
-            <a
-              href="mailto:contact@vero-7.com"
-              className="font-medium text-[#0f1f63] underline underline-offset-2 hover:text-black"
-            >
-              contact@vero-7.com
-            </a>
-          </p>
-        </div>
-      </main>
-
-      <SiteFooter />
-    </>
+        <p className="mt-1 text-sm text-neutral-700">
+          Contactez-nous à{" "}
+          <a
+            href="mailto:contact@vero-7.com"
+            className="font-medium text-[#0f1f63] underline underline-offset-2 hover:text-black"
+          >
+            contact@vero-7.com
+          </a>
+        </p>
+      </div>
+    </CustomerServiceLayout>
   );
 }

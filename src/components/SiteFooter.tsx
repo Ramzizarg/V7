@@ -4,6 +4,8 @@ import { useState } from "react";
 import { trackMetaLead } from "@/lib/metaPixel";
 
 const INSTAGRAM_URL = "https://www.instagram.com/vero7.tn/";
+const FACEBOOK_URL =
+  "https://www.facebook.com/share/1JVw34RVAj/?mibextid=wwXIfr";
 
 function InstagramIcon({ className }: { className?: string }) {
   return (
@@ -24,8 +26,25 @@ function InstagramIcon({ className }: { className?: string }) {
   );
 }
 
-const instagramLinkText =
-  "items-center gap-2.5 text-sm font-bold text-white transition hover:text-white/90 sm:text-base";
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  );
+}
+
+const socialLinkClass =
+  "inline-flex items-center gap-2.5 text-sm font-bold text-white transition hover:text-white/90 sm:text-base";
 
 export default function SiteFooter() {
   const [nlEmail, setNlEmail] = useState("");
@@ -63,16 +82,28 @@ export default function SiteFooter() {
               <li><a href="#" className="transition hover:text-white">Athletes</a></li>
               <li><a href="/#club" className="transition hover:text-white">Club Vero7</a></li>
             </ul>
-            <a
-              href={INSTAGRAM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`mt-6 hidden lg:inline-flex ${instagramLinkText}`}
-              aria-label="Suivez Vero7 sur Instagram"
-            >
-              <InstagramIcon className="h-5 w-5 shrink-0" />
-              Instagram
-            </a>
+            <div className="mt-6 hidden flex-wrap items-center gap-6 lg:flex">
+              <a
+                href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={socialLinkClass}
+                aria-label="Suivez Vero7 sur Instagram"
+              >
+                <InstagramIcon className="h-5 w-5 shrink-0" />
+                Instagram
+              </a>
+              <a
+                href={FACEBOOK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={socialLinkClass}
+                aria-label="Suivez Vero7 sur Facebook"
+              >
+                <FacebookIcon className="h-5 w-5 shrink-0" />
+                Facebook
+              </a>
+            </div>
           </div>
 
           <div>
@@ -80,8 +111,8 @@ export default function SiteFooter() {
             <ul className="space-y-2 text-sm text-white/90">
               <li><a href="/faq" className="transition hover:text-white">FAQ</a></li>
               <li><a href="/shipping-terms" className="transition hover:text-white">Livraison & Retours</a></li>
-              <li><a href="#" className="transition hover:text-white">Guide des tailles</a></li>
-              <li><a href="#" className="transition hover:text-white">Contact</a></li>
+              <li><a href="/guide-des-tailles" className="transition hover:text-white">Guide des tailles</a></li>
+              <li><a href="/contact" className="transition hover:text-white">Contact</a></li>
             </ul>
           </div>
 
@@ -118,18 +149,30 @@ export default function SiteFooter() {
           </div>
         </div>
 
-        {/* Mobile : Instagram uniquement au-dessus du copyright (pas sous Club Vero7) */}
-        <div className="flex flex-col gap-2 border-t border-white/20 pt-6 lg:border-t-0 lg:pt-4">
-          <a
-            href={INSTAGRAM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`inline-flex lg:hidden ${instagramLinkText}`}
-            aria-label="Suivez Vero7 sur Instagram"
-          >
-            <InstagramIcon className="h-5 w-5 shrink-0" />
-            Instagram
-          </a>
+        {/* Mobile : réseaux sociaux au-dessus du copyright */}
+        <div className="flex flex-col gap-3 border-t border-white/20 pt-6 lg:border-t-0 lg:pt-4">
+          <div className="flex flex-wrap items-center gap-6 lg:hidden">
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={socialLinkClass}
+              aria-label="Suivez Vero7 sur Instagram"
+            >
+              <InstagramIcon className="h-5 w-5 shrink-0" />
+              Instagram
+            </a>
+            <a
+              href={FACEBOOK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={socialLinkClass}
+              aria-label="Suivez Vero7 sur Facebook"
+            >
+              <FacebookIcon className="h-5 w-5 shrink-0" />
+              Facebook
+            </a>
+          </div>
           <p className="text-xs text-white/55">
             Copyright © {new Date().getFullYear()} Vero7 - Tous droits reserves
           </p>
