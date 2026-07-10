@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, Globe, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { type MegaMenuKey } from "@/components/HeaderMegaMenu";
@@ -232,7 +232,8 @@ export function MobileNavSidebar({ open, onClose }: Props) {
             onClick={() => setLangOpen((prev) => !prev)}
             className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-zinc-50"
           >
-            <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+            <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">
+              <Globe className="h-4 w-4 text-zinc-500" strokeWidth={2} aria-hidden />
               {t("nav.language")}
             </span>
             <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-black">
