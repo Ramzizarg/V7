@@ -176,6 +176,7 @@ function QuantityStepper({
   max,
   disabled,
   compact,
+  mini,
 }: {
   value: number;
   onChange: (n: number) => void;
@@ -184,15 +185,17 @@ function QuantityStepper({
   disabled: boolean;
   /** Hauteur légèrement réduite pour la feuille mobile */
   compact?: boolean;
+  /** Très compact pour la barre sticky */
+  mini?: boolean;
 }) {
   const { t } = useTranslations();
-  const h = compact ? "h-9" : "h-10";
-  const w = compact ? "w-9" : "w-10";
+  const h = mini ? "h-6" : compact ? "h-8" : "h-10";
+  const w = mini ? "w-6" : compact ? "w-8" : "w-10";
   const atMin = value <= min;
   const atMax = value >= max;
   return (
     <div
-      className={`inline-flex max-w-full border border-zinc-300 bg-white ${disabled ? "opacity-50" : ""}`}
+      className={`inline-flex max-w-full overflow-hidden rounded-full border border-zinc-300 bg-white ${disabled ? "opacity-50" : ""}`}
       role="group"
       aria-label={t("common.quantity")}
     >
@@ -201,12 +204,14 @@ function QuantityStepper({
         disabled={disabled || atMin}
         aria-label={t("common.decreaseQty")}
         onClick={() => onChange(value - 1)}
-        className={`flex ${h} ${w} shrink-0 items-center justify-center border-r border-zinc-300 bg-white text-base font-light text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40`}
+        className={`flex ${h} ${w} shrink-0 items-center justify-center border-r border-zinc-300 bg-white font-light text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 ${mini ? "text-xs" : "text-sm"}`}
       >
         −
       </button>
       <div
-        className={`flex ${h} min-w-[2.75rem] grow items-center justify-center border-r border-zinc-300 bg-white text-sm font-medium tabular-nums text-zinc-900 sm:min-w-[3rem]`}
+        className={`flex ${h} grow items-center justify-center border-r border-zinc-300 bg-white font-medium tabular-nums text-zinc-900 ${
+          mini ? "min-w-[1.35rem] text-[10px]" : compact ? "min-w-[2rem] text-xs" : "min-w-[2.75rem] text-sm sm:min-w-[3rem]"
+        }`}
         aria-live="polite"
       >
         {value}
@@ -216,7 +221,7 @@ function QuantityStepper({
         disabled={disabled || atMax}
         aria-label={t("common.increaseQty")}
         onClick={() => onChange(value + 1)}
-        className={`flex ${h} ${w} shrink-0 items-center justify-center bg-white text-base font-light text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40`}
+        className={`flex ${h} ${w} shrink-0 items-center justify-center bg-white font-light text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 ${mini ? "text-xs" : "text-sm"}`}
       >
         +
       </button>
@@ -300,6 +305,7 @@ export default function ProductDetailView({ product }: Props) {
   const favBtnRef = useRef<HTMLButtonElement>(null);
   const mainAddBtnRef = useRef<HTMLButtonElement>(null);
   const sizeSectionRef = useRef<HTMLDivElement>(null);
+  const stickyTriggerRef = useRef<HTMLDivElement>(null);
   const favToastTimerRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -674,14 +680,14 @@ export default function ProductDetailView({ product }: Props) {
         setShowMobileStickyCart(false);
         return;
       }
-      const el = sizeSectionRef.current;
+      const el = stickyTriggerRef.current ?? sizeSectionRef.current;
       if (!el) {
         setShowMobileStickyCart(false);
         return;
       }
-      const r = el.getBoundingClientRect();
-      const inView = r.top < window.innerHeight * 0.85 && r.bottom > 0;
-      setShowMobileStickyCart(!inView && !outOfStock && !inactiveListing);
+      // Show new sticky bar only once the description section is reached / scrolled past
+      const pastDescription = el.getBoundingClientRect().top < 96;
+      setShowMobileStickyCart(pastDescription && !outOfStock && !inactiveListing);
     };
 
     onResizeOrScroll();
@@ -1034,16 +1040,16 @@ export default function ProductDetailView({ product }: Props) {
                   onClick={toggleAudioPlayback}
                   aria-label={
                     isAudioPlaying && !isAudioMuted
-                      ? "Mettre la musique en pause"
-                      : "Lire la musique"
+                      ? t("product.pauseMusic")
+                      : t("product.playMusic")
                   }
                   aria-pressed={isAudioPlaying && !isAudioMuted}
                   title={
                     isAudioMuted
-                      ? `Activer le son — ${audioTrack.title}`
+                      ? t("product.unmuteTitle", { title: audioTrack.title })
                       : isAudioPlaying
                         ? audioTrack.title
-                        : `Lire — ${audioTrack.title}`
+                        : t("product.playTitle", { title: audioTrack.title })
                   }
                   className={`audio-toggle audio-toggle--${audioTrack.theme} ${
                     isAudioPlaying && !isAudioMuted ? "is-playing" : ""
@@ -1087,7 +1093,7 @@ export default function ProductDetailView({ product }: Props) {
                   </span>
                   {isAudioMuted ? (
                     <span className="audio-toggle__hint" aria-hidden>
-                      Cliquez pour activer le son
+                      {t("product.clickToUnmute")}
                     </span>
                   ) : null}
                 </button>
@@ -1332,14 +1338,15 @@ export default function ProductDetailView({ product }: Props) {
                   if (!size) return;
                   addToCartWithFeedback(mainAddBtnRef.current, size);
                 }}
-                className="mt-10 w-full max-w-sm border border-black bg-black py-3.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-200 disabled:text-zinc-500 lg:max-w-none"
+                className="mt-10 flex w-full max-w-sm items-center justify-between bg-black px-4 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 lg:max-w-none"
               >
-                {t("product.addToCart")}
+                <span>{t("product.addToCartUpper")}</span>
+                <span>{formatMoney(displayPrice)}</span>
               </button>
             )}
 
             {(product.description?.trim() ? true : false) ? (
-              <div className="mt-10 border-t border-black/10">
+              <div ref={stickyTriggerRef} className="mt-10 border-t border-black/10">
                 <button
                   type="button"
                   onClick={() => setOpenInfoPanel((prev) => (prev === "description" ? null : "description"))}
@@ -1363,7 +1370,9 @@ export default function ProductDetailView({ product }: Props) {
                   </div>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div ref={stickyTriggerRef} className="mt-10" aria-hidden />
+            )}
 
             <div className="border-t border-black/10">
               <button
@@ -1545,22 +1554,59 @@ export default function ProductDetailView({ product }: Props) {
       ) : null}
 
       {showMobileStickyCart ? (
-        <div className="fixed inset-x-4 bottom-4 z-[110] sm:hidden">
-          <button
-            type="button"
-            onClick={() => {
-              setMobileQuickSize(
-                selectedSize && sizeOptions.some((o) => o.label === selectedSize && o.available)
-                  ? selectedSize
-                  : null
-              );
-              setMobileQuickAddOpen(true);
-            }}
-            className="flex w-full items-center justify-between bg-black px-4 py-3 text-sm font-bold uppercase tracking-[0.08em] text-white shadow-2xl"
-          >
-            <span>{t("product.addToCartUpper")}</span>
-            <span>{formatMoney(displayPrice)}</span>
-          </button>
+        <div className="fixed bottom-[max(0.5rem,env(safe-area-inset-bottom))] right-2.5 z-[110] sm:hidden">
+          <div className="w-[min(17.5rem,calc(100vw-1.25rem))] rounded-2xl bg-white p-2 shadow-[0_10px_32px_rgba(0,0,0,0.16)]">
+            <div className="flex items-start gap-2">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={mainSrc} alt="" className="h-full w-full object-cover" />
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <div className="flex items-start justify-between gap-1.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-[10px] font-bold uppercase tracking-[0.04em] text-black">
+                      {titleUpper}
+                    </p>
+                    <p className="mt-0.5 truncate text-[9px] italic text-zinc-500">
+                      {(colorForCart || "—").toUpperCase()}
+                      {selectedSize ? ` / ${selectedSize}` : ""}
+                    </p>
+                  </div>
+                  <p className="shrink-0 pt-0.5 text-[10px] font-medium italic tabular-nums text-zinc-500">
+                    {formatMoney(displayPrice)}
+                  </p>
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <QuantityStepper
+                    value={addQty}
+                    onChange={setAddQty}
+                    min={1}
+                    max={Math.max(1, stockQty)}
+                    disabled={stockQty < 1}
+                    mini
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const readySize =
+                        selectedSize && sizeOptions.some((o) => o.label === selectedSize && o.available)
+                          ? selectedSize
+                          : null;
+                      if (readySize) {
+                        addToCartWithFeedback(sizeSectionRef.current, readySize);
+                        return;
+                      }
+                      setMobileQuickSize(null);
+                      setMobileQuickAddOpen(true);
+                    }}
+                    className="h-6 min-w-0 flex-1 rounded-full bg-black px-3 text-[9px] font-bold uppercase italic tracking-[0.06em] text-white"
+                  >
+                    {t("product.addShort")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -1572,13 +1618,17 @@ export default function ProductDetailView({ product }: Props) {
             aria-label={t("common.close")}
             onClick={() => setMobileQuickAddOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4 shadow-2xl">
-            <div className="mb-2 flex items-start justify-between gap-3">
-              <h3 className="text-xl font-black uppercase leading-tight text-black">{titleUpper}</h3>
+          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-2xl">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-zinc-200" aria-hidden />
+            <div className="mb-1 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-lg font-black uppercase leading-tight text-black">{titleUpper}</h3>
+                <p className="mt-1 text-sm font-semibold text-black">{formatMoney(displayPrice)}</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setMobileQuickAddOpen(false)}
-                className="rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-black"
+                className="rounded-md p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-black"
                 aria-label={t("common.close")}
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1586,117 +1636,33 @@ export default function ProductDetailView({ product }: Props) {
                 </svg>
               </button>
             </div>
-            <p className="text-lg font-semibold text-black">{formatMoney(displayPrice)}</p>
 
-            <div
-              className="mt-5 flex items-end justify-between gap-4"
-            >
-              <div className="relative z-20 min-w-0 flex-1">
-                <p className="text-sm font-semibold text-black">
-                  {colorChoices.length > 1 ? (
-                    <>
-                      {colorChoices.length === 2 ? t("product.designBicolor") : t("product.designMultiColor")}
-                      <span className="font-medium text-zinc-700">
-                        {colorChoices.map((c) => c.label).join(" · ")}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      {t("product.colorWithColon")}{" "}
-                      <span className="font-medium text-zinc-700">
-                        {colorChoices[0]?.label || product.color?.trim() || "—"}
-                      </span>
-                    </>
-                  )}
-                </p>
-                {colorChoices.length > 0 ? (
-                  <ProductDesignColors swatches={colorChoices} namePrefix="mobile-quick" className="mt-2" />
-                ) : null}
-              </div>
-              <div className="relative z-10 flex shrink-0 flex-col items-end gap-2">
-                <p className="text-sm font-semibold text-black">{t("common.quantity")}</p>
-                <QuantityStepper
-                  value={addQty}
-                  onChange={setAddQty}
-                  min={1}
-                  max={Math.max(1, stockQty)}
-                  disabled={stockQty < 1}
-                  compact
-                />
-              </div>
+            <p className="mt-4 text-sm font-semibold text-black">{t("product.selectSizeToContinue")}</p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {sizeOptions.map(({ label, available }) => (
+                <button
+                  key={`mobile-quick-${label}`}
+                  type="button"
+                  disabled={!available}
+                  onClick={() => {
+                    if (!available) return;
+                    setMobileQuickSize(label);
+                    setSelectedSize(label);
+                    addToCartWithFeedback(sizeSectionRef.current, label);
+                    setMobileQuickAddOpen(false);
+                  }}
+                  className={
+                    !available
+                      ? "w-full cursor-not-allowed border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400"
+                      : mobileQuickSize === label
+                        ? "w-full border border-black bg-black px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-white"
+                        : "w-full border border-black/15 bg-white px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
+                  }
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-
-            <div className="mt-5">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-sm font-semibold text-black">{t("common.size")}</p>
-                {product.size_guide_image ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileQuickAddOpen(false);
-                      setSizeGuideOpen(true);
-                    }}
-                    className="text-sm font-medium text-zinc-400"
-                  >
-                    {t("product.sizeGuide")}
-                  </button>
-                ) : null}
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {sizeOptions.map(({ label, available }) => {
-                  const picked = mobileQuickSize === label;
-                  return (
-                    <button
-                      key={`mobile-quick-${label}`}
-                      type="button"
-                      disabled={!available}
-                      onClick={() => available && setMobileQuickSize(label)}
-                      aria-pressed={picked && available}
-                      className={
-                        !available
-                          ? "w-full cursor-not-allowed border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400"
-                          : picked
-                            ? "w-full border border-black bg-black px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white"
-                            : "w-full border border-black/15 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
-                      }
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              disabled={
-                !mobileQuickSize ||
-                !sizeOptions.find((o) => o.label === mobileQuickSize && o.available)
-              }
-              onClick={() => {
-                if (!mobileQuickSize) return;
-                if (!sizeOptions.find((o) => o.label === mobileQuickSize && o.available)) return;
-                const q = Math.min(Math.max(1, addQty), stockQty);
-                addToCart({
-                  productId: product.id,
-                  name: product.name,
-                  price: product.price,
-                  discountPrice: product.discount_price,
-                  image: product.images[0],
-                  size: mobileQuickSize,
-                  color: colorForCart,
-                  quantity: q,
-                });
-                dispatchCartAdded();
-                flyProductThumbnailToCart(sizeSectionRef.current, product.images[0] ?? mainSrc);
-                setSelectedSize(mobileQuickSize);
-                setAddQty(1);
-                setMobileQuickAddOpen(false);
-              }}
-              className="mt-4 w-full border border-black bg-black py-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
-            >
-              {t("product.addToCart")}
-            </button>
           </div>
         </div>
       ) : null}

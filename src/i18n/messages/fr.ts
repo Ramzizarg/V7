@@ -114,6 +114,7 @@ export const fr = {
       "Inscrivez-vous pour profiter de 10 % sur votre première commande, un accès anticipé aux nouveautés et des offres exclusives.",
     clubCta: "Rejoindre le club",
     clubImageAlt: "Rejoignez le club — 10 % sur la première commande",
+    backToTop: "Retour en haut de page",
     categories: {
       maillots: "Maillots",
       shorts: "Shorts",
@@ -173,6 +174,7 @@ export const fr = {
     collection: "Collection",
     addToCart: "Ajouter au panier",
     addToCartUpper: "AJOUTER AU PANIER",
+    addShort: "AJOUTER",
     outOfStock: "Rupture de stock",
     comingSoon: "Bientôt disponible",
     sizeGuide: "Guide des tailles",
@@ -217,6 +219,11 @@ export const fr = {
     addToWishlist: "Ajouter aux favoris",
     removeFromWishlist: "Retirer des favoris",
     defaultCategory: "Vêtements",
+    pauseMusic: "Mettre la musique en pause",
+    playMusic: "Lire la musique",
+    unmuteTitle: "Activer le son — {title}",
+    playTitle: "Lire — {title}",
+    clickToUnmute: "Cliquez pour activer le son",
   },
   cart: {
     title: "Panier",

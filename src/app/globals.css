@@ -847,3 +847,24 @@ html.vero7-splash-active #vero7-app-root {
     opacity: 1;
   }
 }
+
+/** Bouton retour en haut — anneau de texte qui tourne (style archive / back to top). */
+@keyframes vero7-back-to-top-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.vero7-back-to-top__ring {
+  animation: vero7-back-to-top-spin 12s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vero7-back-to-top__ring {
+    animation: none;
+  }
+}

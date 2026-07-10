@@ -114,6 +114,7 @@ export const en = {
       "Sign up for 10% off your first order, early access to new arrivals and exclusive member offers.",
     clubCta: "Join the club",
     clubImageAlt: "Join the club — 10% off your first order",
+    backToTop: "Back to top",
     categories: {
       maillots: "Jerseys",
       shorts: "Shorts",
@@ -173,6 +174,7 @@ export const en = {
     collection: "Collection",
     addToCart: "Add to cart",
     addToCartUpper: "ADD TO CART",
+    addShort: "ADD",
     outOfStock: "Out of stock",
     comingSoon: "Coming soon",
     sizeGuide: "Size guide",
@@ -217,6 +219,11 @@ export const en = {
     addToWishlist: "Add to wishlist",
     removeFromWishlist: "Remove from wishlist",
     defaultCategory: "Clothing",
+    pauseMusic: "Pause music",
+    playMusic: "Play music",
+    unmuteTitle: "Unmute — {title}",
+    playTitle: "Play — {title}",
+    clickToUnmute: "Click to unmute",
   },
   cart: {
     title: "Cart",

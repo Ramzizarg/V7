@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import BackToTopButton from "@/components/BackToTopButton";
 import { ClubBenefitsList } from "@/components/ClubBenefitsList";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
@@ -655,6 +656,8 @@ export default function HomePageClient({ initialHomeContent }: Props) {
       </main>
 
       <ComingSoonProductModal open={comingSoonModalOpen} onClose={() => setComingSoonModalOpen(false)} />
+
+      <BackToTopButton />
 
       <SiteFooter />
     </div>

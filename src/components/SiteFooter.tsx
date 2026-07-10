@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { trackMetaLead } from "@/lib/metaPixel";
 
@@ -51,6 +51,11 @@ export default function SiteFooter() {
   const { t } = useTranslations();
   const [nlEmail, setNlEmail] = useState("");
   const [nlStatus, setNlStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [year, setYear] = useState(2026);
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,18 +78,37 @@ export default function SiteFooter() {
   };
 
   return (
-    <footer className="bg-black text-white">
-      <div className="mx-auto w-full max-w-[1400px] px-6 py-10 sm:px-8 lg:px-12">
-        <div className="grid gap-10 border-b border-white/20 pb-10 lg:grid-cols-[1fr_1fr_2fr]">
-          <div>
+    <footer className="bg-black text-white" suppressHydrationWarning>
+      <div className="mx-auto w-full max-w-[1400px] px-6 py-10 sm:px-8 lg:px-12" suppressHydrationWarning>
+        <div
+          className="grid gap-10 border-b border-white/20 pb-10 lg:grid-cols-[1fr_1fr_2fr]"
+          suppressHydrationWarning
+        >
+          <div suppressHydrationWarning>
             <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">{t("footer.aboutTitle")}</h3>
             <ul className="space-y-2 text-sm text-white/90">
-              <li><a href="/a-propos" className="transition hover:text-white">{t("footer.aboutUs")}</a></li>
-              <li><a href="/collection" className="transition hover:text-white">{t("footer.collections")}</a></li>
-              <li><a href="#" className="transition hover:text-white">{t("footer.athletes")}</a></li>
-              <li><a href="/#club" className="transition hover:text-white">{t("footer.club")}</a></li>
+              <li>
+                <a href="/a-propos" className="transition hover:text-white">
+                  {t("footer.aboutUs")}
+                </a>
+              </li>
+              <li>
+                <a href="/collection" className="transition hover:text-white">
+                  {t("footer.collections")}
+                </a>
+              </li>
+              <li>
+                <a href="#" className="transition hover:text-white">
+                  {t("footer.athletes")}
+                </a>
+              </li>
+              <li>
+                <a href="/#club" className="transition hover:text-white">
+                  {t("footer.club")}
+                </a>
+              </li>
             </ul>
-            <div className="mt-6 hidden flex-wrap items-center gap-6 lg:flex">
+            <div className="mt-6 hidden flex-wrap items-center gap-6 lg:flex" suppressHydrationWarning>
               <a
                 href={INSTAGRAM_URL}
                 target="_blank"
@@ -108,21 +132,37 @@ export default function SiteFooter() {
             </div>
           </div>
 
-          <div>
-            <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">{t("footer.customerService")}</h3>
+          <div suppressHydrationWarning>
+            <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">
+              {t("footer.customerService")}
+            </h3>
             <ul className="space-y-2 text-sm text-white/90">
-              <li><a href="/faq" className="transition hover:text-white">{t("footer.faq")}</a></li>
-              <li><a href="/shipping-terms" className="transition hover:text-white">{t("footer.shipping")}</a></li>
-              <li><a href="/guide-des-tailles" className="transition hover:text-white">{t("footer.sizeGuide")}</a></li>
-              <li><a href="/contact" className="transition hover:text-white">{t("footer.contact")}</a></li>
+              <li>
+                <a href="/faq" className="transition hover:text-white">
+                  {t("footer.faq")}
+                </a>
+              </li>
+              <li>
+                <a href="/shipping-terms" className="transition hover:text-white">
+                  {t("footer.shipping")}
+                </a>
+              </li>
+              <li>
+                <a href="/guide-des-tailles" className="transition hover:text-white">
+                  {t("footer.sizeGuide")}
+                </a>
+              </li>
+              <li>
+                <a href="/contact" className="transition hover:text-white">
+                  {t("footer.contact")}
+                </a>
+              </li>
             </ul>
           </div>
 
-          <div>
+          <div suppressHydrationWarning>
             <h3 className="mb-4 text-3xl font-black uppercase leading-none">{t("footer.newsletterTitle")}</h3>
-            <p className="mb-4 max-w-xl text-sm text-white/80">
-              {t("footer.newsletterDesc")}
-            </p>
+            <p className="mb-4 max-w-xl text-sm text-white/80">{t("footer.newsletterDesc")}</p>
             <form className="max-w-md" onSubmit={handleNewsletterSubmit}>
               <input
                 type="email"
@@ -151,9 +191,11 @@ export default function SiteFooter() {
           </div>
         </div>
 
-        {/* Mobile : réseaux sociaux au-dessus du copyright */}
-        <div className="flex flex-col gap-3 border-t border-white/20 pt-6 lg:border-t-0 lg:pt-4">
-          <div className="flex flex-wrap items-center gap-6 lg:hidden">
+        <div
+          className="flex flex-col gap-3 border-t border-white/20 pt-6 lg:border-t-0 lg:pt-4"
+          suppressHydrationWarning
+        >
+          <div className="flex flex-wrap items-center gap-6 lg:hidden" suppressHydrationWarning>
             <a
               href={INSTAGRAM_URL}
               target="_blank"
@@ -175,8 +217,8 @@ export default function SiteFooter() {
               Facebook
             </a>
           </div>
-          <p className="text-xs text-white/55">
-            {t("footer.copyright", { year: new Date().getFullYear() })}
+          <p className="text-xs text-white/55" suppressHydrationWarning>
+            {t("footer.copyright", { year })}
           </p>
         </div>
       </div>
