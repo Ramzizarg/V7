@@ -3,7 +3,7 @@ import { en } from "./messages/en";
 import { fr } from "./messages/fr";
 
 export const MESSAGES = { fr, en } as const;
-export type Messages = typeof fr;
+export type Messages = (typeof MESSAGES)[SiteLocale];
 export type MessageKey = string;
 
 function getByPath(obj: unknown, path: string): unknown {
