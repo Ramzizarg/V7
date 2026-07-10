@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { trackMetaLead } from "@/lib/metaPixel";
 
 const INSTAGRAM_URL = "https://www.instagram.com/vero7.tn/";
@@ -47,6 +48,7 @@ const socialLinkClass =
   "inline-flex items-center gap-2.5 text-sm font-bold text-white transition hover:text-white/90 sm:text-base";
 
 export default function SiteFooter() {
+  const { t } = useTranslations();
   const [nlEmail, setNlEmail] = useState("");
   const [nlStatus, setNlStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
@@ -71,16 +73,16 @@ export default function SiteFooter() {
   };
 
   return (
-    <footer className="bg-[#0f1f63] text-white">
+    <footer className="bg-black text-white">
       <div className="mx-auto w-full max-w-[1400px] px-6 py-10 sm:px-8 lg:px-12">
         <div className="grid gap-10 border-b border-white/20 pb-10 lg:grid-cols-[1fr_1fr_2fr]">
           <div>
-            <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">A Propos De Vero7</h3>
+            <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">{t("footer.aboutTitle")}</h3>
             <ul className="space-y-2 text-sm text-white/90">
-              <li><a href="/a-propos" className="transition hover:text-white">A propos de nous</a></li>
-              <li><a href="/collection" className="transition hover:text-white">Nos collections</a></li>
-              <li><a href="#" className="transition hover:text-white">Athletes</a></li>
-              <li><a href="/#club" className="transition hover:text-white">Club Vero7</a></li>
+              <li><a href="/a-propos" className="transition hover:text-white">{t("footer.aboutUs")}</a></li>
+              <li><a href="/collection" className="transition hover:text-white">{t("footer.collections")}</a></li>
+              <li><a href="#" className="transition hover:text-white">{t("footer.athletes")}</a></li>
+              <li><a href="/#club" className="transition hover:text-white">{t("footer.club")}</a></li>
             </ul>
             <div className="mt-6 hidden flex-wrap items-center gap-6 lg:flex">
               <a
@@ -88,7 +90,7 @@ export default function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className={socialLinkClass}
-                aria-label="Suivez Vero7 sur Instagram"
+                aria-label={t("footer.instagramAria")}
               >
                 <InstagramIcon className="h-5 w-5 shrink-0" />
                 Instagram
@@ -98,7 +100,7 @@ export default function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className={socialLinkClass}
-                aria-label="Suivez Vero7 sur Facebook"
+                aria-label={t("footer.facebookAria")}
               >
                 <FacebookIcon className="h-5 w-5 shrink-0" />
                 Facebook
@@ -107,19 +109,19 @@ export default function SiteFooter() {
           </div>
 
           <div>
-            <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">Service Client</h3>
+            <h3 className="mb-4 text-sm font-extrabold uppercase tracking-[0.04em]">{t("footer.customerService")}</h3>
             <ul className="space-y-2 text-sm text-white/90">
-              <li><a href="/faq" className="transition hover:text-white">FAQ</a></li>
-              <li><a href="/shipping-terms" className="transition hover:text-white">Livraison & Retours</a></li>
-              <li><a href="/guide-des-tailles" className="transition hover:text-white">Guide des tailles</a></li>
-              <li><a href="/contact" className="transition hover:text-white">Contact</a></li>
+              <li><a href="/faq" className="transition hover:text-white">{t("footer.faq")}</a></li>
+              <li><a href="/shipping-terms" className="transition hover:text-white">{t("footer.shipping")}</a></li>
+              <li><a href="/guide-des-tailles" className="transition hover:text-white">{t("footer.sizeGuide")}</a></li>
+              <li><a href="/contact" className="transition hover:text-white">{t("footer.contact")}</a></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-4 text-3xl font-black uppercase leading-none">Abonnez-vous et obtenez -10%</h3>
+            <h3 className="mb-4 text-3xl font-black uppercase leading-none">{t("footer.newsletterTitle")}</h3>
             <p className="mb-4 max-w-xl text-sm text-white/80">
-              Recevez les dernieres nouveautes, nos offres exclusives et les infos sur les nouveaux drops Vero7.
+              {t("footer.newsletterDesc")}
             </p>
             <form className="max-w-md" onSubmit={handleNewsletterSubmit}>
               <input
@@ -135,15 +137,15 @@ export default function SiteFooter() {
               <button
                 type="submit"
                 disabled={nlStatus === "loading"}
-                className="bg-white px-8 py-2.5 text-sm font-semibold text-[#0f1f63] transition hover:bg-white/90 disabled:opacity-60"
+                className="bg-white px-8 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
               >
-                {nlStatus === "loading" ? "..." : "S\u0027abonner"}
+                {nlStatus === "loading" ? "..." : t("common.subscribe")}
               </button>
               {nlStatus === "success" ? (
-                <p className="mt-2 text-sm text-green-300">Merci ! Verifiez votre boite mail.</p>
+                <p className="mt-2 text-sm text-green-300">{t("footer.newsletterSuccess")}</p>
               ) : null}
               {nlStatus === "error" ? (
-                <p className="mt-2 text-sm text-red-300">Erreur, veuillez reessayer.</p>
+                <p className="mt-2 text-sm text-red-300">{t("footer.newsletterError")}</p>
               ) : null}
             </form>
           </div>
@@ -157,7 +159,7 @@ export default function SiteFooter() {
               target="_blank"
               rel="noopener noreferrer"
               className={socialLinkClass}
-              aria-label="Suivez Vero7 sur Instagram"
+              aria-label={t("footer.instagramAria")}
             >
               <InstagramIcon className="h-5 w-5 shrink-0" />
               Instagram
@@ -167,14 +169,14 @@ export default function SiteFooter() {
               target="_blank"
               rel="noopener noreferrer"
               className={socialLinkClass}
-              aria-label="Suivez Vero7 sur Facebook"
+              aria-label={t("footer.facebookAria")}
             >
               <FacebookIcon className="h-5 w-5 shrink-0" />
               Facebook
             </a>
           </div>
           <p className="text-xs text-white/55">
-            Copyright © {new Date().getFullYear()} Vero7 - Tous droits reserves
+            {t("footer.copyright", { year: new Date().getFullYear() })}
           </p>
         </div>
       </div>

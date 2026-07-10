@@ -95,11 +95,11 @@ export function ProductImageLightbox({
   if (!open || count === 0) return null;
 
   const navBtn =
-    "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/50 text-white shadow-lg backdrop-blur-md transition hover:border-white/30 hover:bg-black/70 disabled:pointer-events-none disabled:opacity-25";
+    "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white shadow-lg backdrop-blur-md transition hover:border-white/30 hover:bg-black/75 disabled:pointer-events-none disabled:opacity-25";
 
   return (
     <div
-      className="fixed inset-0 z-[140] flex flex-col bg-zinc-950/95 backdrop-blur-md"
+      className="fixed inset-0 z-[140] flex flex-col bg-zinc-950/96 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
       aria-label="Galerie agrandie"
@@ -125,18 +125,15 @@ export function ProductImageLightbox({
         </button>
       </header>
 
-      <div
-        className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-3 sm:px-4 sm:py-4"
-        onClick={onClose}
-      >
+      <div className="relative flex min-h-0 flex-1 flex-col" onClick={onClose}>
         <div
-          className="relative z-10 flex min-h-0 w-full max-w-4xl flex-1 items-center justify-center"
+          className="relative flex min-h-0 flex-1 items-center justify-center px-3 py-3 sm:px-6 sm:py-4"
           onClick={(e) => e.stopPropagation()}
         >
           {count > 1 ? (
             <button
               type="button"
-              className={`${navBtn} absolute left-1 top-1/2 z-30 -translate-y-1/2 sm:left-2`}
+              className={`${navBtn} absolute left-2 top-1/2 z-30 -translate-y-1/2 sm:left-4`}
               onClick={(e) => {
                 e.stopPropagation();
                 goPrev();
@@ -152,7 +149,7 @@ export function ProductImageLightbox({
           {count > 1 ? (
             <button
               type="button"
-              className={`${navBtn} absolute right-1 top-1/2 z-30 -translate-y-1/2 sm:right-2`}
+              className={`${navBtn} absolute right-2 top-1/2 z-30 -translate-y-1/2 sm:right-4`}
               onClick={(e) => {
                 e.stopPropagation();
                 goNext();
@@ -167,17 +164,16 @@ export function ProductImageLightbox({
           ) : null}
 
           <div
-            className="relative mx-auto aspect-[544/580] w-full max-w-[544px] max-h-[min(calc(100dvh-11rem),580px)] lg:aspect-auto lg:h-[580px] lg:w-[544px] lg:max-h-[580px]"
+            className={`relative flex h-full w-full max-w-3xl items-center justify-center overflow-hidden rounded-xl ${
+              zoomed2x ? "cursor-zoom-out" : "cursor-zoom-in"
+            }`}
             onDoubleClick={() => setZoomed2x((z) => !z)}
             role="presentation"
           >
             <div
-              className={`relative h-full w-full ${
-                zoomed2x
-                  ? "cursor-zoom-out overflow-auto touch-pan-x touch-pan-y scale-[2]"
-                  : "cursor-zoom-in overflow-hidden"
+              className={`relative h-full w-full max-h-full transition-transform duration-200 ease-out ${
+                zoomed2x ? "origin-center scale-[1.85] overflow-auto touch-pan-x touch-pan-y" : ""
               }`}
-              style={{ transformOrigin: "center center" }}
             >
               {images.map((imgSrc, i) => {
                 const isActive = i === safeIndex;
@@ -193,8 +189,8 @@ export function ProductImageLightbox({
                     loading={i < 3 ? "eager" : "lazy"}
                     fetchPriority={isActive ? "high" : "auto"}
                     aria-hidden={!isActive}
-                    className={`absolute inset-0 object-contain object-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${
-                      isActive ? "z-[1] opacity-100" : "z-0 hidden opacity-0"
+                    className={`object-contain object-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${
+                      isActive ? "z-[1] opacity-100" : "pointer-events-none z-0 opacity-0"
                     }`}
                     draggable={false}
                   />
@@ -206,33 +202,47 @@ export function ProductImageLightbox({
 
         {count > 1 ? (
           <div
-            className="mt-2 flex max-w-full shrink-0 gap-1.5 overflow-x-auto px-2 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
+            className="flex shrink-0 justify-center border-t border-white/10 bg-black/30 px-3 pt-3 pb-[max(0.85rem,env(safe-area-inset-bottom,0px))]"
             onClick={(e) => e.stopPropagation()}
           >
-            {images.map((thumb, i) => (
-              <button
-                key={`${thumb}-${i}`}
-                type="button"
-                onClick={() => onActiveChange(i)}
-                onPointerEnter={() => preloadImageSrc(thumb)}
-                onFocus={() => preloadImageSrc(thumb)}
-                aria-label={`Image ${i + 1}`}
-                aria-current={i === safeIndex ? "true" : undefined}
-                className={`relative h-14 w-11 shrink-0 overflow-hidden rounded-md border-2 transition sm:h-16 sm:w-12 ${
-                  i === safeIndex ? "border-white ring-1 ring-white/40" : "border-transparent opacity-60 hover:opacity-100"
-                }`}
-              >
-                <Image
-                  src={thumb}
-                  alt=""
-                  fill
-                  sizes="48px"
-                  className="object-cover"
-                  loading="lazy"
-                  unoptimized={shouldBypassImageOptimization(thumb)}
-                />
-              </button>
-            ))}
+            <div
+              className="flex max-w-full items-center gap-2 overflow-x-auto rounded-full bg-white/10 px-2 py-1.5 [scrollbar-width:none] sm:gap-2.5 sm:px-2.5 sm:py-2 [&::-webkit-scrollbar]:hidden"
+              role="tablist"
+              aria-label="Miniatures"
+            >
+              {images.map((thumb, i) => {
+                const isActive = i === safeIndex;
+                return (
+                  <button
+                    key={`${thumb}-${i}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => onActiveChange(i)}
+                    onPointerEnter={() => preloadImageSrc(thumb)}
+                    onFocus={() => preloadImageSrc(thumb)}
+                    aria-label={`Image ${i + 1}`}
+                    className={`shrink-0 rounded-[9px] border-2 p-px transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
+                      isActive
+                        ? "border-white bg-white"
+                        : "border-transparent bg-transparent opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <span className="relative block h-11 w-9 overflow-hidden rounded-[7px] bg-zinc-800 sm:h-12 sm:w-10">
+                      <Image
+                        src={thumb}
+                        alt=""
+                        fill
+                        sizes="40px"
+                        className="object-cover object-center"
+                        loading="lazy"
+                        unoptimized={shouldBypassImageOptimization(thumb)}
+                      />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         ) : null}
       </div>

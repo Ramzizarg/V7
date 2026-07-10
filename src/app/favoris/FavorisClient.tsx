@@ -6,6 +6,7 @@ import { ShopEmptyState } from "@/components/shop/ShopEmptyState";
 import SiteHeader from "@/components/SiteHeader";
 import type { Product } from "@/lib/types";
 import { addToCart, getWishlistIds, setWishlistIds } from "@/lib/shopClientStorage";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 function useStorageTick() {
   const [n, setN] = useState(0);
@@ -36,6 +37,7 @@ function HeartIcon({ className, filled }: { className?: string; filled?: boolean
 }
 
 export default function FavorisClient() {
+  const { t, formatMoney } = useTranslations();
   const tick = useStorageTick();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,16 +76,16 @@ export default function FavorisClient() {
     <div className="min-h-screen bg-white text-black">
       <SiteHeader />
       <main className="mx-auto w-full max-w-[1600px] px-2 pb-20 pt-8 sm:px-5 lg:px-8">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Favoris</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t("favoris.title")}</h1>
         <p className="mt-2 text-sm text-zinc-500">
-          Vos articles enregistres sur cet appareil
+          {t("favoris.subtitle")}
         </p>
 
         {loading ? (
           <div
             className="mt-10 space-y-4 sm:mt-12"
             role="status"
-            aria-label="Chargement des favoris"
+            aria-label={t("favoris.loading")}
           >
             <div className="h-8 w-40 animate-pulse rounded-md bg-zinc-200" />
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 sm:gap-4">
@@ -128,7 +130,7 @@ export default function FavorisClient() {
                         removeFavorite(p.id);
                       }}
                       className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md border border-black/15 bg-white/95 font-semibold text-black shadow-sm backdrop-blur-sm transition hover:bg-white"
-                      aria-label="Retirer des favoris"
+                      aria-label={t("favoris.remove")}
                     >
                       <span className="text-base leading-none">×</span>
                     </button>
@@ -138,17 +140,11 @@ export default function FavorisClient() {
                     <p className="text-sm text-zinc-500">
                       {showDiscount ? (
                         <>
-                          <span className="text-zinc-400 line-through">
-                            {p.price.toFixed(2)} <span className="text-zinc-300">DT</span>
-                          </span>{" "}
-                          <span className="text-black">
-                            {p.discount_price!.toFixed(2)} <span className="text-zinc-400">DT</span>
-                          </span>
+                          <span className="text-zinc-400 line-through">{formatMoney(p.price)}</span>{" "}
+                          <span className="text-black">{formatMoney(p.discount_price!)}</span>
                         </>
                       ) : (
-                        <>
-                          {p.price.toFixed(2)} <span className="text-zinc-400">DT</span>
-                        </>
+                        formatMoney(p.price)
                       )}
                     </p>
                     <div className="pt-1">
@@ -166,7 +162,7 @@ export default function FavorisClient() {
                         }}
                         className="text-xs font-semibold uppercase tracking-wide text-black underline decoration-black/20 underline-offset-2 transition hover:decoration-black"
                       >
-                        Ajouter au panier
+                        {t("favoris.addToCart")}
                       </button>
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 
 type Props = {
@@ -16,13 +17,14 @@ type Props = {
  * Same aspect ratio as product cards; optional cover image at low opacity.
  */
 export function ComingSoonPlaceholder({ className = "", compact, imageUrl }: Props) {
+  const { t } = useTranslations();
   const src = typeof imageUrl === "string" && imageUrl.trim().length > 0 ? imageUrl.trim() : null;
 
   return (
     <div
       className={`relative aspect-[3/4] w-full overflow-hidden border border-black bg-black antialiased selection:bg-transparent ${className}`.trim()}
       role="status"
-      aria-label="Bientôt disponible"
+      aria-label={t("comingSoon.label")}
     >
       {src ? (
         <>
@@ -62,7 +64,7 @@ export function ComingSoonPlaceholder({ className = "", compact, imageUrl }: Pro
         <span
           className={`max-w-[90%] rounded-sm bg-black/80 px-3 py-1.5 text-center font-bold uppercase leading-tight tracking-[0.28em] text-white ring-1 ring-white/20 sm:tracking-[0.32em] ${compact ? "text-[9px] sm:text-[10px]" : "text-[10px] sm:text-[11px]"}`}
         >
-          Bientôt disponible
+          {t("comingSoon.label")}
         </span>
       </div>
     </div>

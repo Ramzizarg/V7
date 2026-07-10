@@ -650,6 +650,49 @@ html.vero7-splash-active #vero7-app-root {
 }
 
 
+.promo-fade-in {
+  animation: promo-fade-in 400ms ease-out;
+}
+
+@keyframes promo-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.site-header {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+  pointer-events: auto;
+  transition:
+    transform 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 360ms ease,
+    background-color 300ms ease,
+    border-color 300ms ease;
+  will-change: transform, opacity;
+}
+
+.site-header.site-header--visible {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.site-header.site-header--hidden {
+  transform: translate3d(0, calc(-100% - 12px), 0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header {
+    transition-duration: 0.01ms;
+  }
+}
+
 .promo-marquee {
   position: relative;
   overflow: hidden;

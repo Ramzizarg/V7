@@ -17,7 +17,12 @@ export interface HomeContent {
    */
   heroImageUrls: string[];
   heroImageUrl: string;
-  /** Mobile hero horizontal position (0–100). Legacy: "left"|"center"|"right" converted in mergeWithDefaults. */
+  /**
+   * Per-image mobile hero horizontal position (0–100), aligned with `heroImageUrls`.
+   * Legacy single value `heroImagePositionMobile` is used as fallback when missing.
+   */
+  heroImagePositionsMobile: number[];
+  /** @deprecated Prefer `heroImagePositionsMobile`. Kept for older saved data. */
   heroImagePositionMobile: number | "left" | "center" | "right";
   heroSubtitle: string;
   heroSubtitleColor: string;
@@ -44,6 +49,7 @@ export interface HomeContent {
 export const defaultHomeContent: HomeContent = {
   heroImageUrls: [],
   heroImageUrl: "",
+  heroImagePositionsMobile: [],
   heroImagePositionMobile: 50,
   heroSubtitle: "Nouveauté",
   heroSubtitleColor: "#ffffff",
@@ -86,10 +92,21 @@ function isMissingHomeContentTableMessage(message: string | undefined): boolean 
 }
 
 function toPositionNumber(v: number | "left" | "center" | "right" | undefined): number {
-  if (typeof v === "number" && v >= 0 && v <= 100) return v;
+  if (typeof v === "number" && Number.isFinite(v)) return Math.min(100, Math.max(0, Math.round(v)));
   if (v === "left") return 0;
   if (v === "right") return 100;
   return 50;
+}
+
+/** Keep positions array length in sync with hero URLs; fill gaps from legacy shared value. */
+export function syncHeroImagePositionsMobile(
+  urls: string[],
+  positions: number[] | undefined,
+  legacyFallback: number | "left" | "center" | "right" | undefined
+): number[] {
+  const fallback = toPositionNumber(legacyFallback);
+  const src = Array.isArray(positions) ? positions : [];
+  return urls.map((_, i) => toPositionNumber(src[i] ?? fallback));
 }
 
 function mergeWithDefaults(partial: Partial<HomeContent> | null): HomeContent {
@@ -106,6 +123,17 @@ function mergeWithDefaults(partial: Partial<HomeContent> | null): HomeContent {
   // If the new array exists, ensure the legacy field points to the first element.
   if (Array.isArray(merged.heroImageUrls) && merged.heroImageUrls.length > 0) {
     merged.heroImageUrl = merged.heroImageUrls[0] ?? "";
+  } else {
+    merged.heroImageUrls = Array.isArray(merged.heroImageUrls) ? merged.heroImageUrls : [];
+  }
+  merged.heroImagePositionsMobile = syncHeroImagePositionsMobile(
+    merged.heroImageUrls,
+    Array.isArray(partial.heroImagePositionsMobile) ? partial.heroImagePositionsMobile : undefined,
+    merged.heroImagePositionMobile
+  );
+  // Keep legacy field aligned with the first image for older readers.
+  if (merged.heroImagePositionsMobile.length > 0) {
+    merged.heroImagePositionMobile = merged.heroImagePositionsMobile[0] ?? 50;
   }
   return merged;
 }

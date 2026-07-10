@@ -23,6 +23,7 @@ import {
 import type { HomeContent } from "@/lib/homeContent";
 import { getCachedStorefrontSync, setCachedStorefront } from "@/lib/storefrontCache";
 import type { Product, StorefrontCategory } from "@/lib/types";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 type Props = {
   /** From server — correct hero/copy on first paint (no reload flash). */
@@ -42,7 +43,16 @@ const SHOP_BY_CATEGORY: StorefrontCategory[] = [
   { id: 5, name: "Vestes", slug: "vestes", sort_order: 4, image: "/V7/veste.jpg" },
 ];
 
+const CATEGORY_I18N_KEY: Record<string, string> = {
+  maillots: "maillots",
+  shorts: "shorts",
+  "t-shirts": "tshirts",
+  soldes: "soldes",
+  vestes: "vestes",
+};
+
 export default function HomePageClient({ initialHomeContent }: Props) {
+  const { t } = useTranslations();
   const featuredRef = useRef<HTMLDivElement>(null);
   const [heroSlide, setHeroSlide] = useState(0);
   const [heroImagesLoaded, setHeroImagesLoaded] = useState<Set<number>>(() => new Set());
@@ -166,7 +176,14 @@ export default function HomePageClient({ initialHomeContent }: Props) {
     el.scrollBy({ left: dir === "prev" ? -step * 2 : step * 2, behavior: "smooth" });
   };
 
-  const carouselCategories = SHOP_BY_CATEGORY;
+  const carouselCategories = useMemo(
+    () =>
+      SHOP_BY_CATEGORY.map((item) => ({
+        ...item,
+        name: t(`home.categories.${CATEGORY_I18N_KEY[item.slug] ?? item.slug}`),
+      })),
+    [t]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -220,6 +237,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
     homeContent.heroDescription.trim() || defaultHomeContent.heroDescription;
   const heroImagePositionMobile =
     typeof homeContent.heroImagePositionMobile === "number" ? homeContent.heroImagePositionMobile : 50;
+  const heroImagePositionsMobile = homeContent.heroImagePositionsMobile ?? [];
 
   const heroCollectionColor = homeContent.heroCollectionColor || defaultHomeContent.heroCollectionColor;
   const heroHeadlineColor = homeContent.heroHeadlineColor || defaultHomeContent.heroHeadlineColor;
@@ -251,7 +269,10 @@ export default function HomePageClient({ initialHomeContent }: Props) {
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <SiteHeader />
       <main>
-        <section className="hero-fade grid-overlay relative overflow-hidden">
+        <section
+          id="home-hero"
+          className="hero-fade grid-overlay relative min-h-[560px] overflow-hidden lg:min-h-[640px]"
+        >
           <div className="absolute inset-0 bg-zinc-900" aria-hidden>
             {heroImages.map((src, i) => {
               const isActive = heroSlide === i;
@@ -276,7 +297,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                   className="object-cover transition-opacity duration-700 ease-out"
                   style={{
                     objectPosition: isMobileViewport
-                      ? `${heroImagePositionMobile}% center`
+                      ? `${heroImagePositionsMobile[i] ?? heroImagePositionMobile}% center`
                       : "center 30%",
                     zIndex: isActive ? 2 : isNext ? 1 : 0,
                     opacity: isActive ? (isLcp || heroImagesLoaded.has(i) ? 1 : 0) : 0,
@@ -342,7 +363,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
         <section id="categories" className="w-full py-14">
           <div className="mb-5 w-full px-3 sm:px-4">
             <h2 className="text-left text-2xl font-black uppercase tracking-[0.02em] text-black sm:text-3xl">
-              Acheter par Categorie
+              {t("home.shopByCategory")}
             </h2>
           </div>
           <div className="categories-marquee px-1 sm:px-2">
@@ -395,17 +416,17 @@ export default function HomePageClient({ initialHomeContent }: Props) {
               <div className="flex w-full items-end justify-between gap-5">
                 <div>
                   <h2 className="text-4xl font-black uppercase leading-none text-white sm:text-5xl">
-                    Absorption des Chocs
+                    {t("home.shockAbsorption")}
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm text-white/90 sm:text-base">
-                    Brassieres a absorption des chocs pour reduire les mouvements et rester concentree a chaque entrainement.
+                    {t("home.shockAbsorptionDesc")}
                   </p>
                 </div>
                 <a
                   href="/collection"
                   className="shrink-0 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-black transition hover:bg-zinc-100"
                 >
-                  Acheter
+                  {t("common.shopNow")}
                 </a>
               </div>
             </div>
@@ -415,14 +436,14 @@ export default function HomePageClient({ initialHomeContent }: Props) {
         <section id="shop" className="w-full bg-white py-10 sm:py-14">
           <div className="mb-6 w-full px-5 sm:px-8">
             <h2 className="text-left text-2xl font-black uppercase tracking-[0.02em] text-black sm:text-3xl">
-              Produits Vedettes
+              {t("home.featured")}
             </h2>
           </div>
           <div className="relative">
             <button
               type="button"
               onClick={() => scrollFeatured("prev")}
-              aria-label="Produits precedents"
+              aria-label={t("home.prevProducts")}
               disabled={!hasFeaturedVedettes}
               className="absolute left-2 top-1/2 z-20 -translate-y-1/2 border border-black/10 bg-white p-2.5 text-black shadow-md transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 sm:left-4"
             >
@@ -443,7 +464,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
             <button
               type="button"
               onClick={() => scrollFeatured("next")}
-              aria-label="Produits suivants"
+              aria-label={t("home.nextProducts")}
               disabled={!hasFeaturedVedettes}
               className="absolute right-2 top-1/2 z-20 -translate-y-1/2 border border-black/10 bg-white p-2.5 text-black shadow-md transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 sm:right-4"
             >
@@ -495,7 +516,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                             role="status"
                           >
                             <span className="inline-block whitespace-nowrap rounded-md bg-red-600 px-1.5 py-1 text-center text-[8px] font-bold uppercase leading-tight tracking-wide text-white shadow-md sm:px-2 sm:py-1.5 sm:text-[10px] sm:tracking-wider">
-                              Rupture de stock
+                              {t("home.outOfStock")}
                             </span>
                           </div>
                         ) : null}
@@ -525,13 +546,13 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                         </p>
                         {item.oos ? (
                           <p className="text-[10px] font-semibold uppercase leading-tight tracking-wide text-red-600 sm:text-[11px]">
-                            Rupture de stock
+                            {t("home.outOfStock")}
                           </p>
                         ) : null}
                         {item.colors.length > 0 ? (
                           <div
                             className="flex flex-wrap items-center gap-1 pt-0.5"
-                            aria-label="Options de couleur"
+                            aria-label={t("common.colorOptions")}
                           >
                             {item.colors.map((c, idx) => (
                               <span
@@ -558,7 +579,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                       key={`${copy}-${item.key}`}
                       type="button"
                       className={`${shellClass} cursor-pointer text-left`}
-                      aria-label={`${item.name} — bientôt disponible`}
+                      aria-label={`${item.name} — ${t("home.comingSoon")}`}
                       onClick={() => setComingSoonModalOpen(true)}
                     >
                       {featuredInner}
@@ -580,17 +601,16 @@ export default function HomePageClient({ initialHomeContent }: Props) {
             <div className="grid grid-cols-1 items-stretch gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,42%)] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(320px,44%)] xl:gap-12">
               <div className="flex min-w-0 flex-col justify-center">
                 <h2 className="text-3xl font-black uppercase leading-[1.05] text-black sm:text-4xl lg:text-[2.5rem] lg:leading-none xl:text-5xl">
-                  Rejoignez le club — 10 % sur la première commande
+                  {t("home.clubTitle")}
                 </h2>
                 <p className="mt-3 max-w-xl text-base leading-relaxed text-zinc-700 lg:mt-4 lg:text-[17px]">
-                  Inspirez-vous et profitez d’avantages réservés aux membres. Rejoignez le
-                  club et débloquez des bénéfices exclusifs dès votre premier achat.
+                  {t("home.clubDesc")}
                 </p>
                 <a
                   href="#shop"
-                  className="mt-5 inline-flex w-fit bg-[#122a74] px-7 py-3 text-lg font-bold text-white transition hover:bg-[#0e215d] sm:text-xl lg:mt-6"
+                  className="mt-5 inline-flex w-fit bg-black px-7 py-3 text-lg font-bold text-white transition hover:bg-zinc-800 sm:text-xl lg:mt-6"
                 >
-                  Rejoindre
+                  {t("home.clubCta")}
                 </a>
 
                 <ClubBenefitsList className="mt-8 lg:mt-10" itemClassName="flex min-h-8 items-center gap-3 text-sm font-semibold uppercase leading-tight sm:text-base lg:text-[15px]" />
@@ -600,7 +620,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                 <div className="relative aspect-[3/4] w-full sm:aspect-[4/5] lg:absolute lg:inset-0 lg:aspect-auto">
                   <Image
                     src="/V7/10%25.jpg"
-                    alt="Rejoignez le club — 10 % sur la première commande"
+                    alt={t("home.clubImageAlt")}
                     fill
                     loading="lazy"
                     sizes="(max-width: 1023px) 448px, 42vw"

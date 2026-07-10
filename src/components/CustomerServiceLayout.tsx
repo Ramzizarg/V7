@@ -5,10 +5,15 @@ import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import {
-  CUSTOMER_SERVICE_NAV,
-  getCustomerServiceLabel,
-} from "@/lib/customerServiceNav";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
+import { CUSTOMER_SERVICE_NAV } from "@/lib/customerServiceNav";
+
+const NAV_LABEL_KEYS: Record<string, string> = {
+  "/faq": "customerService.faq",
+  "/contact": "customerService.contact",
+  "/shipping-terms": "customerService.shipping",
+  "/guide-des-tailles": "customerService.sizeGuide",
+};
 
 type CustomerServiceLayoutProps = {
   title: string;
@@ -22,25 +27,27 @@ export default function CustomerServiceLayout({
   children,
 }: CustomerServiceLayoutProps) {
   const pathname = usePathname();
-  const currentLabel = getCustomerServiceLabel(pathname);
+  const { t } = useTranslations();
+  const labelKey = NAV_LABEL_KEYS[pathname];
+  const currentLabel = labelKey ? t(labelKey) : t("customerService.title");
 
   return (
     <>
       <SiteHeader />
 
       <main className="mx-auto w-full max-w-[1200px] px-6 py-12 sm:px-8 sm:py-16 lg:px-12">
-        <nav className="mb-6 text-xs text-neutral-500" aria-label="Fil d'Ariane">
+        <nav className="mb-6 text-xs text-neutral-500" aria-label={t("customerService.breadcrumb")}>
           <ol className="flex flex-wrap items-center gap-1.5">
             <li>
               <Link href="/" className="transition hover:text-black">
-                Accueil
+                {t("common.home")}
               </Link>
             </li>
             <li aria-hidden className="text-neutral-400">
               /
             </li>
             <li>
-              <span className="text-neutral-600">Service client</span>
+              <span className="text-neutral-600">{t("customerService.title")}</span>
             </li>
             <li aria-hidden className="text-neutral-400">
               /
@@ -52,15 +59,16 @@ export default function CustomerServiceLayout({
         </nav>
 
         <h1 className="border-b border-neutral-200 pb-6 text-3xl font-black uppercase tracking-tight sm:text-4xl">
-          Service client
+          {t("customerService.title")}
         </h1>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-14">
           <aside>
-            <nav aria-label="Service client">
+            <nav aria-label={t("customerService.title")}>
               <ul className="space-y-1">
                 {CUSTOMER_SERVICE_NAV.map((item) => {
                   const active = pathname === item.href;
+                  const navLabelKey = NAV_LABEL_KEYS[item.href];
                   return (
                     <li key={item.href}>
                       <Link
@@ -72,7 +80,7 @@ export default function CustomerServiceLayout({
                             : "text-neutral-700 hover:text-black"
                         }`}
                       >
-                        <span>{item.label}</span>
+                        <span>{navLabelKey ? t(navLabelKey) : item.label}</span>
                         <ChevronRight
                           className={`h-4 w-4 shrink-0 transition ${
                             active

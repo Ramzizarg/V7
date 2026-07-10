@@ -1,32 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import { Heart, ShoppingBag } from "lucide-react";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 type Variant = "favoris" | "panier";
-
-const copy: Record<
-  Variant,
-  { title: string; description: string; icon: typeof Heart; cta: string }
-> = {
-  favoris: {
-    title: "Aucun favori pour l'instant",
-    description:
-      "Touchez le cœur sur une fiche produit pour enregistrer vos essentiels. Ils apparaissent ici, sur cet appareil.",
-    icon: Heart,
-    cta: "Découvrir la collection",
-  },
-  panier: {
-    title: "Votre panier est vide",
-    description:
-      "Les articles que vous ajoutez depuis la boutique s'affichent ici. Prêt pour la prochaine session ?",
-    icon: ShoppingBag,
-    cta: "Compléter mon panier",
-  },
-};
 
 type Props = { variant: Variant };
 
 export function ShopEmptyState({ variant }: Props) {
-  const { title, description, icon: Icon, cta } = copy[variant];
+  const { t } = useTranslations();
+  const Icon = variant === "favoris" ? Heart : ShoppingBag;
+  const title = t(variant === "favoris" ? "empty.favorisTitle" : "empty.panierTitle");
+  const description = t(variant === "favoris" ? "empty.favorisDesc" : "empty.panierDesc");
+  const cta = t(variant === "favoris" ? "empty.favorisCta" : "empty.panierCta");
 
   return (
     <div className="relative mt-10 overflow-hidden rounded-2xl border border-black/[0.08] bg-gradient-to-b from-zinc-50 to-white shadow-[0_1px_0_0_rgba(0,0,0,0.04)] sm:mt-12">
@@ -60,9 +47,7 @@ export function ShopEmptyState({ variant }: Props) {
           <Icon className="h-10 w-10 text-black sm:h-11 sm:w-11" strokeWidth={1.2} />
         </div>
 
-        <h2 className="max-w-md text-xl font-semibold tracking-tight text-black sm:text-2xl">
-          {title}
-        </h2>
+        <h2 className="max-w-md text-xl font-semibold tracking-tight text-black sm:text-2xl">{title}</h2>
         <p className="mt-3 max-w-md text-pretty text-sm leading-relaxed text-zinc-600 sm:text-[15px]">
           {description}
         </p>
@@ -78,7 +63,7 @@ export function ShopEmptyState({ variant }: Props) {
             href="/"
             className="inline-flex h-12 items-center justify-center rounded-full border border-black/15 bg-white px-6 text-sm font-medium text-zinc-800 transition hover:border-black/30 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 focus-visible:ring-offset-2"
           >
-            Accueil
+            {t("common.home")}
           </Link>
         </div>
       </div>

@@ -19,6 +19,7 @@ import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSize
 import { isProductAvailableForPurchase, isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
 import type { Product, StorefrontCategory } from "@/lib/types";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 const PLACEHOLDER_IMAGE = "/V7/1.jpg";
 
@@ -40,7 +41,7 @@ type GridProduct = {
   listedForSale: boolean;
 };
 
-function toGridProduct(p: Product): GridProduct {
+function toGridProduct(p: Product, otherLabel: string): GridProduct {
   const image = p.images[0] ?? PLACEHOLDER_IMAGE;
   return {
     id: p.id,
@@ -48,7 +49,7 @@ function toGridProduct(p: Product): GridProduct {
     name: p.name,
     price: p.price,
     discountPrice: p.discount_price != null && Number.isFinite(p.discount_price) ? p.discount_price : null,
-    category: p.category_name?.trim() || "Autres",
+    category: p.category_name?.trim() || otherLabel,
     image,
     createdAt: p.created_at,
     color: p.color?.trim() || null,
@@ -117,6 +118,7 @@ function GridDensityIcon({ cols }: { cols: 2 | 4 | 5 }) {
 }
 
 export default function CollectionView() {
+  const { t, formatMoney, localeCompare, pluralArticles } = useTranslations();
   const [gridCols, setGridCols] = useState<2 | 4 | 5>(5);
   const [sortKey, setSortKey] = useState<SortKey>("featured");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -160,7 +162,7 @@ export default function CollectionView() {
           console.warn("[collection]", msg);
         }
       }
-      const list = (data.products ?? []).map(toGridProduct);
+      const list = (data.products ?? []).map((p) => toGridProduct(p, t("common.other")));
       setProducts(list);
       setStorefrontCategories(Array.isArray(data.categories) ? data.categories : []);
     } catch {
@@ -170,7 +172,7 @@ export default function CollectionView() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadProducts();
@@ -198,10 +200,10 @@ export default function CollectionView() {
   const categories = useMemo(() => {
     const fromDb = storefrontCategories.map((c) => c.name);
     if (fromDb.length > 0) {
-      return [...fromDb].sort((a, b) => a.localeCompare(b, "fr"));
+      return [...fromDb].sort((a, b) => localeCompare(a, b));
     }
-    return Array.from(new Set(products.map((p) => p.category))).sort((a, b) => a.localeCompare(b, "fr"));
-  }, [storefrontCategories, products]);
+    return Array.from(new Set(products.map((p) => p.category))).sort((a, b) => localeCompare(a, b));
+  }, [storefrontCategories, products, localeCompare]);
 
   const collectionLoadFailed = loadError || Boolean(apiErrorMessage);
 
@@ -235,7 +237,7 @@ export default function CollectionView() {
         const d = eff(b.p) - eff(a.p);
         if (d !== 0) return d;
       } else if (sortKey === "name") {
-        const d = a.p.name.localeCompare(b.p.name, "fr");
+        const d = localeCompare(a.p.name, b.p.name);
         if (d !== 0) return d;
       } else {
         const ta = a.p.createdAt;
@@ -246,7 +248,7 @@ export default function CollectionView() {
       return a.idx - b.idx;
     });
     return withIdx.map(({ p }) => p);
-  }, [selectedCategories, sortKey, products]);
+  }, [selectedCategories, sortKey, products, localeCompare]);
 
   useEffect(() => {
     if (loading) return;
@@ -255,14 +257,25 @@ export default function CollectionView() {
         ? selectedCategories[0]!
         : selectedCategories.length > 1
           ? selectedCategories.join(", ")
-          : "Toute la collection";
+          : t("collection.allCollection");
     if (viewCategoryTrackedRef.current === categoryName) return;
     viewCategoryTrackedRef.current = categoryName;
     trackMetaViewCategory(
       categoryName,
       visibleProducts.slice(0, 50).map((product) => String(product.id)),
     );
-  }, [loading, selectedCategories, visibleProducts]);
+  }, [loading, selectedCategories, visibleProducts, t]);
+
+  const sortOptions = useMemo(
+    () =>
+      [
+        ["featured", t("collection.sortFeatured")] as const,
+        ["price-asc", t("collection.sortPriceAsc")] as const,
+        ["price-desc", t("collection.sortPriceDesc")] as const,
+        ["name", t("collection.sortName")] as const,
+      ],
+    [t]
+  );
 
   const toggleCategory = (cat: string) => {
     setSelectedCategories((prev) =>
@@ -288,7 +301,7 @@ export default function CollectionView() {
               className="inline-flex items-center gap-2 text-black transition hover:opacity-70"
             >
               <MenuIcon className="h-4 w-4 text-zinc-500" />
-              Filtres
+              {t("collection.filters")}
             </button>
             <button
               type="button"
@@ -300,17 +313,17 @@ export default function CollectionView() {
               aria-expanded={sortOpen}
             >
               <MenuIcon className="h-4 w-4 text-zinc-500" />
-              Tri
+              {t("collection.sort")}
             </button>
           </div>
-          <div className="ml-auto flex items-center gap-1 sm:gap-2" role="group" aria-label="Densite de la grille">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2" role="group" aria-label={t("collection.gridDensity")}>
             {([2, 4, 5] as const).map((n) => (
               <button
                 key={n}
                 type="button"
                 onClick={() => setGridCols(n)}
                 aria-pressed={gridCols === n}
-                aria-label={`${n} colonnes`}
+                aria-label={t("collection.columns", { n })}
                 className={`rounded-sm p-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25 ${
                   gridCols === n ? "bg-black text-white" : "text-zinc-400 hover:text-black"
                 }`}
@@ -323,16 +336,9 @@ export default function CollectionView() {
 
         {sortOpen ? (
           <div className="relative z-20 border-b border-black/10 bg-white py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Trier par</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{t("collection.sortBy")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {(
-                [
-                  ["featured", "Pertinence"],
-                  ["price-asc", "Prix croissant"],
-                  ["price-desc", "Prix decroissant"],
-                  ["name", "Nom A-Z"],
-                ] as const
-              ).map(([key, label]) => (
+              {sortOptions.map(([key, label]) => (
                 <button
                   key={key}
                   type="button"
@@ -356,13 +362,13 @@ export default function CollectionView() {
             className="flex min-h-[calc(100vh-12rem)] flex-col items-center justify-center gap-4 py-16 sm:min-h-[calc(100vh-11rem)]"
             role="status"
             aria-live="polite"
-            aria-label="Chargement de la collection"
+            aria-label={t("collection.loading")}
           >
             <div
               className="h-10 w-10 animate-spin rounded-full border-2 border-black/10 border-t-black"
               aria-hidden
             />
-            <p className="text-sm font-medium tracking-wide text-zinc-600">Chargement…</p>
+            <p className="text-sm font-medium tracking-wide text-zinc-600">{t("common.loading")}</p>
           </div>
         ) : collectionLoadFailed ? (
           <div
@@ -374,28 +380,31 @@ export default function CollectionView() {
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100 text-zinc-600">
                 <TechnicalIssueIcon className="h-8 w-8" />
               </div>
-              <h2 className="text-lg font-bold uppercase tracking-tight text-black">Problème technique</h2>
+              <h2 className="text-lg font-bold uppercase tracking-tight text-black">{t("collection.technicalIssueTitle")}</h2>
               <p className="text-sm leading-relaxed text-zinc-600">
-                Nous ne pouvons pas afficher la collection pour le moment. Merci de réessayer dans quelques instants.
+                {t("collection.technicalIssueDesc")}
               </p>
               <button
                 type="button"
                 onClick={() => void loadProducts()}
                 className="mt-2 rounded-full border border-black bg-black px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white transition hover:bg-zinc-900"
               >
-                Réessayer
+                {t("common.retry")}
               </button>
             </div>
           </div>
         ) : (
           <>
             <p className="mt-5 text-sm text-zinc-500">
-              {visibleProducts.length} article{visibleProducts.length > 1 ? "s" : ""}
+              {t("collection.articleCount", {
+                count: visibleProducts.length,
+                articles: pluralArticles(visibleProducts.length),
+              })}
             </p>
 
             {products.length === 0 ? (
               <p className="mt-4 max-w-lg text-sm leading-relaxed text-zinc-600">
-                Aucun produit pour le moment. Revenez bientôt ou élargissez vos filtres.
+                {t("collection.emptyCatalog")}
               </p>
             ) : null}
 
@@ -432,15 +441,15 @@ export default function CollectionView() {
                     </div>
                     <p className="flex items-baseline justify-between gap-2 text-sm text-zinc-500">
                       {list != null ? (
-                        <span className="text-zinc-400 line-through">{list.toFixed(2)} DT</span>
+                        <span className="text-zinc-400 line-through">{formatMoney(list)}</span>
                       ) : (
                         <span />
                       )}
-                      <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
+                      <span className="ml-auto shrink-0 font-semibold text-black">{formatMoney(sale)}</span>
                     </p>
                     {cardOos ? (
                       <p className="pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">
-                        Rupture de stock
+                        {t("collection.outOfStock")}
                       </p>
                     ) : null}
                     {product.color || product.color2 ? (
@@ -494,7 +503,7 @@ export default function CollectionView() {
                           role="status"
                         >
                           <span className="inline-block whitespace-nowrap rounded-md bg-red-600 px-1.5 py-1 text-center text-[8px] font-bold uppercase leading-tight tracking-wide text-white shadow-md sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:tracking-wider">
-                            Rupture de stock
+                            {t("collection.outOfStock")}
                           </span>
                         </div>
                       ) : null}
@@ -502,7 +511,7 @@ export default function CollectionView() {
                         <>
                           <button
                             type="button"
-                            aria-label="Ajouter au panier"
+                            aria-label={t("collection.addToCart")}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -521,7 +530,7 @@ export default function CollectionView() {
                               }}
                             >
                               <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                                Taille du produit
+                                {t("collection.productSize")}
                               </p>
                               <div className="flex flex-wrap gap-1.5">
                                 {quickAddSizes.map(({ label, available }) => (
@@ -580,7 +589,7 @@ export default function CollectionView() {
                       <button
                         type="button"
                         className="group block w-full cursor-pointer text-left transition hover:opacity-95"
-                        aria-label={`${product.name} — bientôt disponible`}
+                        aria-label={t("collection.comingSoonAria", { name: product.name })}
                         onClick={() => setComingSoonModalOpen(true)}
                       >
                         {comingSoonProductCard}
@@ -589,7 +598,11 @@ export default function CollectionView() {
                     {listedForSale && !cardOos ? (
                       <button
                         type="button"
-                        aria-label={wishlist[String(product.id)] ? "Retirer des favoris" : "Ajouter aux favoris"}
+                        aria-label={
+                          wishlist[String(product.id)]
+                            ? t("collection.removeFromWishlist")
+                            : t("collection.addToWishlist")
+                        }
                         aria-pressed={wishlist[String(product.id)] ?? false}
                         onClick={(e) => {
                           e.preventDefault();
@@ -635,20 +648,20 @@ export default function CollectionView() {
           <button
             type="button"
             className="h-full flex-1 bg-black/40"
-            aria-label="Fermer les filtres"
+            aria-label={t("collection.closeFilters")}
             onClick={() => setFiltersOpen(false)}
           />
           <div className="h-full w-full max-w-sm overflow-y-auto border-l border-black/10 bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Filtres</p>
-                <h2 className="mt-1 text-lg font-semibold">Categories</h2>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{t("collection.filters")}</p>
+                <h2 className="mt-1 text-lg font-semibold">{t("collection.categories")}</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setFiltersOpen(false)}
                 className="rounded-full p-2 text-zinc-500 transition hover:bg-black/5 hover:text-black"
-                aria-label="Fermer"
+                aria-label={t("common.close")}
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
@@ -679,14 +692,14 @@ export default function CollectionView() {
                 }}
                 className="flex-1 border border-black/15 py-2.5 text-xs font-semibold uppercase tracking-[0.08em] transition hover:border-black/40"
               >
-                Reinitialiser
+                {t("collection.resetFilters")}
               </button>
               <button
                 type="button"
                 onClick={() => setFiltersOpen(false)}
                 className="flex-1 bg-black py-2.5 text-xs font-semibold uppercase tracking-[0.08em] text-white transition hover:bg-zinc-800"
               >
-                Voir les resultats
+                {t("collection.viewResults")}
               </button>
             </div>
           </div>
@@ -712,18 +725,18 @@ export default function CollectionView() {
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-black">Ajouté aux favoris</p>
+                <p className="text-sm font-semibold text-black">{t("collection.addedToWishlist")}</p>
                 <p className="truncate text-xs text-zinc-600">{wishlistToast.name}</p>
                 <Link
                   href="/favoris"
                   className="mt-0.5 inline-block text-xs font-medium text-zinc-600 underline underline-offset-2 transition hover:text-black"
                 >
-                  Voir mes favoris
+                  {t("collection.viewWishlist")}
                 </Link>
               </div>
             </>
           ) : (
-            <p className="pr-1 text-sm font-medium text-black">Retiré de vos favoris</p>
+            <p className="pr-1 text-sm font-medium text-black">{t("collection.removedFromWishlistToast")}</p>
           )}
         </div>
       ) : null}

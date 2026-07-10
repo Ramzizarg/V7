@@ -64,7 +64,7 @@ export function LoginFormPanel({ hasError }: LoginFormPanelProps) {
         </div>
         <button
           type="submit"
-          className="bg-[#1a2b72] px-8 py-2 text-sm font-bold uppercase tracking-[0.08em] text-white transition hover:bg-[#132058]"
+          className="bg-black px-8 py-2 text-sm font-bold uppercase tracking-[0.08em] text-white transition hover:bg-zinc-800"
         >
           Login
         </button>

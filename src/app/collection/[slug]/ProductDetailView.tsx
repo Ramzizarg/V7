@@ -22,6 +22,7 @@ import { trackMetaViewContent, trackMetaAddToWishlist } from "@/lib/metaPixel";
 import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 const PLACEHOLDER = "/V7/1.jpg";
 
@@ -163,15 +164,6 @@ function HeartIcon({ filled, className }: { filled?: boolean; className?: string
   );
 }
 
-function formatPrice(n: number) {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "TND",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
-
 type Swatch = { label: string; hex: string | null };
 
 /**
@@ -193,6 +185,7 @@ function QuantityStepper({
   /** Hauteur légèrement réduite pour la feuille mobile */
   compact?: boolean;
 }) {
+  const { t } = useTranslations();
   const h = compact ? "h-9" : "h-10";
   const w = compact ? "w-9" : "w-10";
   const atMin = value <= min;
@@ -201,12 +194,12 @@ function QuantityStepper({
     <div
       className={`inline-flex max-w-full border border-zinc-300 bg-white ${disabled ? "opacity-50" : ""}`}
       role="group"
-      aria-label="Quantité"
+      aria-label={t("common.quantity")}
     >
       <button
         type="button"
         disabled={disabled || atMin}
-        aria-label="Diminuer la quantité"
+        aria-label={t("common.decreaseQty")}
         onClick={() => onChange(value - 1)}
         className={`flex ${h} ${w} shrink-0 items-center justify-center border-r border-zinc-300 bg-white text-base font-light text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40`}
       >
@@ -221,7 +214,7 @@ function QuantityStepper({
       <button
         type="button"
         disabled={disabled || atMax}
-        aria-label="Augmenter la quantité"
+        aria-label={t("common.increaseQty")}
         onClick={() => onChange(value + 1)}
         className={`flex ${h} ${w} shrink-0 items-center justify-center bg-white text-base font-light text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40`}
       >
@@ -244,11 +237,12 @@ function ProductDesignColors({
   namePrefix: string;
   className?: string;
 }) {
+  const { t } = useTranslations();
   if (swatches.length === 0) return null;
   return (
     <ul
       className={`flex flex-wrap items-end gap-4 sm:gap-5 ${className} relative z-20`}
-      aria-label="Couleurs du modèle (design)"
+      aria-label={t("product.designColors")}
     >
       {swatches.map((c, i) => (
         <li key={`${namePrefix}-design-${c.label}-${i}`} className="flex list-none flex-col items-center gap-1.5">
@@ -274,6 +268,7 @@ function ProductDesignColors({
 type Props = { product: Product };
 
 export default function ProductDetailView({ product }: Props) {
+  const { t, formatMoney } = useTranslations();
   const images = useMemo(
     () => (product.images.length > 0 ? product.images : [PLACEHOLDER]),
     [product.images]
@@ -754,7 +749,7 @@ export default function ProductDetailView({ product }: Props) {
     }
   };
 
-  const categoryLabel = product.category_name?.trim() || "Vetements";
+  const categoryLabel = product.category_name?.trim() || t("product.defaultCategory");
   const titleUpper = product.name.toUpperCase();
 
   const mainSrc = images[Math.min(active, images.length - 1)] ?? PLACEHOLDER;
@@ -803,38 +798,35 @@ export default function ProductDetailView({ product }: Props) {
       <SiteHeader />
 
       <main className="mx-auto w-full max-w-[1400px] px-0 pb-8 pt-0 sm:px-6 sm:pb-10 sm:pt-0 lg:px-10 lg:pb-12 lg:pt-0">
+        <div className="w-full min-w-0 px-4 pb-5 pt-8 sm:px-0 sm:pb-7 sm:pt-10">
+          <nav
+            className="min-w-0 truncate whitespace-nowrap text-[9px] font-normal uppercase tracking-[0.08em] text-zinc-400 sm:text-xs"
+            aria-label={t("customerService.breadcrumb")}
+            title={product.name}
+          >
+            <Link
+              href="/"
+              className="transition hover:text-zinc-700"
+              onClick={() => requestSplashTransition()}
+            >
+              {t("product.home")}
+            </Link>
+            <span className="mx-1 text-zinc-300 sm:mx-2">/</span>
+            <Link href="/collection" className="transition hover:text-zinc-700">
+              {t("product.collection")}
+            </Link>
+            <span className="mx-1 text-zinc-300 sm:mx-2">/</span>
+            <span>{categoryLabel}</span>
+            <span className="mx-1 text-zinc-300 sm:mx-2">/</span>
+            <span className="font-bold tracking-[0.06em] text-black">{product.name}</span>
+          </nav>
+        </div>
+
         <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] xl:gap-14">
           {/* Galerie */}
-          <div className="flex flex-col gap-3 lg:mx-auto lg:w-full lg:max-w-[38rem] lg:flex-row lg:gap-4 xl:max-w-[40rem]">
-            <div className="order-2 hidden flex-row gap-2 overflow-x-auto pb-1 lg:order-1 lg:flex lg:w-[4.75rem] lg:flex-col lg:overflow-y-auto lg:overflow-x-visible lg:pb-0 lg:pr-0 lg:pt-1">
-              {images.map((src, i) => (
-                <button
-                  key={`${src}-${i}`}
-                  type="button"
-                  onClick={() => setActive(i)}
-                  onPointerEnter={() => preloadImageSrc(src)}
-                  onFocus={() => preloadImageSrc(src)}
-                  aria-label={`Image ${i + 1}`}
-                  aria-current={active === i ? "true" : undefined}
-                  className={`relative h-[4.5rem] w-[3.25rem] shrink-0 overflow-hidden bg-white ring-2 ring-offset-1 ring-offset-white transition sm:h-24 sm:w-[4.5rem] lg:h-20 lg:w-full ${
-                    active === i ? "ring-black" : "ring-transparent hover:ring-black/20"
-                  }`}
-                >
-                  <Image
-                    src={src}
-                    alt=""
-                    fill
-                    sizes="80px"
-                    loading={i < 4 ? "eager" : "lazy"}
-                    priority={i === 0}
-                    unoptimized={shouldBypassImageOptimization(src)}
-                    className="object-cover object-center"
-                  />
-                </button>
-              ))}
-            </div>
-            {/* Cadre fixe 544×580 — fond blanc, object-contain pour image complète */}
-            <div className="group/main-gallery relative order-1 mx-auto aspect-[544/580] w-full max-w-[544px] max-h-[min(85dvh,580px)] shrink-0 overflow-hidden bg-white ring-1 ring-black/[0.04] transition-shadow hover:ring-black/10 lg:order-2 lg:aspect-auto lg:h-[580px] lg:w-[544px] lg:max-h-[580px] lg:flex-none">
+          <div className="flex flex-col gap-3 lg:mx-auto lg:w-full lg:max-w-[38rem] xl:max-w-[40rem]">
+            {/* Cadre fixe 544×580 — object-cover pour taille identique sur toutes les images */}
+            <div className="group/main-gallery relative mx-auto aspect-[544/580] w-full max-w-[min(544px,calc(min(85dvh,580px)*544/580))] shrink-0 overflow-hidden bg-zinc-100 ring-1 ring-black/[0.04] transition-shadow hover:ring-black/10 lg:max-w-[544px] lg:h-[580px] lg:w-[544px] lg:max-h-[580px] lg:aspect-auto lg:flex-none">
               {images.map((src, i) => {
                 const isActive = active === i;
                 return (
@@ -849,7 +841,7 @@ export default function ProductDetailView({ product }: Props) {
                     sizes={PRODUCT_GALLERY_SIZES}
                     unoptimized={shouldBypassImageOptimization(src)}
                     aria-hidden={!isActive}
-                    className={`absolute inset-0 object-contain object-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${
+                    className={`absolute inset-0 object-cover object-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${
                       isActive ? "z-[1] opacity-100" : "z-0 hidden opacity-0"
                     }`}
                     style={
@@ -866,7 +858,7 @@ export default function ProductDetailView({ product }: Props) {
                   aria-hidden
                 >
                   <ZoomIn className="h-3.5 w-3.5 shrink-0 text-zinc-500 sm:h-4 sm:w-4" />
-                  <span className="leading-tight">Survolez pour zoomer · clic plein écran</span>
+                  <span className="leading-tight">{t("product.hoverZoomHint")}</span>
                 </div>
               ) : null}
               <button
@@ -893,7 +885,7 @@ export default function ProductDetailView({ product }: Props) {
                   setHoverMag(null);
                 }}
                 className="absolute inset-0 z-10 cursor-zoom-in outline-offset-[-2px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/40"
-                aria-label="Agrandir l'image du produit"
+                aria-label={t("product.zoomProductImage")}
               />
               {inactiveListing ? (
                 <div
@@ -902,7 +894,7 @@ export default function ProductDetailView({ product }: Props) {
                 >
                   <p className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white sm:text-xs">
                     <ListingLockIcon className="h-3.5 w-3.5 shrink-0" />
-                    Bientôt disponible
+                    {t("product.comingSoon")}
                   </p>
                 </div>
               ) : outOfStock ? (
@@ -911,7 +903,7 @@ export default function ProductDetailView({ product }: Props) {
                   role="status"
                 >
                   <span className="inline-block whitespace-nowrap rounded-md bg-red-600 px-2.5 py-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-white shadow-md sm:px-3 sm:text-xs sm:tracking-wider">
-                    Rupture de stock
+                    {t("product.outOfStock")}
                   </span>
                 </div>
               ) : null}
@@ -924,7 +916,7 @@ export default function ProductDetailView({ product }: Props) {
                       e.stopPropagation();
                       showPrevImage();
                     }}
-                    aria-label="Image précédente"
+                    aria-label={t("product.prevImage")}
                     className={`absolute left-2 top-1/2 z-20 -translate-y-1/2 sm:left-3 ${galleryNavBtnClass(canGoPrev)}`}
                   >
                     <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -938,7 +930,7 @@ export default function ProductDetailView({ product }: Props) {
                       e.stopPropagation();
                       showNextImage();
                     }}
-                    aria-label="Image suivante"
+                    aria-label={t("product.nextImage")}
                     className={`absolute right-2 top-1/2 z-20 -translate-y-1/2 sm:right-3 ${galleryNavBtnClass(canGoNext)}`}
                   >
                     <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" strokeWidth="2.4">
@@ -951,7 +943,7 @@ export default function ProductDetailView({ product }: Props) {
                 <button
                   ref={favBtnRef}
                   type="button"
-                  aria-label={fav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  aria-label={fav ? t("product.removeFromWishlist") : t("product.addToWishlist")}
                   aria-pressed={fav}
                   onClick={onToggleFav}
                   className={`absolute right-2 top-2 z-20 rounded-full bg-white/90 p-1.5 shadow-sm backdrop-blur-sm transition hover:bg-white ${
@@ -960,6 +952,51 @@ export default function ProductDetailView({ product }: Props) {
                 >
                   <HeartIcon filled={fav} className="h-5 w-5" />
                 </button>
+              ) : null}
+              {hasMultipleImages ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[21] flex justify-center px-4 sm:bottom-4">
+                  <div
+                    className="pointer-events-auto flex max-w-[13.5rem] items-center gap-1 overflow-x-auto rounded-full bg-[#e8e8e8] px-1.5 py-1 shadow-[0_4px_16px_rgba(0,0,0,0.12)] [scrollbar-width:none] sm:max-w-[15.5rem] sm:gap-1.5 sm:px-2 sm:py-1.5 [&::-webkit-scrollbar]:hidden"
+                    role="tablist"
+                    aria-label={t("product.gallery")}
+                  >
+                    {images.map((src, i) => {
+                      const isActive = active === i;
+                      return (
+                        <button
+                          key={`overlay-thumb-${src}-${i}`}
+                          type="button"
+                          role="tab"
+                          aria-selected={isActive}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActive(i);
+                          }}
+                          onPointerEnter={() => preloadImageSrc(src)}
+                          onFocus={() => preloadImageSrc(src)}
+                          aria-label={t("product.imageN", { n: i + 1 })}
+                          className={`shrink-0 rounded-[8px] border-2 p-px transition sm:rounded-[9px] ${
+                            isActive
+                              ? "border-black bg-white"
+                              : "border-transparent bg-transparent opacity-90"
+                          }`}
+                        >
+                          <span className="relative block h-8 w-8 overflow-hidden rounded-[6px] bg-[#f3f3f3] sm:h-9 sm:w-9 sm:rounded-[7px]">
+                            <Image
+                              src={src}
+                              alt=""
+                              fill
+                              sizes="36px"
+                              loading={i < 4 ? "eager" : "lazy"}
+                              unoptimized={shouldBypassImageOptimization(src)}
+                              className={`object-cover object-center ${isActive ? "" : "opacity-85"}`}
+                            />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               ) : null}
               {hoverMag ? (
                 <div
@@ -988,27 +1025,9 @@ export default function ProductDetailView({ product }: Props) {
           {/* Infos */}
           <div className="mx-auto flex w-full min-w-0 max-w-sm flex-col px-4 sm:max-w-md sm:px-0 lg:mx-0 lg:max-w-none lg:pt-2">
             <div className="flex w-full min-w-0 items-center justify-between gap-3">
-              <nav
-                className="min-w-0 flex-1 truncate whitespace-nowrap text-[11px] leading-relaxed text-zinc-500 sm:text-xs"
-                aria-label="Fil d'Ariane"
-                title={product.name}
-              >
-                <Link
-                  href="/"
-                  className="transition hover:text-black"
-                  onClick={() => requestSplashTransition()}
-                >
-                  Accueil
-                </Link>
-                <span className="mx-1.5 text-zinc-300">/</span>
-                <Link href="/collection" className="transition hover:text-black">
-                  Collection
-                </Link>
-                <span className="mx-1.5 text-zinc-300">/</span>
-                <span className="text-zinc-600">{categoryLabel}</span>
-                <span className="mx-1.5 text-zinc-300">/</span>
-                <span className="text-black">{product.name}</span>
-              </nav>
+              <p className="text-[11px] font-bold italic uppercase tracking-[0.14em] text-zinc-400">
+                Vero7
+              </p>
               {audioTrack ? (
                 <button
                   type="button"
@@ -1075,17 +1094,17 @@ export default function ProductDetailView({ product }: Props) {
               ) : null}
             </div>
 
-            <div className="mt-6 flex items-start justify-between gap-4 border-b border-black/10 pb-6">
-              <h1 className="max-w-[90%] text-xl font-semibold uppercase leading-[1.2] tracking-tight sm:text-2xl lg:text-[1.65rem] lg:leading-tight">
+            <div className="mt-2 flex items-start justify-between gap-4 border-b border-black/10 pb-6">
+              <h1 className="max-w-[90%] text-xl font-bold uppercase leading-[1.15] tracking-tight sm:text-2xl lg:text-[1.65rem] lg:leading-tight">
                 {titleUpper}
               </h1>
               {discountPercent != null ? (
                 <span className="shrink-0 rounded bg-red-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
-                  Solde -{discountPercent}%
+                  {t("product.saleBadge", { percent: discountPercent })}
                 </span>
               ) : inactiveListing ? (
                 <span className="shrink-0 rounded bg-black px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
-                  Bientôt disponible
+                  {t("product.comingSoon")}
                 </span>
               ) : (
                 <span />
@@ -1093,10 +1112,10 @@ export default function ProductDetailView({ product }: Props) {
             </div>
 
             <div className="mt-6 flex items-baseline justify-between gap-3 text-lg tabular-nums sm:text-xl">
-              <span className="font-semibold text-black">{formatPrice(displayPrice)}</span>
+              <span className="font-semibold text-black">{formatMoney(displayPrice)}</span>
               {compareAt != null ? (
                 <span className="text-base font-normal text-zinc-400 line-through">
-                  {formatPrice(compareAt)}
+                  {formatMoney(compareAt)}
                 </span>
               ) : (
                 <span />
@@ -1115,14 +1134,14 @@ export default function ProductDetailView({ product }: Props) {
                   <p className="text-sm font-semibold text-black">
                     {colorChoices.length > 1 ? (
                       <>
-                        {colorChoices.length === 2 ? "Design bicolore : " : "Design (plusieurs couleurs) : "}
+                        {colorChoices.length === 2 ? t("product.designBicolor") : t("product.designMultiColor")}
                         <span className="font-medium text-zinc-700">
                           {colorChoices.map((c) => c.label).join(" · ")}
                         </span>
                       </>
                     ) : (
                       <>
-                        Couleur :{" "}
+                        {t("product.colorWithColon")}{" "}
                         <span className="font-medium text-zinc-700">
                           {colorChoices[0]?.label || product.color?.trim() || "—"}
                         </span>
@@ -1141,7 +1160,7 @@ export default function ProductDetailView({ product }: Props) {
                 </div>
                 {!outOfStock && !inactiveListing ? (
                   <div className="relative z-10 flex shrink-0 flex-col items-end gap-2">
-                    <p className="text-sm font-semibold text-black">Quantité</p>
+                    <p className="text-sm font-semibold text-black">{t("common.quantity")}</p>
                     <QuantityStepper
                       value={addQty}
                       onChange={setAddQty}
@@ -1158,14 +1177,14 @@ export default function ProductDetailView({ product }: Props) {
               {inactiveListing ? (
                 <>
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm font-semibold text-black">Tailles</p>
+                    <p className="text-sm font-semibold text-black">{t("product.sizes")}</p>
                     {product.size_guide_image ? (
                       <button
                         type="button"
                         onClick={() => setSizeGuideOpen(true)}
                         className="text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
                       >
-                        Guide des tailles
+                        {t("product.sizeGuide")}
                       </button>
                     ) : null}
                   </div>
@@ -1188,12 +1207,12 @@ export default function ProductDetailView({ product }: Props) {
                     <p className="flex items-start gap-2.5 text-sm leading-relaxed text-white/90">
                       <ListingLockIcon className="mt-0.5 h-4 w-4 shrink-0 text-white/80" />
                       <span>
-                        Ce produit n&apos;est pas encore en vente. Revenez prochainement ou{" "}
+                        {t("product.notListedMessage")}{" "}
                         <Link
                           href="/collection"
                           className="font-semibold text-white underline decoration-white/40 underline-offset-2 transition hover:decoration-white"
                         >
-                          parcourez la collection
+                          {t("product.browseCollection")}
                         </Link>
                         .
                       </span>
@@ -1217,17 +1236,17 @@ export default function ProductDetailView({ product }: Props) {
                   </div>
                   <p className="mt-4 flex items-center gap-2 text-sm font-medium text-red-600" role="status">
                     <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-600" aria-hidden />
-                    Rupture de stock — commande impossible
+                    {t("product.outOfStockNoOrder")}
                   </p>
                   <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-700">Taille :</p>
+                    <p className="text-sm font-semibold text-zinc-700">{t("product.sizeWithColon")}</p>
                     {product.size_guide_image ? (
                       <button
                         type="button"
                         onClick={() => setSizeGuideOpen(true)}
                         className="text-xs font-semibold uppercase tracking-wider text-zinc-600 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
                       >
-                        Guide des tailles
+                        {t("product.sizeGuide")}
                       </button>
                     ) : null}
                   </div>
@@ -1235,14 +1254,14 @@ export default function ProductDetailView({ product }: Props) {
               ) : (
                 <>
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm font-semibold text-black">Taille</p>
+                    <p className="text-sm font-semibold text-black">{t("common.size")}</p>
                     {product.size_guide_image ? (
                       <button
                         type="button"
                         onClick={() => setSizeGuideOpen(true)}
                         className="text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
                       >
-                        Guide des tailles
+                        {t("product.sizeGuide")}
                       </button>
                     ) : null}
                   </div>
@@ -1272,7 +1291,7 @@ export default function ProductDetailView({ product }: Props) {
                   </div>
                   {!hasPickedSize ? (
                     <p className="mt-2 text-xs font-medium text-zinc-600" role="status">
-                      Choisissez une taille pour continuer.
+                      {t("product.selectSizeToContinue")}
                     </p>
                   ) : null}
                 </>
@@ -1286,13 +1305,13 @@ export default function ProductDetailView({ product }: Props) {
                   disabled
                   className="flex-1 cursor-not-allowed bg-black py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white opacity-70"
                 >
-                  Bientôt disponible
+                  {t("product.comingSoon")}
                 </button>
                 <Link
                   href="/collection"
                   className="flex flex-1 items-center justify-center border-2 border-black bg-white py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-black transition hover:bg-black hover:text-white"
                 >
-                  Voir la collection
+                  {t("cart.viewCollection")}
                 </Link>
               </div>
             ) : outOfStock ? (
@@ -1301,7 +1320,7 @@ export default function ProductDetailView({ product }: Props) {
                 disabled
                 className="mt-10 w-full max-w-sm cursor-not-allowed border-0 bg-zinc-400 py-3.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-white lg:max-w-none"
               >
-                RUPTURE DE STOCK
+                {t("product.outOfStockUpper")}
               </button>
             ) : (
               <button
@@ -1315,7 +1334,7 @@ export default function ProductDetailView({ product }: Props) {
                 }}
                 className="mt-10 w-full max-w-sm border border-black bg-black py-3.5 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-200 disabled:text-zinc-500 lg:max-w-none"
               >
-                Ajouter au panier
+                {t("product.addToCart")}
               </button>
             )}
 
@@ -1328,7 +1347,7 @@ export default function ProductDetailView({ product }: Props) {
                   className="flex w-full items-center justify-between py-4 text-left"
                 >
                   <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-800">
-                    Description du produit
+                    {t("product.descriptionTitle")}
                   </span>
                   <span className="text-black" aria-hidden>
                     {openInfoPanel === "description" ? "-" : "+"}
@@ -1354,7 +1373,7 @@ export default function ProductDetailView({ product }: Props) {
                 className="flex w-full items-center justify-between py-4 text-left"
               >
                 <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-800">
-                  Livraison et retours
+                  {t("product.shipping")}
                 </span>
                 <span className="text-black" aria-hidden>
                   {openInfoPanel === "shipping" ? "-" : "+"}
@@ -1367,9 +1386,9 @@ export default function ProductDetailView({ product }: Props) {
               >
                 <div className="overflow-hidden">
                   <ul className="space-y-2 text-sm leading-relaxed text-zinc-700">
-                    <li>Livraison: 8 DT.</li>
-                    <li>Livraison gratuite si la commande est superieure ou egale a 200 DT.</li>
-                    <li>Retours acceptes uniquement dans les 7 jours apres la commande.</li>
+                    <li>{t("product.shippingDelivery")}</li>
+                    <li>{t("product.shippingFreeOver")}</li>
+                    <li>{t("product.shippingReturns")}</li>
                   </ul>
                 </div>
               </div>
@@ -1380,7 +1399,7 @@ export default function ProductDetailView({ product }: Props) {
 
       {suggestions.length > 0 ? (
         <section className="mx-auto w-full max-w-[1600px] px-4 pb-16 sm:px-6 lg:px-10">
-          <h2 className="text-3xl font-black uppercase tracking-tight text-black">VOUS AIMEREZ AUSSI</h2>
+          <h2 className="text-3xl font-black uppercase tracking-tight text-black">{t("product.youMayAlsoLike")}</h2>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {suggestions.map((p, idx) => {
               const src = p.images[0] ?? PLACEHOLDER;
@@ -1412,7 +1431,7 @@ export default function ProductDetailView({ product }: Props) {
                     </Link>
                     <button
                       type="button"
-                      aria-label={isSuggestedFav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                      aria-label={isSuggestedFav ? t("product.removeFromWishlist") : t("product.addToWishlist")}
                       aria-pressed={isSuggestedFav}
                       onClick={(e) => {
                         e.preventDefault();
@@ -1440,7 +1459,7 @@ export default function ProductDetailView({ product }: Props) {
                       <>
                     <button
                       type="button"
-                      aria-label="Ajouter au panier"
+                      aria-label={t("product.addToCart")}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -1459,7 +1478,7 @@ export default function ProductDetailView({ product }: Props) {
                         }}
                       >
                         <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                          Taille du produit
+                          {t("product.productSize")}
                         </p>
                         <div className="flex flex-wrap gap-1.5">
                           {suggestedSizeOpts.map(({ label, available }) => (
@@ -1510,11 +1529,11 @@ export default function ProductDetailView({ product }: Props) {
                       </div>
                       <p className="flex items-baseline justify-between gap-2 text-sm text-zinc-500">
                         {list != null ? (
-                          <span className="text-zinc-400 line-through">{list.toFixed(2)} DT</span>
+                          <span className="text-zinc-400 line-through">{formatMoney(list)}</span>
                         ) : (
                           <span />
                         )}
-                        <span className="ml-auto shrink-0 font-semibold text-black">{sale.toFixed(2)} DT</span>
+                        <span className="ml-auto shrink-0 font-semibold text-black">{formatMoney(sale)}</span>
                       </p>
                     </div>
                   </Link>
@@ -1537,10 +1556,10 @@ export default function ProductDetailView({ product }: Props) {
               );
               setMobileQuickAddOpen(true);
             }}
-            className="flex w-full items-center justify-between bg-[#1a2b74] px-4 py-3 text-sm font-bold uppercase tracking-[0.08em] text-white shadow-2xl"
+            className="flex w-full items-center justify-between bg-black px-4 py-3 text-sm font-bold uppercase tracking-[0.08em] text-white shadow-2xl"
           >
-            <span>ADD TO CART</span>
-            <span>{displayPrice.toFixed(2)} DT</span>
+            <span>{t("product.addToCartUpper")}</span>
+            <span>{formatMoney(displayPrice)}</span>
           </button>
         </div>
       ) : null}
@@ -1550,7 +1569,7 @@ export default function ProductDetailView({ product }: Props) {
           <button
             type="button"
             className="absolute inset-0 bg-black/50"
-            aria-label="Fermer"
+            aria-label={t("common.close")}
             onClick={() => setMobileQuickAddOpen(false)}
           />
           <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-4 shadow-2xl">
@@ -1560,14 +1579,14 @@ export default function ProductDetailView({ product }: Props) {
                 type="button"
                 onClick={() => setMobileQuickAddOpen(false)}
                 className="rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-black"
-                aria-label="Fermer"
+                aria-label={t("common.close")}
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
                 </svg>
               </button>
             </div>
-            <p className="text-lg font-semibold text-black">{formatPrice(displayPrice)}</p>
+            <p className="text-lg font-semibold text-black">{formatMoney(displayPrice)}</p>
 
             <div
               className="mt-5 flex items-end justify-between gap-4"
@@ -1576,14 +1595,14 @@ export default function ProductDetailView({ product }: Props) {
                 <p className="text-sm font-semibold text-black">
                   {colorChoices.length > 1 ? (
                     <>
-                      {colorChoices.length === 2 ? "Design bicolore : " : "Design (plusieurs couleurs) : "}
+                      {colorChoices.length === 2 ? t("product.designBicolor") : t("product.designMultiColor")}
                       <span className="font-medium text-zinc-700">
                         {colorChoices.map((c) => c.label).join(" · ")}
                       </span>
                     </>
                   ) : (
                     <>
-                      Couleur :{" "}
+                      {t("product.colorWithColon")}{" "}
                       <span className="font-medium text-zinc-700">
                         {colorChoices[0]?.label || product.color?.trim() || "—"}
                       </span>
@@ -1595,7 +1614,7 @@ export default function ProductDetailView({ product }: Props) {
                 ) : null}
               </div>
               <div className="relative z-10 flex shrink-0 flex-col items-end gap-2">
-                <p className="text-sm font-semibold text-black">Quantité</p>
+                <p className="text-sm font-semibold text-black">{t("common.quantity")}</p>
                 <QuantityStepper
                   value={addQty}
                   onChange={setAddQty}
@@ -1609,7 +1628,7 @@ export default function ProductDetailView({ product }: Props) {
 
             <div className="mt-5">
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-sm font-semibold text-black">Taille</p>
+                <p className="text-sm font-semibold text-black">{t("common.size")}</p>
                 {product.size_guide_image ? (
                   <button
                     type="button"
@@ -1619,7 +1638,7 @@ export default function ProductDetailView({ product }: Props) {
                     }}
                     className="text-sm font-medium text-zinc-400"
                   >
-                    Size guide
+                    {t("product.sizeGuide")}
                   </button>
                 ) : null}
               </div>
@@ -1676,7 +1695,7 @@ export default function ProductDetailView({ product }: Props) {
               }}
               className="mt-4 w-full border border-black bg-black py-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
             >
-              Ajouter au panier
+              {t("product.addToCart")}
             </button>
           </div>
         </div>
@@ -1717,16 +1736,16 @@ export default function ProductDetailView({ product }: Props) {
           <div
             className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
             role="dialog"
-            aria-label="Guide des tailles"
+            aria-label={t("product.sizeGuide")}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-black/10 px-4 py-3">
-              <p className="text-sm font-semibold">Guide des tailles</p>
+              <p className="text-sm font-semibold">{t("product.sizeGuide")}</p>
               <button
                 type="button"
                 onClick={() => setSizeGuideOpen(false)}
                 className="rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-black"
-                aria-label="Fermer"
+                aria-label={t("common.close")}
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
                   <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
@@ -1737,7 +1756,7 @@ export default function ProductDetailView({ product }: Props) {
               <div className="relative mx-auto max-w-full">
                 <Image
                   src={product.size_guide_image}
-                  alt="Guide des tailles"
+                  alt={t("product.sizeGuide")}
                   width={1200}
                   height={1600}
                   className="h-auto w-full object-contain"
@@ -1768,17 +1787,17 @@ export default function ProductDetailView({ product }: Props) {
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-black">Ajouté aux favoris</p>
+                <p className="text-sm font-semibold text-black">{t("product.addedToFavorites")}</p>
                 <Link
                   href="/favoris"
                   className="text-xs font-medium text-zinc-600 underline underline-offset-2 transition hover:text-black"
                 >
-                  Voir mes favoris
+                  {t("product.viewMyFavorites")}
                 </Link>
               </div>
             </>
           ) : (
-            <p className="pr-1 text-sm font-medium text-black">Retiré de vos favoris</p>
+            <p className="pr-1 text-sm font-medium text-black">{t("product.removedFromFavorites")}</p>
           )}
         </div>
       ) : null}

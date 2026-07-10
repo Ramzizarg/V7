@@ -4,44 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 export type MegaMenuKey = "hommes" | "femmes";
-
-type MegaMenuLink = {
-  label: string;
-  href: string;
-};
-
-type MegaMenuConfig = {
-  links: MegaMenuLink[];
-  promoLabel: string;
-  promoHref: string;
-};
-
-const MEGA_MENUS: Record<MegaMenuKey, MegaMenuConfig> = {
-  hommes: {
-    promoLabel: "NOUVEAUTÉS",
-    promoHref: "/collection",
-    links: [
-      { label: "Tendances", href: "/collection" },
-      { label: "Produits", href: "/collection" },
-      { label: "Sport", href: "/collection" },
-      { label: "Accessoires", href: "/collection" },
-      { label: "Dernière chance", href: "/collection" },
-    ],
-  },
-  femmes: {
-    promoLabel: "NOUVEAUTÉS",
-    promoHref: "/collection",
-    links: [
-      { label: "Tendances", href: "/collection" },
-      { label: "Produits", href: "/collection" },
-      { label: "Lifestyle", href: "/collection" },
-      { label: "Accessoires", href: "/collection" },
-      { label: "Dernière chance", href: "/collection" },
-    ],
-  },
-};
 
 type Props = {
   active: MegaMenuKey;
@@ -49,31 +14,45 @@ type Props = {
   onClose: () => void;
 };
 
-export function getMegaMenuConfig(key: MegaMenuKey) {
-  return MEGA_MENUS[key];
-}
+const MEGA_LINK_KEYS: Record<MegaMenuKey, string[]> = {
+  hommes: [
+    "megaMenu.tendances",
+    "megaMenu.produits",
+    "megaMenu.sport",
+    "megaMenu.accessoires",
+    "megaMenu.derniereChance",
+  ],
+  femmes: [
+    "megaMenu.tendances",
+    "megaMenu.produits",
+    "megaMenu.lifestyle",
+    "megaMenu.accessoires",
+    "megaMenu.derniereChance",
+  ],
+};
 
 export default function HeaderMegaMenu({ active, featuredImages, onClose }: Props) {
-  const config = MEGA_MENUS[active];
+  const { t } = useTranslations();
   const primaryImage = featuredImages[0] ?? "/vero7-logo.png";
   const secondaryImage = featuredImages[1] ?? featuredImages[0] ?? "/vero7-logo.png";
+  const linkKeys = MEGA_LINK_KEYS[active];
 
   return (
     <div className="px-4 lg:px-6 xl:px-10">
       <div className="grid min-h-[22rem] w-full max-w-[58rem] grid-cols-[minmax(11rem,14rem)_1fr] xl:max-w-[62rem] xl:grid-cols-[minmax(12rem,15rem)_1fr]">
         <nav
           className="flex flex-col border-r border-black/10 py-6 pr-4"
-          aria-label={active === "hommes" ? "Menu Homme" : "Menu Femme"}
+          aria-label={active === "hommes" ? t("megaMenu.menuHomme") : t("megaMenu.menuFemme")}
         >
           <ul className="space-y-0.5">
-            {config.links.map((link) => (
-              <li key={link.label}>
+            {linkKeys.map((key) => (
+              <li key={key}>
                 <Link
-                  href={link.href}
+                  href="/collection"
                   onClick={onClose}
                   className="group flex items-center justify-between gap-3 rounded-md py-2.5 pr-1 text-sm font-medium text-black transition hover:bg-zinc-50"
                 >
-                  <span>{link.label}</span>
+                  <span>{t(key)}</span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-black" />
                 </Link>
               </li>
@@ -83,7 +62,7 @@ export default function HeaderMegaMenu({ active, featuredImages, onClose }: Prop
 
         <div className="grid grid-cols-2 gap-3 p-4 sm:gap-4 sm:p-6">
           <Link
-            href={config.promoHref}
+            href="/collection"
             onClick={onClose}
             className="group relative min-h-[14rem] overflow-hidden bg-zinc-100 sm:min-h-[18rem]"
           >
@@ -97,7 +76,7 @@ export default function HeaderMegaMenu({ active, featuredImages, onClose }: Prop
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
             <span className="absolute bottom-5 left-5 text-lg font-bold uppercase tracking-[0.14em] text-white sm:bottom-6 sm:left-6 sm:text-xl">
-              {config.promoLabel}
+              {t("megaMenu.nouveautes")}
             </span>
           </Link>
           <Link
@@ -115,7 +94,7 @@ export default function HeaderMegaMenu({ active, featuredImages, onClose }: Prop
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
             <span className="absolute bottom-5 left-5 text-lg font-bold uppercase tracking-[0.14em] text-white sm:bottom-6 sm:left-6 sm:text-xl">
-              Collection
+              {t("megaMenu.collection")}
             </span>
           </Link>
         </div>

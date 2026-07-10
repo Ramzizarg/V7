@@ -14,9 +14,9 @@ import { trackMetaInitiateCheckout, trackMetaPurchase, setMetaAdvancedMatching }
 import {
   isValidTunisiaPhone,
   normalizeTunisiaPhoneDigits,
-  TUNISIA_PHONE_ERROR,
   TUNISIA_PHONE_LENGTH,
 } from "@/lib/phoneValidation";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
 const TUNISIA_GOVERNORATES = [
@@ -47,6 +47,7 @@ function lineSubtotal(c: CartItem) {
 }
 
 export default function PanierClient() {
+  const { t, formatMoney } = useTranslations();
   const tick = useStorageTick();
   const [items, setItems] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -196,15 +197,15 @@ export default function PanierClient() {
     const ct = city.trim();
     const addr = address.trim();
     if (!fn || !em || !ph || !gov || !ct || !addr) {
-      setOrderError("Remplissez tous les champs requis.");
+      setOrderError(t("checkout.fillRequired"));
       return;
     }
     if (!isValidTunisiaPhone(ph)) {
-      setOrderError(TUNISIA_PHONE_ERROR);
+      setOrderError(t("checkout.phoneError"));
       return;
     }
     if (items.length === 0) {
-      setOrderError("Votre panier est vide.");
+      setOrderError(t("checkout.emptyCart"));
       return;
     }
     setPlacingOrder(true);
@@ -253,25 +254,26 @@ export default function PanierClient() {
       } | null;
 
       if (!res.ok) {
-        throw new Error(data?.error || "Impossible de confirmer la commande.");
+        throw new Error(data?.error || t("checkout.orderError"));
       }
 
       const orderId = data?.orderId;
-      if (!orderId) throw new Error("Commande non créée.");
+      if (!orderId) throw new Error(t("checkout.orderNotCreated"));
 
       if (!data?.emailsSent) {
         const parts: string[] = [];
-        if (!data?.adminEmailSent) parts.push("notification admin");
-        if (!data?.clientEmailSent) parts.push("confirmation client");
+        if (!data?.adminEmailSent) parts.push(t("checkout.emailAdminNotification"));
+        if (!data?.clientEmailSent) parts.push(t("checkout.emailClientConfirmation"));
         const resendDetail = [data?.adminError, data?.clientError]
           .filter((msg, i, arr) => typeof msg === "string" && msg.trim() && arr.indexOf(msg) === i)
           .join(" — ");
+        const partsLabel = parts.join(", ");
         setOrderEmailWarning(
           parts.length > 0
             ? resendDetail
-              ? `Commande enregistrée, mais email(s) non envoyé(s) : ${parts.join(", ")}. ${resendDetail}`
-              : `Commande enregistrée, mais email(s) non envoyé(s) : ${parts.join(", ")}. Vérifiez RESEND sur Vercel.`
-            : data?.emailWarning || "Commande enregistrée, mais les emails n'ont pas pu être envoyés."
+              ? t("checkout.orderEmailPartialDetail", { parts: partsLabel, detail: resendDetail })
+              : t("checkout.orderEmailCheckResend", { parts: partsLabel })
+            : data?.emailWarning || t("checkout.orderEmailWarning")
         );
       }
 
@@ -298,7 +300,7 @@ export default function PanierClient() {
       setAppliedCoupon(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
-      setOrderError(e instanceof Error ? e.message : "Impossible de confirmer la commande.");
+      setOrderError(e instanceof Error ? e.message : t("checkout.orderError"));
     } finally {
       setPlacingOrder(false);
     }
@@ -320,25 +322,25 @@ export default function PanierClient() {
       if (error) throw error;
       const c = (data ?? null) as Coupon | null;
       if (!c) {
-        setCouponError("Code invalide ou expire.");
+        setCouponError(t("checkout.couponInvalid"));
         return;
       }
       const now = new Date().toISOString();
       if (c.starts_at && c.starts_at > now) {
-        setCouponError("Ce code n'est pas encore actif.");
+        setCouponError(t("checkout.couponNotActive"));
         return;
       }
       if (c.expires_at && c.expires_at < now) {
-        setCouponError("Ce code a expire.");
+        setCouponError(t("checkout.couponExpired"));
         return;
       }
       if (c.product_id && !items.some((i) => i.productId === c.product_id)) {
-        setCouponError("Ce code ne s'applique a aucun produit du panier.");
+        setCouponError(t("checkout.couponNoMatch"));
         return;
       }
       setAppliedCoupon(c);
     } catch {
-      setCouponError("Impossible de verifier le code.");
+      setCouponError(t("checkout.couponVerifyError"));
     }
   };
 
@@ -347,8 +349,8 @@ export default function PanierClient() {
       <SiteHeader />
       <main className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-10 sm:pb-14">
         <div className="mb-4 sm:mb-5">
-          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Panier</p>
-          <h1 className="text-xl sm:text-3xl font-semibold mt-0.5 sm:mt-1 text-black">Confirmation commande</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{t("checkout.label")}</p>
+          <h1 className="text-xl sm:text-3xl font-semibold mt-0.5 sm:mt-1 text-black">{t("checkout.title")}</h1>
         </div>
 
         {items.length === 0 ? (
@@ -358,30 +360,30 @@ export default function PanierClient() {
             <section className="space-y-4 sm:space-y-6 bg-white min-w-0">
               <form className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Nom complet</label>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">{t("checkout.fullName")}</label>
                   <input
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Ex. Ahmed Ben Ali"
+                    placeholder={t("checkout.fullNamePlaceholder")}
                     className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                   />
                 </div>
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-black mb-1">
-                    Email <span className="text-zinc-400 font-normal">(confirmation de commande)</span>
+                    {t("checkout.email")} <span className="text-zinc-400 font-normal">{t("checkout.emailHint")}</span>
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="exemple@email.com"
+                    placeholder={t("checkout.emailPlaceholder")}
                     className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                   />
                 </div>
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-black mb-1">
-                    Numero de telephone <span className="text-red-600">*</span>
+                    {t("checkout.phone")} <span className="text-red-600">*</span>
                   </label>
                   <input
                     type="tel"
@@ -393,13 +395,13 @@ export default function PanierClient() {
                     pattern="[0-9]{8}"
                     value={phone}
                     onChange={(e) => setPhone(normalizeTunisiaPhoneDigits(e.target.value))}
-                    placeholder="12345678"
+                    placeholder={t("checkout.phonePlaceholder")}
                     className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                   />
-                  <p className="mt-1 text-[11px] text-zinc-500">8 chiffres obligatoires (ex. 20123456)</p>
+                  <p className="mt-1 text-[11px] text-zinc-500">{t("checkout.phoneHint")}</p>
                 </div>
                 <div ref={governorateRef} className="relative">
-                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Gouvernorat</label>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">{t("checkout.governorate")}</label>
                   <div className="relative">
                     <input
                       type="text"
@@ -413,7 +415,7 @@ export default function PanierClient() {
                         setGovernorateOpen(true);
                         setGovernorateQuery(governorate);
                       }}
-                      placeholder="Rechercher ou selectionner un gouvernorat"
+                      placeholder={t("checkout.governorateSearchPlaceholder")}
                       className="w-full bg-white border border-zinc-300 rounded-lg pl-3 pr-10 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                     />
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">⌄</span>
@@ -441,22 +443,22 @@ export default function PanierClient() {
                   ) : null}
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Ville</label>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">{t("checkout.city")}</label>
                   <input
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="e.g. Tunis, Sfax"
+                    placeholder={t("checkout.cityPlaceholder")}
                     className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">Adresse</label>
+                  <label className="block text-xs sm:text-sm font-medium text-black mb-1">{t("checkout.address")}</label>
                   <input
                     type="text"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Rue, numero, code postal"
+                    placeholder={t("checkout.addressPlaceholder")}
                     className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-3 sm:py-2.5 text-[16px] sm:text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                   />
                 </div>
@@ -467,14 +469,14 @@ export default function PanierClient() {
                     onChange={(e) => setSaveInfo(e.target.checked)}
                     className="h-5 w-5 shrink-0 rounded border-2 border-zinc-300 bg-white accent-black"
                   />
-                  <span className="text-xs sm:text-sm text-black">Enregistrer ces informations pour la prochaine fois</span>
+                  <span className="text-xs sm:text-sm text-black">{t("checkout.saveInfo")}</span>
                 </label>
               </form>
             </section>
 
             <aside className="lg:sticky lg:top-24 h-fit">
               <div className="border border-zinc-200 rounded-xl p-5 sm:p-6" style={{ backgroundColor: "#f5f5f5" }}>
-                <h2 className="text-lg font-semibold text-black mb-4">Recapitulatif commande</h2>
+                <h2 className="text-lg font-semibold text-black mb-4">{t("checkout.orderSummaryTitle")}</h2>
                 <ul className="space-y-3 mb-4 pb-4 border-b border-zinc-200">
                   {items.map((item, index) => (
                     <li key={`${item.productId}-${item.size ?? ""}-${index}`} className="flex gap-3">
@@ -493,9 +495,9 @@ export default function PanierClient() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-medium text-black">
-                          {((item.discountPrice ?? item.price) * item.quantity).toFixed(2)} DT
+                          {formatMoney((item.discountPrice ?? item.price) * item.quantity)}
                         </p>
-                        <p className="text-xs text-zinc-500">× {item.quantity}</p>
+                        <p className="text-xs text-zinc-500">{t("checkout.quantityTimes", { quantity: item.quantity })}</p>
                       </div>
                     </li>
                   ))}
@@ -510,7 +512,7 @@ export default function PanierClient() {
                         setCoupon(e.target.value);
                         setCouponError(null);
                       }}
-                      placeholder="Code promo"
+                      placeholder={t("checkout.couponPlaceholder")}
                       className="flex-1 bg-white border border-zinc-300 rounded-lg px-3 py-2 text-sm text-black placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400"
                     />
                     <button
@@ -518,23 +520,28 @@ export default function PanierClient() {
                       onClick={handleApplyCoupon}
                       className="px-4 py-2 border border-zinc-300 rounded-lg text-sm font-medium text-black hover:bg-zinc-50 shrink-0"
                     >
-                      Appliquer
+                      {t("checkout.applyCoupon")}
                     </button>
                   </div>
                   {couponError ? <p className="text-xs text-red-600 mt-1">{couponError}</p> : null}
                   {appliedCoupon ? (
-                    <p className="text-xs text-green-600 mt-1">Code {appliedCoupon.code} applied (−{discountAmount.toFixed(2)} DT)</p>
+                    <p className="text-xs text-green-600 mt-1">
+                      {t("checkout.couponAppliedDiscount", {
+                        code: appliedCoupon.code,
+                        discount: formatMoney(discountAmount),
+                      })}
+                    </p>
                   ) : null}
                 </div>
 
                 <div className="space-y-2 text-sm mb-4">
-                  <div className="flex justify-between"><span className="text-zinc-600">Sous-total</span><span className="text-black">{subtotal.toFixed(2)} DT</span></div>
-                  <div className="flex justify-between"><span className="text-zinc-600">Livraison</span><span className="text-black">{shipping.toFixed(2)} DT</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-600">{t("cart.subtotal")}</span><span className="text-black">{formatMoney(subtotal)}</span></div>
+                  <div className="flex justify-between"><span className="text-zinc-600">{t("cart.shipping")}</span><span className="text-black">{formatMoney(shipping)}</span></div>
                   {discountAmount > 0 ? (
-                    <div className="flex justify-between text-green-600"><span>Remise</span><span>−{discountAmount.toFixed(2)} DT</span></div>
+                    <div className="flex justify-between text-green-600"><span>{t("checkout.discount")}</span><span>−{formatMoney(discountAmount)}</span></div>
                   ) : null}
                   <div className="flex justify-between font-semibold text-black pt-2 border-t border-zinc-200">
-                    <span>Total</span><span>{total.toFixed(2)} DT</span>
+                    <span>{t("cart.total")}</span><span>{formatMoney(total)}</span>
                   </div>
                 </div>
 
@@ -546,7 +553,7 @@ export default function PanierClient() {
                   className="relative w-full py-4 sm:py-3.5 bg-black text-white text-sm font-semibold uppercase tracking-wider rounded-lg hover:bg-zinc-800 transition-colors disabled:cursor-not-allowed overflow-hidden"
                 >
                   <span className={`inline-flex items-center transition-all duration-300 ${placingOrder ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"}`}>
-                    PAYER EN ESPECES
+                    {t("checkout.payCash")}
                   </span>
                   {placingOrder && (
                     <span className="absolute inset-0 flex items-center justify-center gap-1.5">
@@ -557,13 +564,13 @@ export default function PanierClient() {
                   )}
                 </button>
                 <p className="text-xs text-zinc-500 mt-2 text-center px-1">
-                  Paiement a la livraison (especes uniquement). Pas de PayPal.
+                  {t("checkout.paymentNote")}
                 </p>
                 <div className="mt-4 pt-4 border-t border-zinc-200 flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-500 justify-center sm:justify-start">
-                  <Link href="/refund-policy" className="hover:text-black py-1">Politique de remboursement</Link>
-                  <Link href="/shipping-terms" className="hover:text-black py-1">Livraison</Link>
-                  <Link href="/privacy-policy" className="hover:text-black py-1">Confidentialite</Link>
-                  <Link href="/terms-of-service" className="hover:text-black py-1">Conditions de service</Link>
+                  <Link href="/refund-policy" className="hover:text-black py-1">{t("checkout.refundPolicy")}</Link>
+                  <Link href="/shipping-terms" className="hover:text-black py-1">{t("checkout.shippingTerms")}</Link>
+                  <Link href="/privacy-policy" className="hover:text-black py-1">{t("checkout.privacy")}</Link>
+                  <Link href="/terms-of-service" className="hover:text-black py-1">{t("checkout.termsOfService")}</Link>
                 </div>
               </div>
             </aside>
@@ -571,7 +578,7 @@ export default function PanierClient() {
         )}
         {orderSuccess ? (
           <p className="mx-auto mt-6 max-w-5xl rounded bg-green-50 px-3 py-2 text-sm font-medium text-green-700">
-            Commande envoyee avec succes. Nous vous contacterons bientot.
+            {t("checkout.orderSuccessBanner")}
           </p>
         ) : null}
         {orderEmailWarning ? (
@@ -582,7 +589,7 @@ export default function PanierClient() {
 
         {suggestionProducts.length > 0 ? (
           <section className="mt-14">
-            <h2 className="text-4xl font-black tracking-tight text-black">Vous aimerez aussi</h2>
+            <h2 className="text-4xl font-black tracking-tight text-black">{t("checkout.youMayAlsoLike")}</h2>
             <div className="mt-6 overflow-x-auto">
               <div className="flex min-w-max gap-3 sm:gap-4">
                 {suggestionProducts.map((p) => {
@@ -602,7 +609,7 @@ export default function PanierClient() {
                           />
                           <button
                             type="button"
-                            aria-label="Ajouter au panier"
+                            aria-label={t("product.addToCart")}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -621,7 +628,7 @@ export default function PanierClient() {
                               }}
                             >
                               <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                                Taille du produit
+                                {t("checkout.productSize")}
                               </p>
                               <div className="flex flex-wrap gap-1.5">
                                 {sortedSizesFor(p).map((sz) => (
@@ -651,10 +658,10 @@ export default function PanierClient() {
                           ) : null}
                         </div>
                         <p className="mt-3 text-[30px] leading-none text-black">
-                          {sale.toFixed(2)} DT
+                          {formatMoney(sale)}
                         </p>
                         {list != null ? (
-                          <p className="mt-1 text-xs text-zinc-400 line-through">{list.toFixed(2)} DT</p>
+                          <p className="mt-1 text-xs text-zinc-400 line-through">{formatMoney(list)}</p>
                         ) : null}
                       </Link>
                     </article>
@@ -668,16 +675,15 @@ export default function PanierClient() {
       {showOrderProcessPopup ? (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded-xl bg-white p-5 sm:p-6 shadow-2xl">
-            <h3 className="text-base font-semibold text-black">Commande en cours ✅</h3>
+            <h3 className="text-base font-semibold text-black">{t("checkout.orderProcessTitle")}</h3>
             <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-              Votre commande est en cours de traitement. Le service client va vous appeler pour confirmer la
-              commande.
+              {t("checkout.orderProcessDesc")}
             </p>
             <Link
               href="/collection"
               className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-black px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-zinc-800"
             >
-              Continuer vos achats
+              {t("cart.continueShopping")}
             </Link>
           </div>
         </div>

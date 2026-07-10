@@ -1,13 +1,18 @@
-import { Eye, Gift, Mail, Percent, RotateCcw, Sparkles, type LucideIcon } from "lucide-react";
+"use client";
 
-const CLUB_BENEFITS: { label: string; Icon: LucideIcon }[] = [
-  { label: "10 % sur votre première commande", Icon: Percent },
-  { label: "Cadeau d’anniversaire", Icon: Gift },
-  { label: "Retour gratuit", Icon: RotateCcw },
-  { label: "Aperçu produits", Icon: Eye },
-  { label: "Offres spéciales", Icon: Sparkles },
-  { label: "Newsletter hebdomadaire", Icon: Mail },
-];
+import { Eye, Gift, Mail, Percent, RotateCcw, Sparkles, type LucideIcon } from "lucide-react";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
+
+const BENEFIT_KEYS = [
+  "club.benefit1",
+  "club.benefit2",
+  "club.benefit3",
+  "club.benefit4",
+  "club.benefit5",
+  "club.benefit6",
+] as const;
+
+const BENEFIT_ICONS: LucideIcon[] = [Percent, Gift, RotateCcw, Eye, Sparkles, Mail];
 
 type Props = {
   className?: string;
@@ -22,16 +27,21 @@ export function ClubBenefitsList({
   iconWrapClassName = "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/25 bg-zinc-50 text-black",
   iconClassName = "h-4 w-4",
 }: Props) {
+  const { t } = useTranslations();
+
   return (
     <div className={className}>
-      {CLUB_BENEFITS.map(({ label, Icon }) => (
-        <div key={label} className={itemClassName}>
-          <span className={iconWrapClassName} aria-hidden>
-            <Icon className={iconClassName} strokeWidth={2.25} />
-          </span>
-          <span className="min-w-0 flex-1 pt-px leading-tight">{label}</span>
-        </div>
-      ))}
+      {BENEFIT_KEYS.map((key, i) => {
+        const Icon = BENEFIT_ICONS[i]!;
+        return (
+          <div key={key} className={itemClassName}>
+            <span className={iconWrapClassName} aria-hidden>
+              <Icon className={iconClassName} strokeWidth={2.25} />
+            </span>
+            <span className="min-w-0 flex-1 pt-px leading-tight">{t(key)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

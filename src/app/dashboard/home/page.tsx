@@ -7,6 +7,7 @@ import {
   defaultHomeContent,
   getHomeContent,
   saveHomeContent,
+  syncHeroImagePositionsMobile,
 } from "@/lib/homeContent";
 import {
   defaultComingSoonSettings,
@@ -63,6 +64,9 @@ export default function DashboardHomePage() {
 
   const selectedHeroPreviewUrl =
     content.heroImageUrls[selectedHeroPreviewIndex] ?? content.heroImageUrls[0] ?? "";
+  const selectedHeroPositionMobile =
+    content.heroImagePositionsMobile[selectedHeroPreviewIndex] ??
+    (typeof content.heroImagePositionMobile === "number" ? content.heroImagePositionMobile : 50);
 
   useEffect(() => {
     getHomeContent()
@@ -179,8 +183,27 @@ export default function DashboardHomePage() {
     setComingSoon((p) => ({ ...p, endAt: iso }));
   };
 
-  const updateField = (field: keyof HomeContent, value: string | number | string[]) => {
+  const updateField = (field: keyof HomeContent, value: string | number | string[] | number[]) => {
     setContent((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateSelectedHeroPositionMobile = (value: number) => {
+    setContent((prev) => {
+      const urls = prev.heroImageUrls;
+      if (urls.length === 0) return prev;
+      const index = Math.min(selectedHeroPreviewIndex, urls.length - 1);
+      const positions = syncHeroImagePositionsMobile(
+        urls,
+        prev.heroImagePositionsMobile,
+        prev.heroImagePositionMobile
+      );
+      positions[index] = Math.min(100, Math.max(0, Math.round(value)));
+      return {
+        ...prev,
+        heroImagePositionsMobile: positions,
+        heroImagePositionMobile: positions[0] ?? 50,
+      };
+    });
   };
 
   const updateBannerPhrase = (index: number, value: string) => {
@@ -380,7 +403,22 @@ export default function DashboardHomePage() {
                         }
                         setContent((prev) => {
                           const next = [...prev.heroImageUrls, ...uploaded];
-                          return { ...prev, heroImageUrls: next, heroImageUrl: next[0] ?? "" };
+                          const positions = syncHeroImagePositionsMobile(
+                            prev.heroImageUrls,
+                            prev.heroImagePositionsMobile,
+                            prev.heroImagePositionMobile
+                          );
+                          const nextPositions = [
+                            ...positions,
+                            ...uploaded.map(() => 50),
+                          ];
+                          return {
+                            ...prev,
+                            heroImageUrls: next,
+                            heroImageUrl: next[0] ?? "",
+                            heroImagePositionsMobile: nextPositions,
+                            heroImagePositionMobile: nextPositions[0] ?? 50,
+                          };
                         });
                       } catch (err) {
                         setHeroUploadError(err instanceof Error ? err.message : "Erreur d’upload");
@@ -395,7 +433,13 @@ export default function DashboardHomePage() {
                   <button
                     type="button"
                     onClick={() =>
-                      setContent((prev) => ({ ...prev, heroImageUrls: [], heroImageUrl: "" }))
+                      setContent((prev) => ({
+                        ...prev,
+                        heroImageUrls: [],
+                        heroImageUrl: "",
+                        heroImagePositionsMobile: [],
+                        heroImagePositionMobile: 50,
+                      }))
                     }
                     className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-600 rounded text-zinc-300 text-xs font-semibold uppercase tracking-wider hover:bg-zinc-800 hover:text-white transition-colors"
                   >
@@ -436,6 +480,8 @@ export default function DashboardHomePage() {
                           <p className="truncate text-xs text-zinc-300">{url}</p>
                           <p className="text-[10px] text-zinc-500">
                             {index === 0 ? "Image principale (affichée en premier)" : `Position ${index + 1}`}
+                            {" · "}
+                            mobile {(content.heroImagePositionsMobile[index] ?? 50)}%
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
@@ -445,13 +491,28 @@ export default function DashboardHomePage() {
                               onClick={() =>
                                 setContent((prev) => {
                                   const next = [...prev.heroImageUrls];
+                                  const positions = syncHeroImagePositionsMobile(
+                                    prev.heroImageUrls,
+                                    prev.heroImagePositionsMobile,
+                                    prev.heroImagePositionMobile
+                                  );
                                   [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                                  [positions[index - 1], positions[index]] = [
+                                    positions[index],
+                                    positions[index - 1],
+                                  ];
                                   setSelectedHeroPreviewIndex((curr) => {
                                     if (curr === index) return index - 1;
                                     if (curr === index - 1) return index;
                                     return curr;
                                   });
-                                  return { ...prev, heroImageUrls: next, heroImageUrl: next[0] ?? "" };
+                                  return {
+                                    ...prev,
+                                    heroImageUrls: next,
+                                    heroImageUrl: next[0] ?? "",
+                                    heroImagePositionsMobile: positions,
+                                    heroImagePositionMobile: positions[0] ?? 50,
+                                  };
                                 })
                               }
                               className="rounded border border-zinc-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-300 hover:bg-zinc-800"
@@ -465,13 +526,28 @@ export default function DashboardHomePage() {
                               onClick={() =>
                                 setContent((prev) => {
                                   const next = [...prev.heroImageUrls];
+                                  const positions = syncHeroImagePositionsMobile(
+                                    prev.heroImageUrls,
+                                    prev.heroImagePositionsMobile,
+                                    prev.heroImagePositionMobile
+                                  );
                                   [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                                  [positions[index], positions[index + 1]] = [
+                                    positions[index + 1],
+                                    positions[index],
+                                  ];
                                   setSelectedHeroPreviewIndex((curr) => {
                                     if (curr === index) return index + 1;
                                     if (curr === index + 1) return index;
                                     return curr;
                                   });
-                                  return { ...prev, heroImageUrls: next, heroImageUrl: next[0] ?? "" };
+                                  return {
+                                    ...prev,
+                                    heroImageUrls: next,
+                                    heroImageUrl: next[0] ?? "",
+                                    heroImagePositionsMobile: positions,
+                                    heroImagePositionMobile: positions[0] ?? 50,
+                                  };
                                 })
                               }
                               className="rounded border border-zinc-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-300 hover:bg-zinc-800"
@@ -484,13 +560,24 @@ export default function DashboardHomePage() {
                             onClick={() =>
                               setContent((prev) => {
                                 const next = prev.heroImageUrls.filter((_, i) => i !== index);
+                                const positions = syncHeroImagePositionsMobile(
+                                  prev.heroImageUrls,
+                                  prev.heroImagePositionsMobile,
+                                  prev.heroImagePositionMobile
+                                ).filter((_, i) => i !== index);
                                 setSelectedHeroPreviewIndex((curr) => {
                                   if (next.length === 0) return 0;
                                   if (curr === index) return Math.max(0, index - 1);
                                   if (curr > index) return curr - 1;
                                   return curr;
                                 });
-                                return { ...prev, heroImageUrls: next, heroImageUrl: next[0] ?? "" };
+                                return {
+                                  ...prev,
+                                  heroImageUrls: next,
+                                  heroImageUrl: next[0] ?? "",
+                                  heroImagePositionsMobile: positions,
+                                  heroImagePositionMobile: positions[0] ?? 50,
+                                };
                               })
                             }
                             className="rounded border border-red-700 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-red-300 hover:bg-red-950/40"
@@ -519,25 +606,27 @@ export default function DashboardHomePage() {
                   </div>
                   <div className="flex flex-col items-start justify-end lg:pt-0">
                     <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-1.5">Version mobile</p>
-                    <p className="text-[10px] text-zinc-500 mb-1.5">Position de l’image (gauche ↔ droite)</p>
+                    <p className="text-[10px] text-zinc-500 mb-1.5">
+                      Position de l’image sélectionnée (gauche ↔ droite) — image {selectedHeroPreviewIndex + 1}
+                    </p>
                     <div className="flex items-center gap-2 mb-2 w-full max-w-[200px]">
                       <span className="text-[10px] text-zinc-500 shrink-0">0%</span>
                       <input
                         type="range"
                         min={0}
                         max={100}
-                        value={typeof content.heroImagePositionMobile === "number" ? content.heroImagePositionMobile : 50}
-                        onChange={(e) => updateField("heroImagePositionMobile", parseInt(e.target.value, 10))}
+                        value={selectedHeroPositionMobile}
+                        onChange={(e) => updateSelectedHeroPositionMobile(parseInt(e.target.value, 10))}
                         className="flex-1 h-2 rounded-full appearance-none bg-zinc-700 accent-white"
                       />
                       <span className="text-[10px] text-zinc-500 shrink-0">100%</span>
                     </div>
-                    <p className="text-[9px] text-zinc-500 mb-2">{typeof content.heroImagePositionMobile === "number" ? content.heroImagePositionMobile : 50}%</p>
+                    <p className="text-[9px] text-zinc-500 mb-2">{selectedHeroPositionMobile}%</p>
                     <div className="relative w-[140px] sm:w-[160px] aspect-[9/16] max-h-[300px] rounded-xl overflow-hidden border-2 border-zinc-600 bg-black shadow-xl">
                       <img
                         src={selectedHeroPreviewUrl}
                         alt="Hero mobile"
-                        style={{ objectPosition: `${typeof content.heroImagePositionMobile === "number" ? content.heroImagePositionMobile : 50}% center` }}
+                        style={{ objectPosition: `${selectedHeroPositionMobile}% center` }}
                         className="absolute inset-0 w-full h-full object-cover"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />

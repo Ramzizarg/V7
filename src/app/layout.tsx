@@ -6,7 +6,10 @@ import { AppBuildCacheGuard } from "@/components/AppBuildCacheGuard";
 import { MetaPixel } from "@/components/MetaPixel";
 import { PageLoadSplash } from "@/components/PageLoadSplash";
 import { WelcomeOfferModal } from "@/components/WelcomeOfferModal";
+import { SiteLocaleInit } from "@/components/SiteLocaleInit";
+import { SiteLocaleProvider } from "@/i18n/SiteLocaleProvider";
 import { brandIcons, siteMetadataBase } from "@/lib/siteIconsMeta";
+import { SITE_LOCALE_STORAGE_KEY } from "@/lib/siteLocale";
 import "./globals.css";
 
 /** Fresh HTML on every request so browsers load the latest hashed /_next/static assets. */
@@ -40,15 +43,18 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var n=performance.getEntriesByType("navigation")[0];if(!n||n.type==="reload"||n.type==="navigate"){document.documentElement.classList.add("vero7-splash-active")}}catch(e){}})();`,
+            __html: `(function(){try{var n=performance.getEntriesByType("navigation")[0];if(!n||n.type==="reload"||n.type==="navigate"){document.documentElement.classList.add("vero7-splash-active")}var l=localStorage.getItem("${SITE_LOCALE_STORAGE_KEY}");if(l==="en"||l==="fr")document.documentElement.lang=l}catch(e){}})();`,
           }}
         />
+        <SiteLocaleInit />
+        <SiteLocaleProvider>
         <PageLoadSplash />
         <div id="vero7-app-root" className="flex min-h-full flex-1 flex-col">
           <AppBuildCacheGuard />
           {children}
           <WelcomeOfferModal />
         </div>
+        </SiteLocaleProvider>
         <Analytics />
         <MetaPixel />
       </body>

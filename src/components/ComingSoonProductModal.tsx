@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 type Props = {
   open: boolean;
@@ -8,6 +9,8 @@ type Props = {
 };
 
 export function ComingSoonProductModal({ open, onClose }: Props) {
+  const { t } = useTranslations();
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -44,7 +47,7 @@ export function ComingSoonProductModal({ open, onClose }: Props) {
           type="button"
           onClick={onClose}
           className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-black"
-          aria-label="Fermer"
+          aria-label={t("common.close")}
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
             <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
@@ -69,17 +72,17 @@ export function ComingSoonProductModal({ open, onClose }: Props) {
             id="coming-soon-product-title"
             className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-black sm:text-base"
           >
-            Bientôt disponible
+            {t("modals.comingSoonTitle")}
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-zinc-600">
-            Ce produit arrive bientôt. Revenez plus tard pour le découvrir.
+            {t("modals.comingSoonDesc")}
           </p>
           <button
             type="button"
             onClick={onClose}
             className="mt-6 w-full bg-black px-4 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-white transition hover:bg-zinc-800"
           >
-            Compris
+            {t("common.understood")}
           </button>
         </div>
       </div>
