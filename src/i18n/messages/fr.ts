@@ -102,6 +102,10 @@ export const fr = {
     nextProducts: "Produits suivants",
     outOfStock: "Rupture de stock",
     comingSoon: "Bientôt disponible",
+    shopNewIn: "Voir les nouveautés",
+    heroCollection: "Collection Sport x Casual",
+    heroHeadline: "RENVERSE LES\nREGLES.",
+    heroDescription: "Signe par Vero7.",
     shockAbsorption: "Absorption des Chocs",
     shockAbsorptionDesc:
       "Brassières à absorption des chocs pour réduire les mouvements et rester concentrée à chaque entraînement.",

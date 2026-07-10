@@ -56,7 +56,7 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    return [{ source: "/favicon.ico", destination: "/V7/V7-2.png" }];
+    return [{ source: "/favicon.ico", destination: "/favicon-32.png" }];
   },
 };
 

@@ -52,7 +52,7 @@ const CATEGORY_I18N_KEY: Record<string, string> = {
 };
 
 export default function HomePageClient({ initialHomeContent }: Props) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const featuredRef = useRef<HTMLDivElement>(null);
   const [heroSlide, setHeroSlide] = useState(0);
   const [heroImagesLoaded, setHeroImagesLoaded] = useState<Set<number>>(() => new Set());
@@ -231,10 +231,17 @@ export default function HomePageClient({ initialHomeContent }: Props) {
   };
 
   const heroCollectionText =
-    homeContent.heroCollection.trim() || defaultHomeContent.heroCollection;
-  const heroHeadlineText = homeContent.heroHeadline.trim() || defaultHomeContent.heroHeadline;
+    locale === "en"
+      ? t("home.heroCollection")
+      : homeContent.heroCollection.trim() || t("home.heroCollection");
+  const heroHeadlineText =
+    locale === "en"
+      ? t("home.heroHeadline")
+      : homeContent.heroHeadline.trim() || t("home.heroHeadline");
   const heroDescriptionText =
-    homeContent.heroDescription.trim() || defaultHomeContent.heroDescription;
+    locale === "en"
+      ? t("home.heroDescription")
+      : homeContent.heroDescription.trim() || t("home.heroDescription");
   const heroImagePositionMobile =
     typeof homeContent.heroImagePositionMobile === "number" ? homeContent.heroImagePositionMobile : 50;
   const heroImagePositionsMobile = homeContent.heroImagePositionsMobile ?? [];
@@ -306,29 +313,43 @@ export default function HomePageClient({ initialHomeContent }: Props) {
               );
             })}
           </div>
-          <div className="relative z-10 flex min-h-[560px] w-full flex-col justify-end px-5 py-14 sm:px-8 sm:py-16 lg:min-h-[640px] lg:px-10 lg:py-20">
+          <div className="relative z-10 flex min-h-[560px] w-full flex-col justify-end px-5 pb-8 pt-20 sm:px-8 sm:pb-10 sm:pt-24 lg:min-h-[640px] lg:px-10 lg:pb-12 lg:pt-28">
             <span className="mb-5 inline-block h-[2px] w-20 bg-white/90" />
             <p
-              className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/85"
+              className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85 sm:text-xs"
               style={{ color: heroCollectionColor }}
             >
               {heroCollectionText}
             </p>
             <h1
-              className="max-w-3xl text-5xl font-extrabold uppercase leading-[0.95] sm:text-6xl lg:text-7xl whitespace-pre-line"
+              className="max-w-[20rem] text-[1.65rem] font-extrabold uppercase leading-[0.95] tracking-tight text-white sm:max-w-xl sm:text-3xl lg:max-w-2xl lg:text-4xl whitespace-pre-line"
               style={{ color: heroHeadlineColor }}
             >
               {heroHeadlineText}
             </h1>
             <p
-              className="mt-4 max-w-xl text-2xl sm:text-3xl"
+              className="mt-3 max-w-md text-sm font-normal leading-snug text-white sm:mt-4 sm:max-w-lg sm:text-base sm:leading-relaxed"
               style={{ color: heroDescriptionColor }}
             >
               {heroDescriptionText}
             </p>
-            {heroImages.length > 0 ? (
+            <div className="mt-6 flex flex-wrap items-center gap-3 sm:gap-4">
+              <Link
+                href="/collection"
+                className="inline-flex items-center justify-center bg-white px-5 py-3.5 text-sm font-semibold text-black transition hover:bg-zinc-100 sm:px-6"
+              >
+                {homeContent.heroButtonText.trim() || t("common.shopNow")}
+              </Link>
+              <Link
+                href="/collection"
+                className="inline-flex items-center justify-center border border-white bg-transparent px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10 sm:px-6"
+              >
+                {t("home.shopNewIn")}
+              </Link>
+            </div>
+            {heroImages.length > 1 ? (
               <div
-                className="mt-6 flex w-full max-w-[160px] gap-1 sm:max-w-[200px]"
+                className="mt-6 flex w-full max-w-[220px] gap-1.5 sm:max-w-[280px]"
                 role="status"
                 aria-label={`Image hero ${heroSlide + 1} sur ${heroImages.length}`}
               >
@@ -338,7 +359,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                   return (
                     <div
                       key={i}
-                      className="h-1 min-h-[3px] flex-1 overflow-hidden rounded-full bg-white/35"
+                      className="h-1 min-h-[3px] flex-1 overflow-hidden rounded-full bg-white/30"
                     >
                       {done ? (
                         <div className="h-full w-full rounded-full bg-white" />

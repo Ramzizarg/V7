@@ -55,11 +55,11 @@ export const defaultHomeContent: HomeContent = {
   heroSubtitleColor: "#ffffff",
   heroCollection: "Collection Sport x Casual",
   heroCollectionColor: "#ffffff",
-  heroHeadline: "Renverse Les Regles",
+  heroHeadline: "RENVERSE LES\nREGLES.",
   heroHeadlineColor: "#ffffff",
   heroDescription: "Signe par Vero7.",
   heroDescriptionColor: "#999999",
-  heroButtonText: "SHOP NOW",
+  heroButtonText: "Shop now",
   heroButtonTextColor: "#000000",
   carouselTitle: "The Latest Arrivals",
   products: [

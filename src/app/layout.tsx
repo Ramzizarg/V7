@@ -23,8 +23,8 @@ export const metadata: Metadata = {
   description:
     "Vero7 est une marque de vetements moderne qui melange performance sportive et style casual.",
   /**
-   * Tab / bookmarks: `V7/V7 2.png` → `public/V7/V7-2.png`; `src/app/icon.png` + `apple-icon.png` match.
-   * `metadataBase` + `/favicon.ico` rewrite (next.config) help browsers stop using the default triangle.
+   * Tab / bookmarks: circular V7 from `vero7-logo.png`
+   * (`/favicon-32.png`, `/vero7-favicon-circle.png`, `/apple-touch-icon.png`).
    */
   icons: brandIcons,
 };

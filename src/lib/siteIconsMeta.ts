@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 
-/** Same asset as `V7/V7 2.png`, served from `public` (no space in URL). */
+/** Circular V7 mark from `vero7-logo.png` (browser tab / bookmarks / Apple touch). */
 export const brandIcons: NonNullable<Metadata["icons"]> = {
-  icon: [{ url: "/V7/V7-2.png", type: "image/png" }],
-  shortcut: "/V7/V7-2.png",
-  apple: "/V7/V7-2.png",
+  icon: [
+    { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+    { url: "/vero7-favicon-circle.png", sizes: "512x512", type: "image/png" },
+  ],
+  shortcut: "/favicon-32.png",
+  apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
 };
 
 export function siteMetadataBase(): URL {

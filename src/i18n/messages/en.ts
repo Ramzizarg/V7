@@ -102,6 +102,10 @@ export const en = {
     nextProducts: "Next products",
     outOfStock: "Out of stock",
     comingSoon: "Coming soon",
+    shopNewIn: "Shop new in",
+    heroCollection: "Sport x Casual Collection",
+    heroHeadline: "BREAK THE\nRULES.",
+    heroDescription: "Signed by Vero7.",
     shockAbsorption: "Shock Absorption",
     shockAbsorptionDesc:
       "Shock-absorbing sports bras to reduce movement and stay focused through every workout.",

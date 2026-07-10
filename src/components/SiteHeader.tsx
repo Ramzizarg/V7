@@ -609,43 +609,59 @@ export default function SiteHeader() {
             <div
               role="group"
               aria-label={t("nav.language")}
-              className={`relative mr-1 flex items-center rounded-md p-0.5 text-[11px] font-semibold tracking-[0.08em] ${
-                overlayNav ? "bg-white/15" : "bg-zinc-100"
-              }`}
+              className="mr-2 flex items-center gap-0"
             >
-              <span
-                aria-hidden
-                className={`pointer-events-none absolute inset-y-0.5 w-[calc(50%-2px)] rounded-[5px] bg-white shadow-sm transition-all duration-200 ease-out ${
-                  overlayNav ? "" : "ring-1 ring-black/5"
-                } ${locale === "en" ? "left-[calc(50%+1px)]" : "left-0.5"}`}
-              />
               <button
                 type="button"
                 onClick={() => setLocale("fr")}
                 aria-pressed={locale === "fr"}
-                className={`relative z-10 min-w-[2.25rem] px-2.5 py-1.5 transition-colors ${
+                aria-label="Français"
+                className={`relative px-1.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
                   locale === "fr"
-                    ? "text-black"
+                    ? overlayNav
+                      ? "text-white"
+                      : "text-black"
                     : overlayNav
-                      ? "text-white/55 hover:text-white/80"
+                      ? "text-white/40 hover:text-white/70"
                       : "text-zinc-400 hover:text-zinc-600"
                 }`}
               >
                 FR
+                {locale === "fr" ? (
+                  <span
+                    className={`absolute inset-x-1.5 -bottom-0.5 h-px ${overlayNav ? "bg-white" : "bg-black"}`}
+                    aria-hidden
+                  />
+                ) : null}
               </button>
+              <span
+                className={`select-none text-[10px] ${overlayNav ? "text-white/25" : "text-zinc-300"}`}
+                aria-hidden
+              >
+                /
+              </span>
               <button
                 type="button"
                 onClick={() => setLocale("en")}
                 aria-pressed={locale === "en"}
-                className={`relative z-10 min-w-[2.25rem] px-2.5 py-1.5 transition-colors ${
+                aria-label="English"
+                className={`relative px-1.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
                   locale === "en"
-                    ? "text-black"
+                    ? overlayNav
+                      ? "text-white"
+                      : "text-black"
                     : overlayNav
-                      ? "text-white/55 hover:text-white/80"
+                      ? "text-white/40 hover:text-white/70"
                       : "text-zinc-400 hover:text-zinc-600"
                 }`}
               >
                 EN
+                {locale === "en" ? (
+                  <span
+                    className={`absolute inset-x-1.5 -bottom-0.5 h-px ${overlayNav ? "bg-white" : "bg-black"}`}
+                    aria-hidden
+                  />
+                ) : null}
               </button>
             </div>
             <button
