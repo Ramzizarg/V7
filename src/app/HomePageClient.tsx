@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -279,7 +279,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
       <main>
         <section
           id="home-hero"
-          className="hero-fade grid-overlay relative min-h-[560px] overflow-hidden lg:min-h-[640px]"
+          className="hero-fade grid-overlay relative min-h-[85svh] overflow-hidden lg:min-h-[90svh]"
         >
           <div className="absolute inset-0 bg-zinc-900" aria-hidden>
             {heroImages.map((src, i) => {
@@ -314,7 +314,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
               );
             })}
           </div>
-          <div className="relative z-10 flex min-h-[560px] w-full flex-col justify-end px-5 pb-8 pt-20 sm:px-8 sm:pb-10 sm:pt-24 lg:min-h-[640px] lg:px-10 lg:pb-12 lg:pt-28">
+          <div className="relative z-10 flex min-h-[85svh] w-full flex-col justify-end px-5 pb-8 pt-20 sm:px-8 sm:pb-10 sm:pt-24 lg:min-h-[90svh] lg:px-10 lg:pb-12 lg:pt-28">
             <span className="mb-5 inline-block h-[2px] w-20 bg-white/90" />
             <p
               className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85 sm:text-xs"
