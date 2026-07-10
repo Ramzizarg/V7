@@ -286,10 +286,10 @@ export default function ProductDetailView({ product }: Props) {
   const [favToast, setFavToast] = useState<"added" | "removed" | null>(null);
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [quickAddProductId, setQuickAddProductId] = useState<number | null>(null);
-  const [showMobileStickyCart, setShowMobileStickyCart] = useState(false);
+  const [showStickyCart, setShowStickyCart] = useState(false);
   const [openInfoPanel, setOpenInfoPanel] = useState<"description" | "shipping" | null>("description");
-  const [mobileQuickAddOpen, setMobileQuickAddOpen] = useState(false);
-  const [mobileQuickSize, setMobileQuickSize] = useState<string | null>(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddSize, setQuickAddSize] = useState<string | null>(null);
   const [imageZoomOpen, setImageZoomOpen] = useState(false);
   /** Index affiche dans la lightbox (aligne sur l'image principale au clic). */
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -660,9 +660,9 @@ export default function ProductDetailView({ product }: Props) {
   }, [sizeGuideOpen]);
 
   useEffect(() => {
-    if (!mobileQuickAddOpen) return;
+    if (!quickAddOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileQuickAddOpen(false);
+      if (e.key === "Escape") setQuickAddOpen(false);
     };
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -670,24 +670,19 @@ export default function ProductDetailView({ product }: Props) {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [mobileQuickAddOpen]);
+  }, [quickAddOpen]);
 
   useEffect(() => {
     const onResizeOrScroll = () => {
       if (typeof window === "undefined") return;
-      const isMobile = window.matchMedia("(max-width: 639px)").matches;
-      if (!isMobile) {
-        setShowMobileStickyCart(false);
-        return;
-      }
       const el = stickyTriggerRef.current ?? sizeSectionRef.current;
       if (!el) {
-        setShowMobileStickyCart(false);
+        setShowStickyCart(false);
         return;
       }
-      // Show new sticky bar only once the description section is reached / scrolled past
+      // Show sticky bar once the description section is reached / scrolled past
       const pastDescription = el.getBoundingClientRect().top < 96;
-      setShowMobileStickyCart(pastDescription && !outOfStock && !inactiveListing);
+      setShowStickyCart(pastDescription && !outOfStock && !inactiveListing);
     };
 
     onResizeOrScroll();
@@ -1553,30 +1548,30 @@ export default function ProductDetailView({ product }: Props) {
         </section>
       ) : null}
 
-      {showMobileStickyCart ? (
-        <div className="fixed bottom-[max(0.5rem,env(safe-area-inset-bottom))] right-2.5 z-[110] sm:hidden">
-          <div className="w-[min(17.5rem,calc(100vw-1.25rem))] rounded-2xl bg-white p-2 shadow-[0_10px_32px_rgba(0,0,0,0.16)]">
-            <div className="flex items-start gap-2">
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+      {showStickyCart ? (
+        <div className="fixed bottom-[max(0.5rem,env(safe-area-inset-bottom))] right-2.5 z-[110] sm:bottom-6 sm:right-6">
+          <div className="w-[min(17.5rem,calc(100vw-1.25rem))] rounded-2xl bg-white p-2 shadow-[0_10px_32px_rgba(0,0,0,0.16)] sm:w-[19rem] sm:p-2.5">
+            <div className="flex items-start gap-2 sm:gap-2.5">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100 sm:h-16 sm:w-16">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={mainSrc} alt="" className="h-full w-full object-cover" />
               </div>
               <div className="min-w-0 flex-1 pt-0.5">
                 <div className="flex items-start justify-between gap-1.5">
                   <div className="min-w-0">
-                    <p className="truncate text-[10px] font-bold uppercase tracking-[0.04em] text-black">
+                    <p className="truncate text-[10px] font-bold uppercase tracking-[0.04em] text-black sm:text-[11px]">
                       {titleUpper}
                     </p>
-                    <p className="mt-0.5 truncate text-[9px] italic text-zinc-500">
+                    <p className="mt-0.5 truncate text-[9px] italic text-zinc-500 sm:text-[10px]">
                       {(colorForCart || "—").toUpperCase()}
                       {selectedSize ? ` / ${selectedSize}` : ""}
                     </p>
                   </div>
-                  <p className="shrink-0 pt-0.5 text-[10px] font-medium italic tabular-nums text-zinc-500">
+                  <p className="shrink-0 pt-0.5 text-[10px] font-medium italic tabular-nums text-zinc-500 sm:text-[11px]">
                     {formatMoney(displayPrice)}
                   </p>
                 </div>
-                <div className="mt-1.5 flex items-center gap-1.5">
+                <div className="mt-1.5 flex items-center gap-1.5 sm:mt-2 sm:gap-2">
                   <QuantityStepper
                     value={addQty}
                     onChange={setAddQty}
@@ -1596,10 +1591,10 @@ export default function ProductDetailView({ product }: Props) {
                         addToCartWithFeedback(sizeSectionRef.current, readySize);
                         return;
                       }
-                      setMobileQuickSize(null);
-                      setMobileQuickAddOpen(true);
+                      setQuickAddSize(null);
+                      setQuickAddOpen(true);
                     }}
-                    className="h-6 min-w-0 flex-1 rounded-full bg-black px-3 text-[9px] font-bold uppercase italic tracking-[0.06em] text-white"
+                    className="h-6 min-w-0 flex-1 rounded-full bg-black px-3 text-[9px] font-bold uppercase italic tracking-[0.06em] text-white transition hover:bg-zinc-800 sm:h-7 sm:text-[10px]"
                   >
                     {t("product.addShort")}
                   </button>
@@ -1610,16 +1605,16 @@ export default function ProductDetailView({ product }: Props) {
         </div>
       ) : null}
 
-      {mobileQuickAddOpen && !outOfStock && !inactiveListing ? (
-        <div className="fixed inset-0 z-[130] sm:hidden">
+      {quickAddOpen && !outOfStock && !inactiveListing ? (
+        <div className="fixed inset-0 z-[130]">
           <button
             type="button"
             className="absolute inset-0 bg-black/50"
             aria-label={t("common.close")}
-            onClick={() => setMobileQuickAddOpen(false)}
+            onClick={() => setQuickAddOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-2xl">
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-zinc-200" aria-hidden />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:pb-5">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-zinc-200 sm:hidden" aria-hidden />
             <div className="mb-1 flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-lg font-black uppercase leading-tight text-black">{titleUpper}</h3>
@@ -1627,7 +1622,7 @@ export default function ProductDetailView({ product }: Props) {
               </div>
               <button
                 type="button"
-                onClick={() => setMobileQuickAddOpen(false)}
+                onClick={() => setQuickAddOpen(false)}
                 className="rounded-md p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-black"
                 aria-label={t("common.close")}
               >
@@ -1641,20 +1636,20 @@ export default function ProductDetailView({ product }: Props) {
             <div className="mt-3 grid grid-cols-3 gap-2">
               {sizeOptions.map(({ label, available }) => (
                 <button
-                  key={`mobile-quick-${label}`}
+                  key={`quick-add-${label}`}
                   type="button"
                   disabled={!available}
                   onClick={() => {
                     if (!available) return;
-                    setMobileQuickSize(label);
+                    setQuickAddSize(label);
                     setSelectedSize(label);
                     addToCartWithFeedback(sizeSectionRef.current, label);
-                    setMobileQuickAddOpen(false);
+                    setQuickAddOpen(false);
                   }}
                   className={
                     !available
                       ? "w-full cursor-not-allowed border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 line-through decoration-zinc-400"
-                      : mobileQuickSize === label
+                      : quickAddSize === label
                         ? "w-full border border-black bg-black px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-white"
                         : "w-full border border-black/15 bg-white px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-black transition hover:border-black/40"
                   }
