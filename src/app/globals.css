@@ -672,19 +672,19 @@ html.vero7-splash-active #vero7-app-root {
 }
 
 .site-header-logo--mobile {
-  width: 7.25rem;
-  height: 2.5rem;
+  width: 9rem;
+  height: 3.5rem;
 }
 
 .site-header-logo--desktop {
-  width: 8.75rem;
-  height: 3rem;
+  width: 11rem;
+  height: 4.25rem;
 }
 
 @media (min-width: 1280px) {
   .site-header-logo--desktop {
-    width: 10rem;
-    height: 3.5rem;
+    width: 12.25rem;
+    height: 4.75rem;
   }
 }
 
@@ -731,17 +731,17 @@ html.vero7-splash-active #vero7-app-root {
 
 @media (min-width: 640px) {
   .site-header-logo__mark {
-    max-height: 2.5rem;
+    max-height: 3.375rem;
   }
 }
 
 .site-header-logo--desktop .site-header-logo__mark {
-  max-height: 2.5rem;
+  max-height: 3.625rem;
 }
 
 @media (min-width: 1280px) {
   .site-header-logo--desktop .site-header-logo__mark {
-    max-height: 3rem;
+    max-height: 4.25rem;
   }
 }
 

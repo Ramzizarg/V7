@@ -436,7 +436,7 @@ export default function SiteHeader() {
       } ${!overlayNav && !activeMegaMenu ? "border-b border-black/10" : ""} ${
         headerHidden ? "site-header--hidden" : "site-header--visible"
       }`}
-      style={{ ["--site-header-height" as string]: "calc(2.25rem + 4.25rem)" }}
+      style={{ ["--site-header-height" as string]: "calc(2.25rem + 4.5rem)" }}
     >
       <div className="relative border-b border-white/10 bg-black">
         <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2.5 sm:left-4 sm:gap-3">
@@ -580,7 +580,7 @@ export default function SiteHeader() {
 
       {/* Desktop header — nav left · logo center · search + favoris + panier right */}
       <div className="relative hidden w-full lg:block" onMouseLeave={scheduleMegaMenuClose}>
-        <div className="relative grid h-[4.25rem] w-full grid-cols-[1fr_auto_1fr] items-center px-4 lg:px-6 xl:px-10">
+        <div className="relative grid h-[4.5rem] w-full grid-cols-[1fr_auto_1fr] items-center px-4 lg:px-6 xl:px-10">
           <nav className="relative z-10 flex min-w-0 items-center gap-6 xl:gap-8" aria-label={t("nav.mainNav")}>
             {navLinks.map((item) => {
               const isMega = "mega" in item && item.mega;
