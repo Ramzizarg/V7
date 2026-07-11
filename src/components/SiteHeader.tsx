@@ -486,7 +486,7 @@ export default function SiteHeader() {
         </button>
       </div>
       {/* Mobile header */}
-      <div className="relative mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-3 sm:px-5 lg:hidden">
+      <div className="relative mx-auto flex h-[3.75rem] w-full max-w-7xl items-center justify-between px-3 sm:px-5 lg:hidden">
         <div className={`flex items-center gap-0.5 ${overlayNav ? "text-white" : "text-black"}`}>
           <button
             type="button"

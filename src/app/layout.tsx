@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
@@ -9,6 +10,7 @@ import { WelcomeOfferModal } from "@/components/WelcomeOfferModal";
 import { SiteLocaleInit } from "@/components/SiteLocaleInit";
 import { SiteLocaleProvider } from "@/i18n/SiteLocaleProvider";
 import { brandIcons, siteMetadataBase } from "@/lib/siteIconsMeta";
+import { HYDRATION_GUARD_SCRIPT } from "@/lib/hydrationGuardScript";
 import { SITE_LOCALE_STORAGE_KEY } from "@/lib/siteLocale";
 import "./globals.css";
 
@@ -41,6 +43,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <Script id="vero7-hydration-guard" strategy="beforeInteractive">
+          {HYDRATION_GUARD_SCRIPT}
+        </Script>
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var n=performance.getEntriesByType("navigation")[0];if(!n||n.type==="reload"||n.type==="navigate"){document.documentElement.classList.add("vero7-splash-active")}var l=localStorage.getItem("${SITE_LOCALE_STORAGE_KEY}");if(l==="en"||l==="fr")document.documentElement.lang=l}catch(e){}})();`,

@@ -672,8 +672,18 @@ html.vero7-splash-active #vero7-app-root {
 }
 
 .site-header-logo--mobile {
-  width: 9rem;
-  height: 3.5rem;
+  width: 10.5rem;
+  height: 3.875rem;
+}
+
+.site-header-logo--mobile .site-header-logo__mark {
+  max-height: 3.375rem;
+}
+
+@media (min-width: 640px) {
+  .site-header-logo--mobile .site-header-logo__mark {
+    max-height: 3.625rem;
+  }
 }
 
 .site-header-logo--desktop {
