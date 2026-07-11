@@ -76,31 +76,44 @@ function headerIconButtonClass(overlay: boolean) {
     : "rounded-full p-2 text-black transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30";
 }
 
-function HeaderLogo({ overlay, className = "" }: { overlay: boolean; className?: string }) {
-  if (overlay) {
-    return (
+function HeaderLogo({
+  overlay,
+  variant,
+}: {
+  overlay: boolean;
+  variant: "mobile" | "desktop";
+}) {
+  const containerClass =
+    variant === "mobile"
+      ? "site-header-logo site-header-logo--mobile"
+      : "site-header-logo site-header-logo--desktop";
+
+  return (
+    <span className={containerClass}>
       <Image
         src={HEADER_WORDMARK_SRC}
-        alt="Vero7"
-        width={120}
-        height={30}
-        className={`h-5 w-auto object-contain sm:h-6 ${className}`}
+        alt=""
+        width={160}
+        height={40}
+        aria-hidden
+        className={`site-header-logo__layer site-header-logo__wordmark ${
+          overlay ? "site-header-logo__layer--active" : ""
+        }`}
         priority
         loading="eager"
       />
-    );
-  }
-
-  return (
-    <Image
-      src={HEADER_LOGO_SRC}
-      alt="Vero7"
-      width={64}
-      height={64}
-      className={`h-9 w-auto object-contain sm:h-10 ${className}`}
-      priority
-      loading="eager"
-    />
+      <Image
+        src={HEADER_LOGO_SRC}
+        alt="Vero7"
+        width={64}
+        height={64}
+        className={`site-header-logo__layer site-header-logo__mark ${
+          overlay ? "" : "site-header-logo__layer--active"
+        }`}
+        priority
+        loading="eager"
+      />
+    </span>
   );
 }
 
@@ -132,6 +145,7 @@ export default function SiteHeader() {
   const lastSearchTrackedRef = useRef("");
   const lastScrollYRef = useRef(0);
   const pastHeroRef = useRef(false);
+  const homeScrolledRef = useRef(false);
 
   const promoMessages = useMemo(
     () => [
@@ -202,6 +216,8 @@ export default function SiteHeader() {
   useEffect(() => {
     lastScrollYRef.current = window.scrollY;
     pastHeroRef.current = false;
+    homeScrolledRef.current = window.scrollY > 56;
+    setHomeScrolled(homeScrolledRef.current);
     setHeaderHidden(false);
 
     let observer: IntersectionObserver | null = null;
@@ -238,9 +254,17 @@ export default function SiteHeader() {
       const dy = y - prev;
 
       if (pathname === "/") {
-        setHomeScrolled(y > 48);
+        const nextHomeScrolled =
+          y > 72 ? true : y < 28 ? false : homeScrolledRef.current;
+        if (nextHomeScrolled !== homeScrolledRef.current) {
+          homeScrolledRef.current = nextHomeScrolled;
+          setHomeScrolled(nextHomeScrolled);
+        }
       } else {
-        setHomeScrolled(false);
+        if (homeScrolledRef.current) {
+          homeScrolledRef.current = false;
+          setHomeScrolled(false);
+        }
         pastHeroRef.current = y > 160;
       }
 
@@ -500,7 +524,7 @@ export default function SiteHeader() {
             requestSplashTransition();
           }}
         >
-          <HeaderLogo overlay={overlayNav} />
+          <HeaderLogo overlay={overlayNav} variant="mobile" />
         </Link>
         <div className={`flex items-center gap-0.5 ${overlayNav ? "text-white" : "text-black"}`}>
           <Link
@@ -599,7 +623,7 @@ export default function SiteHeader() {
               requestSplashTransition();
             }}
           >
-            <HeaderLogo overlay={overlayNav} className={overlayNav ? "h-6 xl:h-7" : "xl:h-12"} />
+            <HeaderLogo overlay={overlayNav} variant="desktop" />
           </Link>
 
           <div

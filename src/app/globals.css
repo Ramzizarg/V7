@@ -663,6 +663,93 @@ html.vero7-splash-active #vero7-app-root {
   }
 }
 
+.site-header-logo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.site-header-logo--mobile {
+  width: 7.25rem;
+  height: 2.5rem;
+}
+
+.site-header-logo--desktop {
+  width: 8.75rem;
+  height: 3rem;
+}
+
+@media (min-width: 1280px) {
+  .site-header-logo--desktop {
+    width: 10rem;
+    height: 3.5rem;
+  }
+}
+
+.site-header-logo__layer {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  opacity: 0;
+  transform: scale(0.94);
+  transition:
+    opacity 320ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  will-change: opacity, transform;
+}
+
+.site-header-logo__wordmark {
+  max-height: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .site-header-logo__wordmark {
+    max-height: 1.5rem;
+  }
+}
+
+.site-header-logo--desktop .site-header-logo__wordmark {
+  max-height: 1.625rem;
+}
+
+@media (min-width: 1280px) {
+  .site-header-logo--desktop .site-header-logo__wordmark {
+    max-height: 1.875rem;
+  }
+}
+
+.site-header-logo__mark {
+  max-height: 2.25rem;
+}
+
+@media (min-width: 640px) {
+  .site-header-logo__mark {
+    max-height: 2.5rem;
+  }
+}
+
+.site-header-logo--desktop .site-header-logo__mark {
+  max-height: 2.5rem;
+}
+
+@media (min-width: 1280px) {
+  .site-header-logo--desktop .site-header-logo__mark {
+    max-height: 3rem;
+  }
+}
+
+.site-header-logo__layer--active {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .site-header {
   transform: translate3d(0, 0, 0);
   opacity: 1;
@@ -670,8 +757,8 @@ html.vero7-splash-active #vero7-app-root {
   transition:
     transform 480ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 360ms ease,
-    background-color 300ms ease,
-    border-color 300ms ease;
+    background-color 320ms ease,
+    border-color 320ms ease;
   will-change: transform, opacity;
 }
 
@@ -690,6 +777,11 @@ html.vero7-splash-active #vero7-app-root {
 @media (prefers-reduced-motion: reduce) {
   .site-header {
     transition-duration: 0.01ms;
+  }
+
+  .site-header-logo__layer {
+    transition-duration: 0.01ms;
+    transform: none;
   }
 }
 
