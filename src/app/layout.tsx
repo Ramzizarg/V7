@@ -37,6 +37,38 @@ export const metadata: Metadata = {
    * (`/favicon-32.png`, `/vero7-favicon-circle.png`, `/apple-touch-icon.png`).
    */
   icons: brandIcons,
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    siteName: "Vero7",
+    title: "Vero7 | Vetements Sport & Casual",
+    description:
+      "Vero7 est une marque de vetements moderne qui melange performance sportive et style casual.",
+    /** High-res logo card — Instagram/WhatsApp were upscaling a tiny favicon before. */
+    images: [
+      {
+        url: "/og-square.png",
+        width: 1200,
+        height: 1200,
+        alt: "Vero7",
+        type: "image/png",
+      },
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Vero7",
+        type: "image/png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Vero7 | Vetements Sport & Casual",
+    description:
+      "Vero7 est une marque de vetements moderne qui melange performance sportive et style casual.",
+    images: ["/og-square.png"],
+  },
 };
 
 /** Locks layout width + hero height so Instagram WebView does not “zoom” on scroll. */

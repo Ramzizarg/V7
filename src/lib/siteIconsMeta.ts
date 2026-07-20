@@ -12,7 +12,11 @@ export const brandIcons: NonNullable<Metadata["icons"]> = {
 
 export function siteMetadataBase(): URL {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (explicit) return new URL(explicit);
+  if (explicit) return new URL(explicit.endsWith("/") ? explicit : `${explicit}/`);
+  /** Absolute OG/Twitter image URLs must resolve to production, not a preview deploy. */
+  if (process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production") {
+    return new URL("https://www.vero-7.com");
+  }
   if (process.env.VERCEL_URL) return new URL(`https://${process.env.VERCEL_URL}`);
   return new URL("http://localhost:3000");
 }
