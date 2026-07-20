@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { GeistMono } from "geist/font/mono";
@@ -19,6 +19,14 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  /** Avoid interactive-widget resize fighting Instagram/Safari chrome. */
+  interactiveWidget: "overlays-content",
+};
+
 export const metadata: Metadata = {
   metadataBase: siteMetadataBase(),
   title: "Vero7 | Vetements Sport & Casual",
@@ -30,6 +38,9 @@ export const metadata: Metadata = {
    */
   icons: brandIcons,
 };
+
+/** Locks layout width + hero height so Instagram WebView does not “zoom” on scroll. */
+const MOBILE_VIEWPORT_STABILITY_SCRIPT = `(function(){try{var d=document.documentElement;function lock(){d.style.setProperty("--app-vh",window.innerHeight+"px");d.style.setProperty("--hero-min-h",Math.round(window.innerHeight*0.85)+"px")}lock();var ua=navigator.userAgent||"";if(/Instagram|FBAN|FBAV|Line\\//i.test(ua)){var m=document.querySelector('meta[name="viewport"]');if(m){m.setAttribute("content","width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover")}}window.addEventListener("orientationchange",function(){setTimeout(lock,250)},{passive:true})}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -46,6 +57,9 @@ export default function RootLayout({
         <Script id="vero7-hydration-guard" strategy="beforeInteractive">
           {HYDRATION_GUARD_SCRIPT}
         </Script>
+        <Script id="vero7-mobile-viewport" strategy="beforeInteractive">
+          {MOBILE_VIEWPORT_STABILITY_SCRIPT}
+        </Script>
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var n=performance.getEntriesByType("navigation")[0];if(!n||n.type==="reload"||n.type==="navigate"){document.documentElement.classList.add("vero7-splash-active")}var l=localStorage.getItem("${SITE_LOCALE_STORAGE_KEY}");if(l==="en"||l==="fr")document.documentElement.lang=l}catch(e){}})();`,
@@ -54,7 +68,7 @@ export default function RootLayout({
         <SiteLocaleInit />
         <SiteLocaleProvider>
         <PageLoadSplash />
-        <div id="vero7-app-root" className="flex min-h-full flex-1 flex-col">
+        <div id="vero7-app-root" className="flex min-h-full flex-1 flex-col overflow-x-clip">
           <AppBuildCacheGuard />
           {children}
           <WelcomeOfferModal />

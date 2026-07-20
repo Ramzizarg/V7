@@ -27,6 +27,44 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+}
+
+/**
+ * Instagram / Facebook in-app browsers “zoom” on scroll when the document is
+ * slightly wider than the screen, or when svh/dvh recalculates as chrome hides.
+ */
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+#vero7-app-root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Locked once on load via --hero-min-h (see layout.tsx). Fallback: 85svh. */
+#home-hero {
+  min-height: var(--hero-min-h, 85svh);
+}
+
+#home-hero > .relative.z-10 {
+  min-height: var(--hero-min-h, 85svh);
+}
+
+@media (min-width: 1024px) {
+  #home-hero,
+  #home-hero > .relative.z-10 {
+    min-height: 90svh;
+  }
 }
 
 .grid-overlay {

@@ -6,13 +6,14 @@ import sharp from "sharp";
  */
 const MAX_WIDTH: Record<"product" | "home" | "sizeGuide", number> = {
   product: 1600,
-  home: 1920,
+  /** Heroes are object-cover + mobile crop — keep enough pixels for ~3x DPR. */
+  home: 2560,
   sizeGuide: 1600,
 };
 
 const UPLOAD_QUALITY: Record<"product" | "home" | "sizeGuide", number> = {
   product: 80,
-  home: 82,
+  home: 88,
   sizeGuide: 82,
 };
 

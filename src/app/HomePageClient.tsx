@@ -274,12 +274,12 @@ export default function HomePageClient({ initialHomeContent }: Props) {
   }, [heroImages.length]);
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+    <div className="min-h-screen overflow-x-clip bg-[var(--background)] text-[var(--foreground)]">
       <SiteHeader />
       <main>
         <section
           id="home-hero"
-          className="hero-fade grid-overlay relative min-h-[85svh] overflow-hidden lg:min-h-[90svh]"
+          className="hero-fade grid-overlay relative overflow-hidden"
         >
           <div className="absolute inset-0 bg-zinc-900" aria-hidden>
             {heroImages.map((src, i) => {
@@ -298,8 +298,12 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                   priority={isLcp}
                   loading={isLcp || isActive ? "eager" : "lazy"}
                   fetchPriority={isLcp ? "high" : "auto"}
-                  sizes="100vw"
-                  quality={80}
+                  /*
+                   * Mobile: object-cover + custom crop + ~3x DPR. Ask for a wider
+                   * candidate so Next does not serve a soft ~828–1080 encode.
+                   */
+                  sizes="(max-width: 768px) 150vw, 100vw"
+                  quality={90}
                   unoptimized={shouldBypassImageOptimization(src)}
                   onLoad={() => markHeroLoaded(i)}
                   className="object-cover transition-opacity duration-700 ease-out"
@@ -314,7 +318,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
               );
             })}
           </div>
-          <div className="relative z-10 flex min-h-[85svh] w-full flex-col justify-end px-5 pb-8 pt-20 sm:px-8 sm:pb-10 sm:pt-24 lg:min-h-[90svh] lg:px-10 lg:pb-12 lg:pt-28">
+          <div className="relative z-10 flex w-full flex-col justify-end px-5 pb-8 pt-20 sm:px-8 sm:pb-10 sm:pt-24 lg:px-10 lg:pb-12 lg:pt-28">
             <span className="mb-5 inline-block h-[2px] w-20 bg-white/90" />
             <p
               className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85 sm:text-xs"
@@ -461,7 +465,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
               {t("home.featured")}
             </h2>
           </div>
-          <div className="relative">
+          <div className="relative overflow-x-clip">
             <button
               type="button"
               onClick={() => scrollFeatured("prev")}

@@ -15,9 +15,12 @@ const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
     /** Must include every `quality` used by next/image components. */
-    qualities: [75, 80, 85],
-    /** Cap at 1920 — retina phones/desktops; avoids shipping 4K heroes. */
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    qualities: [75, 80, 85, 90],
+    /**
+     * Include 1536/2560 so mobile retina (390×3 ≈ 1170) and cropped heroes
+     * can pick a sharp candidate instead of upscaling a soft 828–1080 encode.
+     */
+    deviceSizes: [640, 750, 828, 1080, 1200, 1536, 1920, 2560],
     imageSizes: [16, 32, 48, 64, 96, 128, 200, 240, 280, 384],
     minimumCacheTTL: ONE_YEAR,
     remotePatterns: [
