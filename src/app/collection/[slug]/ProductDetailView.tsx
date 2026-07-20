@@ -8,7 +8,7 @@ import { ProductImageLightbox } from "@/components/ProductImageLightbox";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
-import { PRODUCT_GALLERY_SIZES } from "@/lib/productGallery";
+import { PRODUCT_GALLERY_SIZES, preloadProductGalleryImage, preloadProductGalleryImages } from "@/lib/productGallery";
 import { requestSplashTransition, SPLASH_DONE_EVENT } from "@/lib/splashTransition";
 import { productPathSlug } from "@/lib/productUrl";
 import {
@@ -79,14 +79,6 @@ function hoverMagNear(a: HoverMagState, b: HoverMagState) {
     Math.abs(a.nx - b.nx) < 0.0015 &&
     Math.abs(a.ny - b.ny) < 0.0015
   );
-}
-
-/** Warm browser cache so gallery thumb / arrow clicks feel instant. */
-function preloadImageSrc(src: string) {
-  if (typeof window === "undefined" || !src.trim()) return;
-  const img = new window.Image();
-  img.decoding = "async";
-  img.src = src;
 }
 
 type AudioTheme = "red" | "yellow";
@@ -435,12 +427,12 @@ export default function ProductDetailView({ product }: Props) {
   useEffect(() => () => stopMagLoop(), [stopMagLoop]);
 
   useEffect(() => {
-    images.forEach((src) => preloadImageSrc(src));
+    preloadProductGalleryImages(images);
   }, [images]);
 
   useEffect(() => {
-    preloadImageSrc(images[active + 1] ?? "");
-    preloadImageSrc(images[active - 1] ?? "");
+    preloadProductGalleryImage(images[active + 1] ?? "");
+    preloadProductGalleryImage(images[active - 1] ?? "");
   }, [active, images]);
 
   useEffect(() => {
@@ -837,13 +829,16 @@ export default function ProductDetailView({ product }: Props) {
                     alt={isActive ? product.name : ""}
                     fill
                     priority={i === 0}
-                    loading={i === 0 ? "eager" : "lazy"}
-                    fetchPriority={i === 0 ? "high" : "low"}
+                    /* Keep every slide mounted + eager so thumb/arrow swaps are instant. */
+                    loading="eager"
+                    fetchPriority={i === 0 ? "high" : i < 3 ? "auto" : "low"}
                     sizes={PRODUCT_GALLERY_SIZES}
                     unoptimized={shouldBypassImageOptimization(src)}
                     aria-hidden={!isActive}
                     className={`absolute inset-0 object-cover object-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${
-                      isActive ? "z-[1] opacity-100" : "z-0 hidden opacity-0"
+                      isActive
+                        ? "z-[1] opacity-100"
+                        : "pointer-events-none z-0 opacity-0"
                     }`}
                     style={
                       isActive
@@ -973,8 +968,8 @@ export default function ProductDetailView({ product }: Props) {
                             e.stopPropagation();
                             setActive(i);
                           }}
-                          onPointerEnter={() => preloadImageSrc(src)}
-                          onFocus={() => preloadImageSrc(src)}
+                          onPointerEnter={() => preloadProductGalleryImage(src)}
+                          onFocus={() => preloadProductGalleryImage(src)}
                           aria-label={t("product.imageN", { n: i + 1 })}
                           className={`shrink-0 rounded-[8px] border-2 p-px transition sm:rounded-[9px] ${
                             isActive

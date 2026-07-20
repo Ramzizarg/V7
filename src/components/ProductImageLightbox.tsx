@@ -3,14 +3,11 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
-import { PRODUCT_GALLERY_SIZES } from "@/lib/productGallery";
-
-function preloadImageSrc(src: string) {
-  if (typeof window === "undefined" || !src.trim()) return;
-  const img = new window.Image();
-  img.decoding = "async";
-  img.src = src;
-}
+import {
+  PRODUCT_GALLERY_SIZES,
+  preloadProductGalleryImage,
+  preloadProductGalleryImages,
+} from "@/lib/productGallery";
 
 type Props = {
   open: boolean;
@@ -38,15 +35,13 @@ export function ProductImageLightbox({
 
   useEffect(() => {
     if (!open) return;
-    images.forEach((src, i) => {
-      if (i < 4) preloadImageSrc(src);
-    });
+    preloadProductGalleryImages(images);
   }, [open, images]);
 
   useEffect(() => {
     if (!open) return;
-    preloadImageSrc(images[safeIndex + 1] ?? "");
-    preloadImageSrc(images[safeIndex - 1] ?? "");
+    preloadProductGalleryImage(images[safeIndex + 1] ?? "");
+    preloadProductGalleryImage(images[safeIndex - 1] ?? "");
   }, [open, safeIndex, images]);
 
   useEffect(() => {
@@ -186,11 +181,13 @@ export function ProductImageLightbox({
                     sizes={PRODUCT_GALLERY_SIZES}
                     unoptimized={shouldBypassImageOptimization(imgSrc)}
                     priority={i === 0}
-                    loading={i < 3 ? "eager" : "lazy"}
-                    fetchPriority={isActive ? "high" : "auto"}
+                    loading="eager"
+                    fetchPriority={isActive ? "high" : i < 3 ? "auto" : "low"}
                     aria-hidden={!isActive}
                     className={`object-contain object-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${
-                      isActive ? "z-[1] opacity-100" : "pointer-events-none z-0 opacity-0"
+                      isActive
+                        ? "z-[1] opacity-100"
+                        : "pointer-events-none z-0 opacity-0"
                     }`}
                     draggable={false}
                   />
@@ -219,8 +216,8 @@ export function ProductImageLightbox({
                     role="tab"
                     aria-selected={isActive}
                     onClick={() => onActiveChange(i)}
-                    onPointerEnter={() => preloadImageSrc(thumb)}
-                    onFocus={() => preloadImageSrc(thumb)}
+                    onPointerEnter={() => preloadProductGalleryImage(thumb)}
+                    onFocus={() => preloadProductGalleryImage(thumb)}
                     aria-label={`Image ${i + 1}`}
                     className={`shrink-0 rounded-[9px] border-2 p-px transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${
                       isActive
