@@ -739,6 +739,14 @@ html.vero7-splash-active #vero7-app-root {
   max-height: 2.25rem;
 }
 
+.site-header-logo__mark--white {
+  filter: brightness(0) invert(1);
+}
+
+.site-header-logo__mark--dark {
+  filter: brightness(0);
+}
+
 @media (min-width: 640px) {
   .site-header-logo__mark {
     max-height: 3.375rem;
@@ -758,6 +766,11 @@ html.vero7-splash-active #vero7-app-root {
 .site-header-logo__layer--active {
   opacity: 1;
   transform: scale(1);
+}
+
+.site-header-promo {
+  background-color: #f5f5f5;
+  color: #000;
 }
 
 .site-header {

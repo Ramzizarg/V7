@@ -88,7 +88,7 @@ function parseSizes(raw: unknown): string[] | undefined {
   return undefined;
 }
 
-const CATEGORY_COVER_FALLBACKS = ["/V7/2.jpeg", "/V7/3.jpeg", "/V7/4.jpeg", "/V7/1.jpg", "/V7/img-1.jpg"] as const;
+const CATEGORY_COVER_FALLBACKS = ["/V7/2.webp", "/V7/3.webp", "/V7/4.webp", "/V7/1.webp", "/V7/img-1.webp"] as const;
 
 function attachCategoryCovers(
   products: Product[],

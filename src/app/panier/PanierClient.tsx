@@ -480,9 +480,15 @@ export default function PanierClient() {
                 <ul className="space-y-3 mb-4 pb-4 border-b border-zinc-200">
                   {items.map((item, index) => (
                     <li key={`${item.productId}-${item.size ?? ""}-${index}`} className="flex gap-3">
-                      <div className="w-14 h-14 rounded border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0">
+                      <div className="relative w-14 h-14 rounded border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0">
                         {item.image ? (
-                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            fill
+                            sizes="56px"
+                            className="object-cover"
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-zinc-400 text-xs">—</div>
                         )}
@@ -593,7 +599,7 @@ export default function PanierClient() {
             <div className="mt-6 overflow-x-auto">
               <div className="flex min-w-max gap-3 sm:gap-4">
                 {suggestionProducts.map((p) => {
-                  const src = p.images[0] ?? "/vero7-logo.png";
+                  const src = p.images[0] ?? "/vero7-logo.webp";
                   const list = p.discount_price != null && p.discount_price < p.price ? p.price : null;
                   const sale = p.discount_price != null && p.discount_price < p.price ? p.discount_price : p.price;
                   return (

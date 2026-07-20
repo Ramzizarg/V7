@@ -21,7 +21,7 @@ import { productPathSlug } from "@/lib/productUrl";
 import type { Product, StorefrontCategory } from "@/lib/types";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
-const PLACEHOLDER_IMAGE = "/V7/1.jpg";
+const PLACEHOLDER_IMAGE = "/V7/1.webp";
 
 type GridProduct = {
   id: number;

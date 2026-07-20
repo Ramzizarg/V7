@@ -6,7 +6,7 @@ import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 const SHOW_AFTER_PX = 420;
 /** Black V7 on white — CSS invert → white V7 on black (blends into the circle). */
-const LOGO_SRC = "/vero7-logo.png";
+const LOGO_SRC = "/vero7-logo.webp";
 
 function UpArrowIcon({ className }: { className?: string }) {
   return (

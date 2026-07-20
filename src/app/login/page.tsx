@@ -23,7 +23,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:px-8">
           <a href="/" className="flex items-center" aria-label="Accueil Vero7">
             <Image
-              src="/vero7-logo.png"
+              src="/vero7-logo.webp"
               alt="Vero7 logo"
               width={72}
               height={72}

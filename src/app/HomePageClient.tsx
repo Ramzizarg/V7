@@ -12,7 +12,7 @@ import { ComingSoonProductModal } from "@/components/ComingSoonProductModal";
 import { isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
-import { shouldBypassImageOptimization, shouldServePreOptimizedImage } from "@/lib/imageOptimize";
+import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 import {
   FeaturedProductsSkeleton,
 } from "@/components/home/HomeReloadSkeletons";
@@ -32,16 +32,16 @@ type Props = {
 };
 
 /** Hero fallback images (si backoffice n'a rien configuré). */
-const HERO_FALLBACK_IMAGES = ["/V7/img.jpg", "/V7/imgg.png", "/V7/imggg.png", "/V7/imgggg.png"] as const;
+const HERO_FALLBACK_IMAGES = ["/V7/img.webp", "/V7/imgg.webp", "/V7/imggg.webp", "/V7/imgggg.webp"] as const;
 const HERO_SLIDE_MS = 5000;
 
 /** Tuiles « Acheter par catégorie » — images + libellés fixes. */
 const SHOP_BY_CATEGORY: StorefrontCategory[] = [
-  { id: 1, name: "Maillots", slug: "maillots", sort_order: 0, image: "/V7/jersey.jpg" },
-  { id: 2, name: "Shorts", slug: "shorts", sort_order: 1, image: "/V7/shorts.jpg" },
-  { id: 3, name: "T-shirts", slug: "t-shirts", sort_order: 2, image: "/V7/tshirt.jpg" },
-  { id: 4, name: "Soldes", slug: "soldes", sort_order: 3, image: "/V7/solde.jpg" },
-  { id: 5, name: "Vestes", slug: "vestes", sort_order: 4, image: "/V7/veste.jpg" },
+  { id: 1, name: "Maillots", slug: "maillots", sort_order: 0, image: "/V7/jersey.webp" },
+  { id: 2, name: "Shorts", slug: "shorts", sort_order: 1, image: "/V7/shorts.webp" },
+  { id: 3, name: "T-shirts", slug: "t-shirts", sort_order: 2, image: "/V7/tshirt.webp" },
+  { id: 4, name: "Soldes", slug: "soldes", sort_order: 3, image: "/V7/solde.webp" },
+  { id: 5, name: "Vestes", slug: "vestes", sort_order: 4, image: "/V7/veste.webp" },
 ];
 
 const CATEGORY_I18N_KEY: Record<string, string> = {
@@ -73,13 +73,13 @@ export default function HomePageClient({ initialHomeContent }: Props) {
   }, []);
 
   const featuredFallback = [
-    { id: "f1", src: "/V7/2.jpeg", alt: "Maillot jersey rouge" },
-    { id: "f2", src: "/V7/3.jpeg", alt: "Maillot jersey bordeaux" },
-    { id: "f3", src: "/V7/4.jpeg", alt: "Maillot jersey raye" },
-    { id: "f4", src: "/V7/1.jpg", alt: "Maillot jersey lifestyle" },
-    { id: "f5", src: "/V7/img-1.jpg", alt: "Maillots duo lifestyle" },
-    { id: "f6", src: "/V7/2.jpeg", alt: "Maillot jersey rouge" },
-    { id: "f7", src: "/V7/3.jpeg", alt: "Maillot jersey bordeaux" },
+    { id: "f1", src: "/V7/2.webp", alt: "Maillot jersey rouge" },
+    { id: "f2", src: "/V7/3.webp", alt: "Maillot jersey bordeaux" },
+    { id: "f3", src: "/V7/4.webp", alt: "Maillot jersey raye" },
+    { id: "f4", src: "/V7/1.webp", alt: "Maillot jersey lifestyle" },
+    { id: "f5", src: "/V7/img-1.webp", alt: "Maillots duo lifestyle" },
+    { id: "f6", src: "/V7/2.webp", alt: "Maillot jersey rouge" },
+    { id: "f7", src: "/V7/3.webp", alt: "Maillot jersey bordeaux" },
   ] as const;
 
   const featuredVedettes = useMemo(() => {
@@ -106,7 +106,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
       return {
         key: `db-${p.id}`,
         href: `/collection/${encodeURIComponent(productPathSlug(p))}` as const,
-        src: p.images[0] || "/V7/1.jpg",
+        src: p.images[0] || "/V7/1.webp",
         alt: p.name,
         name: p.name,
         listPrice: list,
@@ -299,8 +299,8 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                   loading={isLcp || isActive ? "eager" : "lazy"}
                   fetchPriority={isLcp ? "high" : "auto"}
                   sizes="100vw"
-                  quality={100}
-                  unoptimized={shouldServePreOptimizedImage(src)}
+                  quality={80}
+                  unoptimized={shouldBypassImageOptimization(src)}
                   onLoad={() => markHeroLoaded(i)}
                   className="object-cover transition-opacity duration-700 ease-out"
                   style={{
@@ -424,7 +424,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
         <section className="relative w-full overflow-hidden">
           <div className="relative min-h-[220px] w-full sm:min-h-[250px] lg:min-h-[280px]">
             <Image
-              src="/V7/img-2.jpeg"
+              src="/V7/img-2.webp"
               alt=""
               fill
               loading="lazy"
@@ -641,7 +641,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
               <div className="relative mx-auto w-full max-w-sm overflow-hidden sm:max-w-md lg:mx-0 lg:max-w-none lg:min-h-[480px] lg:self-stretch">
                 <div className="relative aspect-[3/4] w-full sm:aspect-[4/5] lg:absolute lg:inset-0 lg:aspect-auto">
                   <Image
-                    src="/V7/10%25.jpg"
+                    src="/V7/10%25.webp"
                     alt={t("home.clubImageAlt")}
                     fill
                     loading="lazy"

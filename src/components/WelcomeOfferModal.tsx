@@ -153,7 +153,7 @@ export function WelcomeOfferModal() {
         <div className="flex min-w-0 flex-col overflow-hidden px-4 py-3.5 sm:flex-1 sm:justify-center sm:px-7 sm:py-7 lg:px-8">
           <div className="relative mx-auto h-9 w-[4.5rem] shrink-0 sm:hidden">
             <Image
-              src="/V7/V7-2.png"
+              src="/V7/V7-2.webp"
               alt="Vero7"
               fill
               sizes="72px"

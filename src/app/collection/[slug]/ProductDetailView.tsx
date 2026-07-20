@@ -24,7 +24,7 @@ import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
-const PLACEHOLDER = "/V7/1.jpg";
+const PLACEHOLDER = "/V7/1.webp";
 
 /** Petit cadre de zoom desktop — a droite du curseur (style infobulle). */
 const MAG_LENS_W = 118;
@@ -1553,8 +1553,14 @@ export default function ProductDetailView({ product }: Props) {
           <div className="w-[min(17.5rem,calc(100vw-1.25rem))] rounded-2xl bg-white p-2 shadow-[0_10px_32px_rgba(0,0,0,0.16)] sm:w-[19rem] sm:p-2.5">
             <div className="flex items-start gap-2 sm:gap-2.5">
               <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100 sm:h-16 sm:w-16">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={mainSrc} alt="" className="h-full w-full object-cover" />
+                <Image
+                  src={mainSrc}
+                  alt=""
+                  fill
+                  sizes="64px"
+                  unoptimized={shouldBypassImageOptimization(mainSrc)}
+                  className="object-cover"
+                />
               </div>
               <div className="min-w-0 flex-1 pt-0.5">
                 <div className="flex items-start justify-between gap-1.5">

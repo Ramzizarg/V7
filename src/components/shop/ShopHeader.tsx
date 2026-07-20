@@ -68,7 +68,7 @@ export function ShopHeader({ active = "none", breadcrumb }: Props) {
       <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between px-2 sm:px-5 lg:px-8">
         <Link href="/" className="flex items-center gap-2 sm:gap-3" aria-label="Accueil Vero7">
           <Image
-            src="/vero7-logo.png"
+            src="/vero7-logo.webp"
             alt="Vero7"
             width={56}
             height={56}

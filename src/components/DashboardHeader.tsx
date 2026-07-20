@@ -21,7 +21,7 @@ export function DashboardHeader() {
         <div className="flex justify-center">
           <Link href="/dashboard" className="block rounded">
             <Image
-              src="/vero7-logo.png"
+              src="/vero7-logo.webp"
               alt="Vero7"
               width={64}
               height={64}

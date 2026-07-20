@@ -33,8 +33,8 @@ const MEGA_LINK_KEYS: Record<MegaMenuKey, string[]> = {
 
 export default function HeaderMegaMenu({ active, featuredImages, onClose }: Props) {
   const { t } = useTranslations();
-  const primaryImage = featuredImages[0] ?? "/vero7-logo.png";
-  const secondaryImage = featuredImages[1] ?? featuredImages[0] ?? "/vero7-logo.png";
+  const primaryImage = featuredImages[0] ?? "/vero7-logo.webp";
+  const secondaryImage = featuredImages[1] ?? featuredImages[0] ?? "/vero7-logo.webp";
   const linkKeys = MEGA_LINK_KEYS[active];
 
   return (

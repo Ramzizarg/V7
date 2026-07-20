@@ -1,7 +1,7 @@
 /** Persists whether the first-visit -10% offer modal was dismissed or completed. */
 export const WELCOME_OFFER_STORAGE_KEY = "vero7-welcome-offer";
 
-export const WELCOME_OFFER_IMAGE_SRC = "/V7/10%25.jpg";
+export const WELCOME_OFFER_IMAGE_SRC = "/V7/10%25.webp";
 
 export type WelcomeOfferStatus = "dismissed" | "subscribed";
 

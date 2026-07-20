@@ -106,7 +106,7 @@ export default function FavorisClient() {
         ) : (
           <ul className="mt-10 grid list-none grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
             {favorisProducts.map((p, index) => {
-              const src = p.images[0] ?? "/vero7-logo.png";
+              const src = p.images[0] ?? "/vero7-logo.webp";
               const showDiscount =
                 p.discount_price != null && p.discount_price < p.price;
               return (

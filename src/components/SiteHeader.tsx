@@ -21,6 +21,7 @@ import { productPathSlug } from "@/lib/productUrl";
 import { getCartItemCount, getWishlistCount } from "@/lib/shopClientStorage";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { requestSplashTransition } from "@/lib/splashTransition";
+import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 import type { Product } from "@/lib/types";
 
 const NAV_LINKS = [
@@ -32,10 +33,8 @@ const NAV_LINKS = [
 
 const MEGA_MENU_CLOSE_DELAY_MS = 120;
 const PROMO_ROTATE_MS = 5000;
-/** White header mark (V7 icon). */
-const HEADER_LOGO_SRC = "/V7/V7-2.png";
-/** Hero / overlay wordmark (replaces “VERO7” text). */
-const HEADER_WORDMARK_SRC = "/V7/logo-top.png";
+/** Header mark (V7 icon). */
+const HEADER_LOGO_SRC = "/V7/V7-2.webp";
 const INSTAGRAM_URL = "https://www.instagram.com/vero7.tn/";
 const FACEBOOK_URL =
   "https://www.facebook.com/share/1JVw34RVAj/?mibextid=wwXIfr";
@@ -91,24 +90,12 @@ function HeaderLogo({
   return (
     <span className={containerClass}>
       <Image
-        src={HEADER_WORDMARK_SRC}
-        alt=""
-        width={160}
-        height={40}
-        aria-hidden
-        className={`site-header-logo__layer site-header-logo__wordmark ${
-          overlay ? "site-header-logo__layer--active" : ""
-        }`}
-        priority
-        loading="eager"
-      />
-      <Image
         src={HEADER_LOGO_SRC}
-        alt="Vero7"
+        alt="V7"
         width={64}
         height={64}
-        className={`site-header-logo__layer site-header-logo__mark ${
-          overlay ? "" : "site-header-logo__layer--active"
+        className={`site-header-logo__layer site-header-logo__mark site-header-logo__layer--active ${
+          overlay ? "site-header-logo__mark--white" : "site-header-logo__mark--dark"
         }`}
         priority
         loading="eager"
@@ -438,13 +425,16 @@ export default function SiteHeader() {
       }`}
       style={{ ["--site-header-height" as string]: "calc(2.25rem + 4.5rem)" }}
     >
-      <div className="relative border-b border-white/10 bg-black">
+      <div
+        className="site-header-promo relative border-b border-black/10"
+        style={{ backgroundColor: "#f5f5f5" }}
+      >
         <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 items-center gap-2.5 sm:left-4 sm:gap-3">
           <a
             href={FACEBOOK_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-white transition hover:text-white/85"
+            className="text-black transition hover:text-black/70"
             aria-label={t("footer.facebookAria")}
           >
             <PromoFacebookIcon className="h-4 w-4 sm:h-[1.15rem] sm:w-[1.15rem]" />
@@ -453,7 +443,7 @@ export default function SiteHeader() {
             href={INSTAGRAM_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-white transition hover:text-white/85"
+            className="text-black transition hover:text-black/70"
             aria-label={t("footer.instagramAria")}
           >
             <PromoInstagramIcon className="h-4 w-4 sm:h-[1.15rem] sm:w-[1.15rem]" />
@@ -462,7 +452,7 @@ export default function SiteHeader() {
             href={TIKTOK_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-white transition hover:text-white/85"
+            className="text-black transition hover:text-black/70"
             aria-label={t("footer.tiktokAria")}
           >
             <PromoTikTokIcon className="h-4 w-4 sm:h-[1.15rem] sm:w-[1.15rem]" />
@@ -471,7 +461,7 @@ export default function SiteHeader() {
         <div className="flex h-9 items-center justify-center px-16 sm:h-10 sm:px-20">
           <p
             key={promoIndex}
-            className="promo-fade-in text-center text-[11px] font-medium text-white underline decoration-white/80 underline-offset-2 sm:text-xs"
+            className="promo-fade-in text-center text-[11px] font-medium text-black underline decoration-black/80 underline-offset-2 sm:text-xs"
           >
             {promoMessages[promoIndex]}
           </p>
@@ -479,7 +469,7 @@ export default function SiteHeader() {
         <button
           type="button"
           onClick={() => setPromoPaused((prev) => !prev)}
-          className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded p-1 text-white transition hover:bg-white/10"
+          className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded p-1 text-black transition hover:bg-black/5"
           aria-label={promoPaused ? "Reprendre les annonces" : "Mettre en pause les annonces"}
         >
           {promoPaused ? <Play className="h-4 w-4" strokeWidth={2.5} /> : <Pause className="h-4 w-4" strokeWidth={2.5} />}
@@ -843,8 +833,14 @@ export default function SiteHeader() {
                                   >
                                     <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-zinc-100 sm:h-14 sm:w-14">
                                       {imgUrl ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img src={imgUrl} alt="" className="h-full w-full object-cover" />
+                                        <Image
+                                          src={imgUrl}
+                                          alt=""
+                                          fill
+                                          sizes="56px"
+                                          unoptimized={shouldBypassImageOptimization(imgUrl)}
+                                          className="object-cover"
+                                        />
                                       ) : (
                                         <span className="absolute inset-0 flex items-center justify-center text-xs text-zinc-400">
                                           —

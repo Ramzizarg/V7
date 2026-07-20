@@ -4,14 +4,11 @@ export function isSvgImageSrc(src: string): boolean {
   return /\.svg$/i.test(path);
 }
 
-/** Use native / unoptimized delivery only when optimization cannot apply. */
+/**
+ * Use native / unoptimized delivery only when Next cannot optimize (SVG).
+ * Uploads and Blob URLs must go through `/_next/image` so browsers get
+ * viewport-sized AVIF/WebP (~50–150KB) instead of multi‑MB originals.
+ */
 export function shouldBypassImageOptimization(src: string): boolean {
   return isSvgImageSrc(src);
-}
-
-/** Uploaded blobs are already WebP — skip Next.js recompression for full-bleed hero delivery. */
-export function shouldServePreOptimizedImage(src: string): boolean {
-  if (shouldBypassImageOptimization(src)) return true;
-  if (src.startsWith("/uploads/")) return true;
-  return /blob\.vercel-storage\.com/i.test(src);
 }

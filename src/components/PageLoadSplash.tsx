@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SPLASH_DONE_EVENT, SPLASH_REQUEST_EVENT } from "@/lib/splashTransition";
 
-const LOGO_SRC = "/V7/V7-2.png";
+const LOGO_SRC = "/V7/V7-2.webp";
 const SCALE_MS = 900;
 const HOLD_MS = 150;
 const FADE_MS = 450;

@@ -14,8 +14,10 @@ const nextConfig: NextConfig = {
   generateBuildId: async () => deploymentBuildId,
   images: {
     formats: ["image/avif", "image/webp"],
-    qualities: [75, 90, 100],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2560, 3840],
+    /** Must include every `quality` used by next/image components. */
+    qualities: [75, 80, 85],
+    /** Cap at 1920 — retina phones/desktops; avoids shipping 4K heroes. */
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 200, 240, 280, 384],
     minimumCacheTTL: ONE_YEAR,
     remotePatterns: [

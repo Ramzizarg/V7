@@ -1,21 +1,25 @@
 import sharp from "sharp";
 
+/**
+ * Gymshark-like web targets: sharp source files stay modest; Next.js `/_next/image`
+ * still serves viewport-sized AVIF/WebP at request time.
+ */
 const MAX_WIDTH: Record<"product" | "home" | "sizeGuide", number> = {
-  product: 2000,
-  home: 3840,
-  sizeGuide: 2400,
+  product: 1600,
+  home: 1920,
+  sizeGuide: 1600,
 };
 
 const UPLOAD_QUALITY: Record<"product" | "home" | "sizeGuide", number> = {
-  product: 82,
-  home: 95,
-  sizeGuide: 88,
+  product: 80,
+  home: 82,
+  sizeGuide: 82,
 };
 
 const SKIP_OPTIMIZE_EXT = new Set(["svg", "gif", "ico"]);
 
 /**
- * Resize and encode uploads as WebP to keep blobs small (Shopify-like targets).
+ * Resize and encode uploads as WebP to keep blobs small.
  * Returns original bytes for formats we should not transform.
  */
 export async function optimizeUploadedImage(
@@ -39,7 +43,7 @@ export async function optimizeUploadedImage(
   const optimized = await sharp(bytes, { failOn: "none" })
     .rotate()
     .resize({ width: maxWidth, withoutEnlargement: true })
-    .webp({ quality, effort: 4 })
+    .webp({ quality, effort: 6 })
     .toBuffer();
 
   return { bytes: optimized, ext: "webp", contentType: "image/webp" };
