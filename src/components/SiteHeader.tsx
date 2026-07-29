@@ -69,19 +69,10 @@ function PromoTikTokIcon({ className }: { className?: string }) {
 const desktopNavLinkClass =
   "relative whitespace-nowrap pb-0.5 text-sm font-medium transition after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:transition-transform hover:after:scale-x-100";
 
-function headerIconButtonClass(overlay: boolean) {
-  return overlay
-    ? "rounded-full p-2 text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-    : "rounded-full p-2 text-black transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30";
-}
+const headerIconButtonClass =
+  "rounded-full p-2 text-black transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30";
 
-function HeaderLogo({
-  overlay,
-  variant,
-}: {
-  overlay: boolean;
-  variant: "mobile" | "desktop";
-}) {
+function HeaderLogo({ variant }: { variant: "mobile" | "desktop" }) {
   const containerClass =
     variant === "mobile"
       ? "site-header-logo site-header-logo--mobile"
@@ -94,9 +85,7 @@ function HeaderLogo({
         alt="V7"
         width={64}
         height={64}
-        className={`site-header-logo__layer site-header-logo__mark site-header-logo__layer--active ${
-          overlay ? "site-header-logo__mark--white" : "site-header-logo__mark--dark"
-        }`}
+        className="site-header-logo__layer site-header-logo__mark site-header-logo__mark--dark site-header-logo__layer--active"
         priority
         loading="eager"
       />
@@ -126,13 +115,11 @@ export default function SiteHeader() {
   const [activeMegaMenu, setActiveMegaMenu] = useState<MegaMenuKey | null>(null);
   const [promoIndex, setPromoIndex] = useState(0);
   const [promoPaused, setPromoPaused] = useState(false);
-  const [homeScrolled, setHomeScrolled] = useState(false);
   const [headerHidden, setHeaderHidden] = useState(false);
   const megaMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSearchTrackedRef = useRef("");
   const lastScrollYRef = useRef(0);
   const pastHeroRef = useRef(false);
-  const homeScrolledRef = useRef(false);
 
   const promoMessages = useMemo(
     () => [
@@ -203,8 +190,6 @@ export default function SiteHeader() {
   useEffect(() => {
     lastScrollYRef.current = window.scrollY;
     pastHeroRef.current = false;
-    homeScrolledRef.current = window.scrollY > 56;
-    setHomeScrolled(homeScrolledRef.current);
     setHeaderHidden(false);
 
     let observer: IntersectionObserver | null = null;
@@ -240,18 +225,7 @@ export default function SiteHeader() {
       const prev = lastScrollYRef.current;
       const dy = y - prev;
 
-      if (pathname === "/") {
-        const nextHomeScrolled =
-          y > 72 ? true : y < 28 ? false : homeScrolledRef.current;
-        if (nextHomeScrolled !== homeScrolledRef.current) {
-          homeScrolledRef.current = nextHomeScrolled;
-          setHomeScrolled(nextHomeScrolled);
-        }
-      } else {
-        if (homeScrolledRef.current) {
-          homeScrolledRef.current = false;
-          setHomeScrolled(false);
-        }
+      if (pathname !== "/") {
         pastHeroRef.current = y > 160;
       }
 
@@ -395,14 +369,8 @@ export default function SiteHeader() {
   }, []);
 
   const isHome = pathname === "/";
-  const overlayNav =
-    isHome && !homeScrolled && !activeMegaMenu && !searchOpen && !mobileMenuOpen;
-  const desktopNavLinkTone = overlayNav
-    ? "text-white after:bg-white"
-    : "text-black after:bg-black";
-  const countBadgeClass = overlayNav
-    ? "ring-2 ring-black/20"
-    : "ring-2 ring-white";
+  const desktopNavLinkTone = "text-black after:bg-black";
+  const countBadgeClass = "ring-2 ring-white";
 
   return (
     <>
@@ -419,8 +387,8 @@ export default function SiteHeader() {
         : null}
     <header
       className={`site-header fixed inset-x-0 top-0 z-30 ${
-        overlayNav ? "bg-transparent" : "bg-white"
-      } ${!overlayNav && !activeMegaMenu ? "border-b border-black/10" : ""} ${
+        isHome ? "bg-transparent" : "bg-white"
+      } ${!isHome && !activeMegaMenu ? "border-b border-black/10" : ""} ${
         headerHidden ? "site-header--hidden" : "site-header--visible"
       }`}
       style={{ ["--site-header-height" as string]: "calc(2.25rem + 4.5rem)" }}
@@ -477,13 +445,13 @@ export default function SiteHeader() {
       </div>
       {/* Mobile header */}
       <div className="relative mx-auto flex h-[3.75rem] w-full max-w-7xl items-center justify-between px-3 sm:px-5 lg:hidden">
-        <div className={`flex items-center gap-0.5 ${overlayNav ? "text-white" : "text-black"}`}>
+        <div className="flex items-center gap-0.5 text-black">
           <button
             type="button"
             aria-label={t("nav.openMenu")}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className={headerIconButtonClass(overlayNav)}
+            className={headerIconButtonClass}
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M4 9h16M4 15h16" strokeLinecap="round" />
@@ -493,7 +461,7 @@ export default function SiteHeader() {
             type="button"
             aria-label={t("nav.search")}
             onClick={openSearch}
-            className={headerIconButtonClass(overlayNav)}
+            className={headerIconButtonClass}
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
               <circle cx="11" cy="11" r="7" />
@@ -514,13 +482,13 @@ export default function SiteHeader() {
             requestSplashTransition();
           }}
         >
-          <HeaderLogo overlay={overlayNav} variant="mobile" />
+          <HeaderLogo variant="mobile" />
         </Link>
-        <div className={`flex items-center gap-0.5 ${overlayNav ? "text-white" : "text-black"}`}>
+        <div className="flex items-center gap-0.5 text-black">
           <Link
             id="site-header-favoris"
             href="/favoris"
-            className={`relative isolate ${headerIconButtonClass(overlayNav)} ${
+            className={`relative isolate ${headerIconButtonClass} ${
               favIconBump ? "favorite-pop" : ""
             }`}
             aria-label={
@@ -546,7 +514,7 @@ export default function SiteHeader() {
           </Link>
           <button
             id="site-header-cart"
-            className={`relative isolate ${headerIconButtonClass(overlayNav)} ${
+            className={`relative isolate ${headerIconButtonClass} ${
               cartIconBump ? "favorite-pop" : ""
             }`}
             aria-label={t("nav.cart")}
@@ -613,11 +581,11 @@ export default function SiteHeader() {
               requestSplashTransition();
             }}
           >
-            <HeaderLogo overlay={overlayNav} variant="desktop" />
+            <HeaderLogo variant="desktop" />
           </Link>
 
           <div
-            className={`relative z-10 flex min-w-0 shrink-0 items-center justify-end gap-1 ${overlayNav ? "text-white" : "text-black"}`}
+            className="relative z-10 flex min-w-0 shrink-0 items-center justify-end gap-1 text-black"
             onMouseEnter={closeMegaMenu}
           >
             <div
@@ -631,27 +599,15 @@ export default function SiteHeader() {
                 aria-pressed={locale === "fr"}
                 aria-label="Français"
                 className={`relative px-1.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
-                  locale === "fr"
-                    ? overlayNav
-                      ? "text-white"
-                      : "text-black"
-                    : overlayNav
-                      ? "text-white/40 hover:text-white/70"
-                      : "text-zinc-400 hover:text-zinc-600"
+                  locale === "fr" ? "text-black" : "text-zinc-400 hover:text-zinc-600"
                 }`}
               >
                 FR
                 {locale === "fr" ? (
-                  <span
-                    className={`absolute inset-x-1.5 -bottom-0.5 h-px ${overlayNav ? "bg-white" : "bg-black"}`}
-                    aria-hidden
-                  />
+                  <span className="absolute inset-x-1.5 -bottom-0.5 h-px bg-black" aria-hidden />
                 ) : null}
               </button>
-              <span
-                className={`select-none text-[10px] ${overlayNav ? "text-white/25" : "text-zinc-300"}`}
-                aria-hidden
-              >
+              <span className="select-none text-[10px] text-zinc-300" aria-hidden>
                 /
               </span>
               <button
@@ -660,43 +616,30 @@ export default function SiteHeader() {
                 aria-pressed={locale === "en"}
                 aria-label="English"
                 className={`relative px-1.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
-                  locale === "en"
-                    ? overlayNav
-                      ? "text-white"
-                      : "text-black"
-                    : overlayNav
-                      ? "text-white/40 hover:text-white/70"
-                      : "text-zinc-400 hover:text-zinc-600"
+                  locale === "en" ? "text-black" : "text-zinc-400 hover:text-zinc-600"
                 }`}
               >
                 EN
                 {locale === "en" ? (
-                  <span
-                    className={`absolute inset-x-1.5 -bottom-0.5 h-px ${overlayNav ? "bg-white" : "bg-black"}`}
-                    aria-hidden
-                  />
+                  <span className="absolute inset-x-1.5 -bottom-0.5 h-px bg-black" aria-hidden />
                 ) : null}
               </button>
             </div>
             <button
               type="button"
               onClick={openSearch}
-              className={`flex min-w-0 max-w-[15rem] items-center gap-2.5 rounded-full px-4 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 xl:max-w-[17rem] ${
-                overlayNav
-                  ? "bg-white/15 text-white hover:bg-white/25 focus-visible:ring-white/30"
-                  : "bg-zinc-100 text-black hover:bg-zinc-200/80 focus-visible:ring-black/20"
-              }`}
+              className="flex min-w-0 max-w-[15rem] items-center gap-2.5 rounded-full bg-zinc-100 px-4 py-2.5 text-left text-black transition hover:bg-zinc-200/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 xl:max-w-[17rem]"
               aria-label={t("nav.search")}
             >
               <Search className="h-4 w-4 shrink-0" strokeWidth={2} />
-              <span className={`truncate text-sm ${overlayNav ? "text-white/80" : "text-zinc-500"}`}>
+              <span className="truncate text-sm text-zinc-500">
                 {t("nav.searchPlaceholder")}
               </span>
             </button>
             <Link
               id="site-header-favoris-desktop"
               href="/favoris"
-              className={`relative isolate ${headerIconButtonClass(overlayNav)} ${
+              className={`relative isolate ${headerIconButtonClass} ${
                 favIconBump ? "favorite-pop" : ""
               }`}
               aria-label={
@@ -722,7 +665,7 @@ export default function SiteHeader() {
             </Link>
             <button
               id="site-header-cart-desktop"
-              className={`relative isolate ${headerIconButtonClass(overlayNav)} ${
+              className={`relative isolate ${headerIconButtonClass} ${
                 cartIconBump ? "favorite-pop" : ""
               }`}
               aria-label={t("nav.cart")}

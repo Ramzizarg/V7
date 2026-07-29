@@ -26,6 +26,8 @@ export interface HomeContent {
   heroImagePositionMobile: number | "left" | "center" | "right";
   heroSubtitle: string;
   heroSubtitleColor: string;
+  /** When false, hero shows only images (no collection / title / description / CTAs). */
+  heroShowOverlay: boolean;
   heroCollection: string;
   heroCollectionColor: string;
   heroHeadline: string;
@@ -34,6 +36,8 @@ export interface HomeContent {
   heroDescriptionColor: string;
   heroButtonText: string;
   heroButtonTextColor: string;
+  /** Empty = hide secondary CTA. */
+  heroSecondaryButtonText: string;
   carouselTitle: string;
   products: HomeProduct[];
   category1Name: string;
@@ -53,14 +57,16 @@ export const defaultHomeContent: HomeContent = {
   heroImagePositionMobile: 50,
   heroSubtitle: "Nouveauté",
   heroSubtitleColor: "#ffffff",
-  heroCollection: "Collection Sport x Casual",
+  heroShowOverlay: false,
+  heroCollection: "",
   heroCollectionColor: "#ffffff",
-  heroHeadline: "RENVERSE LES\nREGLES.",
+  heroHeadline: "",
   heroHeadlineColor: "#ffffff",
-  heroDescription: "Signe par Vero7.",
-  heroDescriptionColor: "#999999",
-  heroButtonText: "Shop now",
+  heroDescription: "",
+  heroDescriptionColor: "#ffffff",
+  heroButtonText: "",
   heroButtonTextColor: "#000000",
+  heroSecondaryButtonText: "",
   carouselTitle: "The Latest Arrivals",
   products: [
     { product_id: null, name: "Oversized Hoodie", price: "120.00 DT" },
@@ -112,6 +118,12 @@ export function syncHeroImagePositionsMobile(
 function mergeWithDefaults(partial: Partial<HomeContent> | null): HomeContent {
   if (!partial || typeof partial !== "object") return { ...defaultHomeContent };
   const merged = { ...defaultHomeContent, ...partial };
+  merged.heroShowOverlay = Boolean(
+    (partial as Partial<HomeContent>).heroShowOverlay ?? defaultHomeContent.heroShowOverlay
+  );
+  if (typeof merged.heroSecondaryButtonText !== "string") {
+    merged.heroSecondaryButtonText = defaultHomeContent.heroSecondaryButtonText;
+  }
   merged.heroImagePositionMobile = toPositionNumber(merged.heroImagePositionMobile as number | "left" | "center" | "right");
   if (!Array.isArray(merged.bannerPhrases) || merged.bannerPhrases.length === 0) {
     merged.bannerPhrases = [...defaultHomeContent.bannerPhrases];

@@ -777,10 +777,6 @@ html.vero7-splash-active #vero7-app-root {
   max-height: 2.25rem;
 }
 
-.site-header-logo__mark--white {
-  filter: brightness(0) invert(1);
-}
-
 .site-header-logo__mark--dark {
   filter: brightness(0);
 }
@@ -817,9 +813,7 @@ html.vero7-splash-active #vero7-app-root {
   pointer-events: auto;
   transition:
     transform 480ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 360ms ease,
-    background-color 320ms ease,
-    border-color 320ms ease;
+    opacity 360ms ease;
   will-change: transform, opacity;
 }
 

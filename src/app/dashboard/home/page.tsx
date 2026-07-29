@@ -183,7 +183,10 @@ export default function DashboardHomePage() {
     setComingSoon((p) => ({ ...p, endAt: iso }));
   };
 
-  const updateField = (field: keyof HomeContent, value: string | number | string[] | number[]) => {
+  const updateField = (
+    field: keyof HomeContent,
+    value: string | number | boolean | string[] | number[]
+  ) => {
     setContent((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -635,12 +638,16 @@ export default function DashboardHomePage() {
                         <span className="text-white/50 text-[6px] font-black font-mono tracking-[0.1em] uppercase">@TAWAKUL</span>
                       </div>
                       <div className="absolute inset-x-0 bottom-2 px-1.5">
-                        <h2 className="text-[10px] font-black uppercase tracking-tight leading-tight whitespace-pre-line drop-shadow-lg" style={{ color: content.heroHeadlineColor || "#ffffff" }}>
-                          {content.heroHeadline}
-                        </h2>
-                        <p className="text-[6px] font-light tracking-wide mt-0.5 line-clamp-2" style={{ color: content.heroDescriptionColor || "#999999" }}>
-                          {content.heroDescription}
-                        </p>
+                        {content.heroShowOverlay && content.heroHeadline.trim() ? (
+                          <h2 className="text-[10px] font-black uppercase tracking-tight leading-tight whitespace-pre-line drop-shadow-lg" style={{ color: content.heroHeadlineColor || "#ffffff" }}>
+                            {content.heroHeadline}
+                          </h2>
+                        ) : null}
+                        {content.heroShowOverlay && content.heroDescription.trim() ? (
+                          <p className="text-[6px] font-light tracking-wide mt-0.5 line-clamp-2" style={{ color: content.heroDescriptionColor || "#ffffff" }}>
+                            {content.heroDescription}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -655,7 +662,39 @@ export default function DashboardHomePage() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="rounded-lg border border-zinc-600 bg-zinc-900/80 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-white">
+                    Textes & boutons du hero
+                  </p>
+                  <p className="text-[11px] text-zinc-400 mt-1">
+                    Désactivé = images seules. Activé = affiche uniquement les champs remplis ci-dessous.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={content.heroShowOverlay}
+                  onClick={() => updateField("heroShowOverlay", !content.heroShowOverlay)}
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+                    content.heroShowOverlay ? "bg-white" : "bg-zinc-600"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-black transition-transform ${
+                      content.heroShowOverlay ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div
+              className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${
+                content.heroShowOverlay ? "" : "opacity-45 pointer-events-none"
+              }`}
+            >
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-white">
                   Nom de la collection
@@ -665,6 +704,7 @@ export default function DashboardHomePage() {
                     type="text"
                     value={content.heroCollection}
                     onChange={(e) => updateField("heroCollection", e.target.value)}
+                    placeholder="Vide = masqué"
                     className="flex-1 min-w-0 border border-zinc-600 bg-white text-black placeholder:text-zinc-400 rounded px-3 py-2 text-sm focus:outline-none focus:border-white transition-colors"
                   />
                   <input
@@ -678,7 +718,9 @@ export default function DashboardHomePage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div
+              className={`space-y-1.5 ${content.heroShowOverlay ? "" : "opacity-45 pointer-events-none"}`}
+            >
               <label className="block text-xs font-semibold uppercase tracking-wider text-white">
                 Main title (use \n for a line break)
               </label>
@@ -689,6 +731,7 @@ export default function DashboardHomePage() {
                   onChange={(e) =>
                     updateField("heroHeadline", e.target.value.replace(/\\n/g, "\n"))
                   }
+                  placeholder="Vide = masqué"
                   className="flex-1 min-w-0 border border-zinc-600 bg-white text-black placeholder:text-zinc-400 rounded px-3 py-2 text-sm focus:outline-none focus:border-white transition-colors"
                 />
                 <input
@@ -701,7 +744,9 @@ export default function DashboardHomePage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div
+              className={`space-y-1.5 ${content.heroShowOverlay ? "" : "opacity-45 pointer-events-none"}`}
+            >
               <label className="block text-xs font-semibold uppercase tracking-wider text-white">
                 Description
               </label>
@@ -710,14 +755,46 @@ export default function DashboardHomePage() {
                   value={content.heroDescription}
                   onChange={(e) => updateField("heroDescription", e.target.value)}
                   rows={2}
+                  placeholder="Vide = masqué"
                   className="flex-1 min-w-0 border border-zinc-600 bg-white text-black placeholder:text-zinc-400 rounded px-3 py-2 text-sm focus:outline-none focus:border-white transition-colors resize-none"
                 />
                 <input
                   type="color"
-                  value={(content.heroDescriptionColor || "#999999").replace(/^([^#])/, "#$1")}
+                  value={(content.heroDescriptionColor || "#ffffff").replace(/^([^#])/, "#$1")}
                   onChange={(e) => updateField("heroDescriptionColor", e.target.value)}
                   className="w-9 h-9 rounded border border-zinc-600 cursor-pointer bg-white p-0.5 shrink-0 mt-1"
                   title="Couleur du texte"
+                />
+              </div>
+            </div>
+
+            <div
+              className={`grid grid-cols-1 sm:grid-cols-2 gap-5 ${
+                content.heroShowOverlay ? "" : "opacity-45 pointer-events-none"
+              }`}
+            >
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-white">
+                  Bouton principal
+                </label>
+                <input
+                  type="text"
+                  value={content.heroButtonText}
+                  onChange={(e) => updateField("heroButtonText", e.target.value)}
+                  placeholder="Vide = masqué (ex. Shop now)"
+                  className="w-full border border-zinc-600 bg-white text-black placeholder:text-zinc-400 rounded px-3 py-2 text-sm focus:outline-none focus:border-white transition-colors"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-white">
+                  Bouton secondaire
+                </label>
+                <input
+                  type="text"
+                  value={content.heroSecondaryButtonText ?? ""}
+                  onChange={(e) => updateField("heroSecondaryButtonText", e.target.value)}
+                  placeholder="Vide = masqué (ex. Voir les nouveautés)"
+                  className="w-full border border-zinc-600 bg-white text-black placeholder:text-zinc-400 rounded px-3 py-2 text-sm focus:outline-none focus:border-white transition-colors"
                 />
               </div>
             </div>
@@ -737,13 +814,44 @@ export default function DashboardHomePage() {
                 />
               </div>
             )}
-            <div className="space-y-2">
-              <p className="text-lg font-black uppercase tracking-wide" style={{ color: content.heroCollectionColor || "#ffffff" }}>{content.heroCollection}</p>
-              <h2 className="text-2xl sm:text-3xl font-black uppercase leading-tight whitespace-pre-line" style={{ color: content.heroHeadlineColor || "#ffffff" }}>
-                {content.heroHeadline}
-              </h2>
-              <p className="text-sm" style={{ color: content.heroDescriptionColor || "#999999" }}>{content.heroDescription}</p>
-            </div>
+            {content.heroShowOverlay ? (
+              <div className="space-y-2">
+                {content.heroCollection.trim() ? (
+                  <p className="text-lg font-black uppercase tracking-wide" style={{ color: content.heroCollectionColor || "#ffffff" }}>{content.heroCollection}</p>
+                ) : null}
+                {content.heroHeadline.trim() ? (
+                  <h2 className="text-2xl sm:text-3xl font-black uppercase leading-tight whitespace-pre-line" style={{ color: content.heroHeadlineColor || "#ffffff" }}>
+                    {content.heroHeadline}
+                  </h2>
+                ) : null}
+                {content.heroDescription.trim() ? (
+                  <p className="text-sm" style={{ color: content.heroDescriptionColor || "#ffffff" }}>{content.heroDescription}</p>
+                ) : null}
+                {(content.heroButtonText.trim() || (content.heroSecondaryButtonText ?? "").trim()) ? (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {content.heroButtonText.trim() ? (
+                      <span className="inline-flex bg-white px-3 py-1.5 text-xs font-semibold text-black">
+                        {content.heroButtonText}
+                      </span>
+                    ) : null}
+                    {(content.heroSecondaryButtonText ?? "").trim() ? (
+                      <span className="inline-flex border border-white px-3 py-1.5 text-xs font-semibold text-white">
+                        {content.heroSecondaryButtonText}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+                {!content.heroCollection.trim() &&
+                !content.heroHeadline.trim() &&
+                !content.heroDescription.trim() &&
+                !content.heroButtonText.trim() &&
+                !(content.heroSecondaryButtonText ?? "").trim() ? (
+                  <p className="text-xs text-zinc-500">Aucun texte renseigné — le hero affichera seulement les images.</p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-500">Textes désactivés — le hero affichera seulement les images.</p>
+            )}
 
           </div>
         </div>

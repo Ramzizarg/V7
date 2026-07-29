@@ -53,7 +53,7 @@ const CATEGORY_I18N_KEY: Record<string, string> = {
 };
 
 export default function HomePageClient({ initialHomeContent }: Props) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const featuredRef = useRef<HTMLDivElement>(null);
   const [heroSlide, setHeroSlide] = useState(0);
   const [heroImagesLoaded, setHeroImagesLoaded] = useState<Set<number>>(() => new Set());
@@ -231,18 +231,20 @@ export default function HomePageClient({ initialHomeContent }: Props) {
     });
   };
 
-  const heroCollectionText =
-    locale === "en"
-      ? t("home.heroCollection")
-      : homeContent.heroCollection.trim() || t("home.heroCollection");
-  const heroHeadlineText =
-    locale === "en"
-      ? t("home.heroHeadline")
-      : homeContent.heroHeadline.trim() || t("home.heroHeadline");
-  const heroDescriptionText =
-    locale === "en"
-      ? t("home.heroDescription")
-      : homeContent.heroDescription.trim() || t("home.heroDescription");
+  const heroShowOverlay = Boolean(homeContent.heroShowOverlay);
+  const heroCollectionText = homeContent.heroCollection.trim();
+  const heroHeadlineText = homeContent.heroHeadline.trim();
+  const heroDescriptionText = homeContent.heroDescription.trim();
+  const heroButtonText = homeContent.heroButtonText.trim();
+  const heroSecondaryButtonText = (homeContent.heroSecondaryButtonText ?? "").trim();
+  const showHeroCollection = heroShowOverlay && Boolean(heroCollectionText);
+  const showHeroHeadline = heroShowOverlay && Boolean(heroHeadlineText);
+  const showHeroDescription = heroShowOverlay && Boolean(heroDescriptionText);
+  const showHeroPrimaryButton = heroShowOverlay && Boolean(heroButtonText);
+  const showHeroSecondaryButton = heroShowOverlay && Boolean(heroSecondaryButtonText);
+  const showHeroButtons = showHeroPrimaryButton || showHeroSecondaryButton;
+  const showHeroAccent =
+    showHeroCollection || showHeroHeadline || showHeroDescription || showHeroButtons;
   const heroImagePositionMobile =
     typeof homeContent.heroImagePositionMobile === "number" ? homeContent.heroImagePositionMobile : 50;
   const heroImagePositionsMobile = homeContent.heroImagePositionsMobile ?? [];
@@ -319,42 +321,56 @@ export default function HomePageClient({ initialHomeContent }: Props) {
             })}
           </div>
           <div className="relative z-10 flex w-full flex-col justify-end px-5 pb-8 pt-20 sm:px-8 sm:pb-10 sm:pt-24 lg:px-10 lg:pb-12 lg:pt-28">
-            <span className="mb-5 inline-block h-[2px] w-20 bg-white/90" />
-            <p
-              className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85 sm:text-xs"
-              style={{ color: heroCollectionColor }}
-            >
-              {heroCollectionText}
-            </p>
-            <h1
-              className="max-w-[20rem] text-[1.65rem] font-extrabold uppercase leading-[0.95] tracking-tight text-white sm:max-w-xl sm:text-3xl lg:max-w-2xl lg:text-4xl whitespace-pre-line"
-              style={{ color: heroHeadlineColor }}
-            >
-              {heroHeadlineText}
-            </h1>
-            <p
-              className="mt-3 max-w-md text-sm font-normal leading-snug text-white sm:mt-4 sm:max-w-lg sm:text-base sm:leading-relaxed"
-              style={{ color: heroDescriptionColor }}
-            >
-              {heroDescriptionText}
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3 sm:gap-4">
-              <Link
-                href="/collection"
-                className="inline-flex items-center justify-center bg-white px-5 py-3.5 text-sm font-semibold text-black transition hover:bg-zinc-100 sm:px-6"
+            {showHeroAccent ? (
+              <span className="mb-5 inline-block h-[2px] w-20 bg-white/90" />
+            ) : null}
+            {showHeroCollection ? (
+              <p
+                className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85 sm:text-xs"
+                style={{ color: heroCollectionColor }}
               >
-                {homeContent.heroButtonText.trim() || t("common.shopNow")}
-              </Link>
-              <Link
-                href="/collection"
-                className="inline-flex items-center justify-center border border-white bg-transparent px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10 sm:px-6"
+                {heroCollectionText}
+              </p>
+            ) : null}
+            {showHeroHeadline ? (
+              <h1
+                className="max-w-[20rem] text-[1.65rem] font-extrabold uppercase leading-[0.95] tracking-tight text-white sm:max-w-xl sm:text-3xl lg:max-w-2xl lg:text-4xl whitespace-pre-line"
+                style={{ color: heroHeadlineColor }}
               >
-                {t("home.shopNewIn")}
-              </Link>
-            </div>
+                {heroHeadlineText}
+              </h1>
+            ) : null}
+            {showHeroDescription ? (
+              <p
+                className="mt-3 max-w-md text-sm font-normal leading-snug text-white sm:mt-4 sm:max-w-lg sm:text-base sm:leading-relaxed"
+                style={{ color: heroDescriptionColor }}
+              >
+                {heroDescriptionText}
+              </p>
+            ) : null}
+            {showHeroButtons ? (
+              <div className="mt-6 flex flex-wrap items-center gap-3 sm:gap-4">
+                {showHeroPrimaryButton ? (
+                  <Link
+                    href="/collection"
+                    className="inline-flex items-center justify-center bg-white px-5 py-3.5 text-sm font-semibold text-black transition hover:bg-zinc-100 sm:px-6"
+                  >
+                    {heroButtonText}
+                  </Link>
+                ) : null}
+                {showHeroSecondaryButton ? (
+                  <Link
+                    href="/collection"
+                    className="inline-flex items-center justify-center border border-white bg-transparent px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10 sm:px-6"
+                  >
+                    {heroSecondaryButtonText}
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
             {heroImages.length > 1 ? (
               <div
-                className="mt-6 flex w-full max-w-[220px] gap-1.5 sm:max-w-[280px]"
+                className={`flex w-full max-w-[220px] gap-1.5 sm:max-w-[280px] ${showHeroAccent ? "mt-6" : "mt-auto"}`}
                 role="status"
                 aria-label={`Image hero ${heroSlide + 1} sur ${heroImages.length}`}
               >
