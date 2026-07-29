@@ -248,6 +248,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
   const heroImagePositionMobile =
     typeof homeContent.heroImagePositionMobile === "number" ? homeContent.heroImagePositionMobile : 50;
   const heroImagePositionsMobile = homeContent.heroImagePositionsMobile ?? [];
+  const heroImagePositionsDesktop = homeContent.heroImagePositionsDesktop ?? [];
 
   const heroCollectionColor = homeContent.heroCollectionColor || defaultHomeContent.heroCollectionColor;
   const heroHeadlineColor = homeContent.heroHeadlineColor || defaultHomeContent.heroHeadlineColor;
@@ -312,7 +313,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                   style={{
                     objectPosition: isMobileViewport
                       ? `${heroImagePositionsMobile[i] ?? heroImagePositionMobile}% center`
-                      : "center 30%",
+                      : `center ${heroImagePositionsDesktop[i] ?? 30}%`,
                     zIndex: isActive ? 2 : isNext ? 1 : 0,
                     opacity: isActive ? (isLcp || heroImagesLoaded.has(i) ? 1 : 0) : 0,
                   }}
@@ -320,7 +321,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
               );
             })}
           </div>
-          <div className="relative z-10 flex w-full flex-col justify-end px-5 pb-8 pt-20 sm:px-8 sm:pb-10 sm:pt-24 lg:px-10 lg:pb-12 lg:pt-28">
+          <div className="relative z-10 flex w-full flex-col justify-end px-5 pb-8 pt-20 sm:h-[100svh] sm:min-h-[100svh] sm:px-8 sm:pb-10 sm:pt-24 lg:px-10 lg:pb-12 lg:pt-28">
             {showHeroAccent ? (
               <span className="mb-5 inline-block h-[2px] w-20 bg-white/90" />
             ) : null}

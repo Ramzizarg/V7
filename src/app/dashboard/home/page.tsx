@@ -7,6 +7,7 @@ import {
   defaultHomeContent,
   getHomeContent,
   saveHomeContent,
+  syncHeroImagePositionsDesktop,
   syncHeroImagePositionsMobile,
 } from "@/lib/homeContent";
 import {
@@ -67,6 +68,8 @@ export default function DashboardHomePage() {
   const selectedHeroPositionMobile =
     content.heroImagePositionsMobile[selectedHeroPreviewIndex] ??
     (typeof content.heroImagePositionMobile === "number" ? content.heroImagePositionMobile : 50);
+  const selectedHeroPositionDesktop =
+    content.heroImagePositionsDesktop?.[selectedHeroPreviewIndex] ?? 30;
 
   useEffect(() => {
     getHomeContent()
@@ -205,6 +208,20 @@ export default function DashboardHomePage() {
         ...prev,
         heroImagePositionsMobile: positions,
         heroImagePositionMobile: positions[0] ?? 50,
+      };
+    });
+  };
+
+  const updateSelectedHeroPositionDesktop = (value: number) => {
+    setContent((prev) => {
+      const urls = prev.heroImageUrls;
+      if (urls.length === 0) return prev;
+      const index = Math.min(selectedHeroPreviewIndex, urls.length - 1);
+      const positions = syncHeroImagePositionsDesktop(urls, prev.heroImagePositionsDesktop, 30);
+      positions[index] = Math.min(100, Math.max(0, Math.round(value)));
+      return {
+        ...prev,
+        heroImagePositionsDesktop: positions,
       };
     });
   };
@@ -415,12 +432,22 @@ export default function DashboardHomePage() {
                             ...positions,
                             ...uploaded.map(() => 50),
                           ];
+                          const desktopPositions = syncHeroImagePositionsDesktop(
+                            prev.heroImageUrls,
+                            prev.heroImagePositionsDesktop,
+                            30
+                          );
+                          const nextDesktopPositions = [
+                            ...desktopPositions,
+                            ...uploaded.map(() => 30),
+                          ];
                           return {
                             ...prev,
                             heroImageUrls: next,
                             heroImageUrl: next[0] ?? "",
                             heroImagePositionsMobile: nextPositions,
                             heroImagePositionMobile: nextPositions[0] ?? 50,
+                            heroImagePositionsDesktop: nextDesktopPositions,
                           };
                         });
                       } catch (err) {
@@ -442,6 +469,7 @@ export default function DashboardHomePage() {
                         heroImageUrl: "",
                         heroImagePositionsMobile: [],
                         heroImagePositionMobile: 50,
+                        heroImagePositionsDesktop: [],
                       }))
                     }
                     className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-600 rounded text-zinc-300 text-xs font-semibold uppercase tracking-wider hover:bg-zinc-800 hover:text-white transition-colors"
@@ -485,6 +513,8 @@ export default function DashboardHomePage() {
                             {index === 0 ? "Image principale (affichée en premier)" : `Position ${index + 1}`}
                             {" · "}
                             mobile {(content.heroImagePositionsMobile[index] ?? 50)}%
+                            {" · "}
+                            desktop {(content.heroImagePositionsDesktop?.[index] ?? 30)}%
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
@@ -499,10 +529,19 @@ export default function DashboardHomePage() {
                                     prev.heroImagePositionsMobile,
                                     prev.heroImagePositionMobile
                                   );
+                                  const desktopPositions = syncHeroImagePositionsDesktop(
+                                    prev.heroImageUrls,
+                                    prev.heroImagePositionsDesktop,
+                                    30
+                                  );
                                   [next[index - 1], next[index]] = [next[index], next[index - 1]];
                                   [positions[index - 1], positions[index]] = [
                                     positions[index],
                                     positions[index - 1],
+                                  ];
+                                  [desktopPositions[index - 1], desktopPositions[index]] = [
+                                    desktopPositions[index],
+                                    desktopPositions[index - 1],
                                   ];
                                   setSelectedHeroPreviewIndex((curr) => {
                                     if (curr === index) return index - 1;
@@ -515,6 +554,7 @@ export default function DashboardHomePage() {
                                     heroImageUrl: next[0] ?? "",
                                     heroImagePositionsMobile: positions,
                                     heroImagePositionMobile: positions[0] ?? 50,
+                                    heroImagePositionsDesktop: desktopPositions,
                                   };
                                 })
                               }
@@ -534,10 +574,19 @@ export default function DashboardHomePage() {
                                     prev.heroImagePositionsMobile,
                                     prev.heroImagePositionMobile
                                   );
+                                  const desktopPositions = syncHeroImagePositionsDesktop(
+                                    prev.heroImageUrls,
+                                    prev.heroImagePositionsDesktop,
+                                    30
+                                  );
                                   [next[index], next[index + 1]] = [next[index + 1], next[index]];
                                   [positions[index], positions[index + 1]] = [
                                     positions[index + 1],
                                     positions[index],
+                                  ];
+                                  [desktopPositions[index], desktopPositions[index + 1]] = [
+                                    desktopPositions[index + 1],
+                                    desktopPositions[index],
                                   ];
                                   setSelectedHeroPreviewIndex((curr) => {
                                     if (curr === index) return index + 1;
@@ -550,6 +599,7 @@ export default function DashboardHomePage() {
                                     heroImageUrl: next[0] ?? "",
                                     heroImagePositionsMobile: positions,
                                     heroImagePositionMobile: positions[0] ?? 50,
+                                    heroImagePositionsDesktop: desktopPositions,
                                   };
                                 })
                               }
@@ -568,6 +618,11 @@ export default function DashboardHomePage() {
                                   prev.heroImagePositionsMobile,
                                   prev.heroImagePositionMobile
                                 ).filter((_, i) => i !== index);
+                                const desktopPositions = syncHeroImagePositionsDesktop(
+                                  prev.heroImageUrls,
+                                  prev.heroImagePositionsDesktop,
+                                  30
+                                ).filter((_, i) => i !== index);
                                 setSelectedHeroPreviewIndex((curr) => {
                                   if (next.length === 0) return 0;
                                   if (curr === index) return Math.max(0, index - 1);
@@ -580,6 +635,7 @@ export default function DashboardHomePage() {
                                   heroImageUrl: next[0] ?? "",
                                   heroImagePositionsMobile: positions,
                                   heroImagePositionMobile: positions[0] ?? 50,
+                                  heroImagePositionsDesktop: desktopPositions,
                                 };
                               })
                             }
@@ -597,12 +653,29 @@ export default function DashboardHomePage() {
                 <div className="mt-3 flex justify-center">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-3 items-end w-full max-w-4xl mx-auto">
                   <div className="w-full">
-                    <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Aperçu (version site – fond noir)</p>
+                    <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-1.5">Version desktop</p>
+                    <p className="text-[10px] text-zinc-500 mb-1.5">
+                      Position verticale (haut ↔ bas) — image {selectedHeroPreviewIndex + 1}
+                    </p>
+                    <div className="flex items-center gap-2 mb-2 w-full max-w-md">
+                      <span className="text-[10px] text-zinc-500 shrink-0">Haut</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={selectedHeroPositionDesktop}
+                        onChange={(e) => updateSelectedHeroPositionDesktop(parseInt(e.target.value, 10))}
+                        className="flex-1 h-2 rounded-full appearance-none bg-zinc-700 accent-white"
+                      />
+                      <span className="text-[10px] text-zinc-500 shrink-0">Bas</span>
+                    </div>
+                    <p className="text-[9px] text-zinc-500 mb-2">{selectedHeroPositionDesktop}%</p>
                     <div className="relative aspect-video w-full rounded overflow-hidden border border-zinc-600 bg-black">
                       <img
                         src={selectedHeroPreviewUrl}
                         alt="Hero preview"
-                        className="w-full h-full object-cover object-center"
+                        style={{ objectPosition: `center ${selectedHeroPositionDesktop}%` }}
+                        className="w-full h-full object-cover"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
                     </div>

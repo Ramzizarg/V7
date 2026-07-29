@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { withApiNoStoreHeaders } from "@/lib/apiResponse";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
 import { parseProductActive } from "@/lib/productListing";
-import type { Product, StorefrontCategory } from "@/lib/types";
+import { parseSizeStocks, totalSizeStock } from "@/lib/productSizeStock";
+import type { Product, SizeStock, StorefrontCategory } from "@/lib/types";
 
 /** Neon (PostgreSQL via `DATABASE_URL`): `products` + `categories` for storefront. */
 export const runtime = "nodejs";
@@ -70,22 +71,10 @@ function normalizeDescription(d: unknown): string | null {
   return String(d);
 }
 
-function parseSizes(raw: unknown): string[] | undefined {
-  if (raw == null) return undefined;
-  if (Array.isArray(raw)) {
-    return raw.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
-  }
-  if (typeof raw === "string") {
-    try {
-      const j = JSON.parse(raw) as unknown;
-      if (Array.isArray(j)) {
-        return j.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
-      }
-    } catch {
-      return undefined;
-    }
-  }
-  return undefined;
+function parseSizes(raw: unknown, fallbackStock = 0): SizeStock[] | undefined {
+  const parsed = parseSizeStocks(raw, fallbackStock);
+  if (parsed == null) return undefined;
+  return parsed;
 }
 
 const CATEGORY_COVER_FALLBACKS = ["/V7/2.webp", "/V7/3.webp", "/V7/4.webp", "/V7/1.webp", "/V7/img-1.webp"] as const;
@@ -171,19 +160,23 @@ function rowToProduct(r: DbRow & { category_name?: string | null }): Product {
       : typeof r.created_at === "string"
         ? r.created_at
         : new Date().toISOString();
+  const stockFromDb = num(r.stock);
+  const sizes = parseSizes(r.sizes, stockFromDb);
+  const stock =
+    sizes != null && sizes.length > 0 ? totalSizeStock(sizes) : stockFromDb;
   return {
     id: num(r.id),
     name: String(r.name ?? ""),
     slug: r.slug ? String(r.slug) : undefined,
     description: normalizeDescription(r.description),
     price: num(r.price),
-    stock: num(r.stock),
+    stock,
     category_id: r.category_id != null ? num(r.category_id) : null,
     category_name: r.category_name != null ? String(r.category_name) : null,
     images: parseImages(r.images),
     created_at: created,
     discount_price: r.discount_price != null && r.discount_price !== "" ? num(r.discount_price) : null,
-    sizes: parseSizes(r.sizes),
+    sizes,
     color: r.color != null ? String(r.color) : null,
     color_id: r.color_id != null ? num(r.color_id) : null,
     color_hex: r.color_hex != null ? String(r.color_hex) : null,

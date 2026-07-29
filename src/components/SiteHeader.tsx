@@ -208,14 +208,18 @@ export default function SiteHeader() {
       }
       observer = new IntersectionObserver(
         ([entry]) => {
-          // true only when the hero is completely out of view
-          pastHeroRef.current = !entry.isIntersecting;
-          if (entry.isIntersecting) setHeaderHidden(false);
+          const past = !entry.isIntersecting;
+          pastHeroRef.current = past;
+          // Once the hero leaves the viewport, keep the header hidden
+          // so it does not stick over the sections below.
+          if (past) setHeaderHidden(true);
+          else if (window.scrollY < 24) setHeaderHidden(false);
         },
         { threshold: 0, rootMargin: "0px" }
       );
       observer.observe(hero);
       pastHeroRef.current = hero.getBoundingClientRect().bottom <= 0;
+      if (pastHeroRef.current) setHeaderHidden(true);
     };
 
     bindHeroObserver();
@@ -229,14 +233,22 @@ export default function SiteHeader() {
         pastHeroRef.current = y > 160;
       }
 
-      // While hero is still visible → never hide
-      if (!pastHeroRef.current) {
+      if (pathname === "/") {
+        // Past hero → header must stay hidden (no sticky bar over categories / etc.)
+        if (pastHeroRef.current) {
+          setHeaderHidden(true);
+        } else if (y < 24) {
+          setHeaderHidden(false);
+        } else if (dy > 2) {
+          setHeaderHidden(true);
+        } else if (dy < -2) {
+          setHeaderHidden(false);
+        }
+      } else if (y < 24 || !pastHeroRef.current) {
         setHeaderHidden(false);
       } else if (dy > 2) {
-        // Past hero + scrolling down → hide
         setHeaderHidden(true);
       } else if (dy < -2) {
-        // Past hero + scrolling up → show
         setHeaderHidden(false);
       }
 

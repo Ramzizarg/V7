@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Fragment, useMemo } from "react";
+import { useCallback, useEffect, useState, Fragment, useMemo } from "react";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import {
   ShoppingCart,
@@ -15,8 +15,10 @@ import {
   Calendar,
   Filter,
   X,
+  Plus,
 } from "lucide-react";
 import { sumNetOrderRevenue } from "@/lib/orderRevenue";
+import DashboardCreateOrderModal from "@/components/DashboardCreateOrderModal";
 
 type OrderRow = {
   id: number;
@@ -148,6 +150,7 @@ export default function DashboardAnalytiquesPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [createOrderOpen, setCreateOrderOpen] = useState(false);
 
   const datePreset = useMemo(() => detectDatePreset(dateFrom, dateTo), [dateFrom, dateTo]);
 
@@ -279,68 +282,71 @@ export default function DashboardAnalytiquesPage() {
     );
   };
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const supabase = supabaseBrowserClient();
-        const { data: ordersData, error: ordersErr } = await supabase
-          .from("orders")
-          .select("id, full_name, email, phone_number, city, governorate, total_price, status, created_at, confirmed_by_phone")
-          .order("created_at", { ascending: false });
-        if (ordersErr) throw ordersErr;
-        const ordersList = (ordersData ?? []) as OrderRow[];
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const supabase = supabaseBrowserClient();
+      const { data: ordersData, error: ordersErr } = await supabase
+        .from("orders")
+        .select("id, full_name, email, phone_number, city, governorate, total_price, status, created_at, confirmed_by_phone")
+        .order("created_at", { ascending: false });
+      if (ordersErr) throw ordersErr;
+      const ordersList = (ordersData ?? []) as OrderRow[];
 
-        const { data: itemsData, error: itemsErr } = await supabase
-          .from("order_items")
-          .select("order_id, product_id, product_name, quantity, price, color, size");
-        if (itemsErr) throw itemsErr;
-        const items = (itemsData ?? []) as {
-          order_id: number;
-          product_id: number;
-          product_name: string;
-          quantity: number;
-          price: number;
-          color: string | null;
-          size: string | null;
-        }[];
+      const { data: itemsData, error: itemsErr } = await supabase
+        .from("order_items")
+        .select("order_id, product_id, product_name, quantity, price, color, size");
+      if (itemsErr) throw itemsErr;
+      const items = (itemsData ?? []) as {
+        order_id: number;
+        product_id: number;
+        product_name: string;
+        quantity: number;
+        price: number;
+        color: string | null;
+        size: string | null;
+      }[];
 
-        const productIds = [...new Set(items.map((i) => i.product_id))];
+      const productIds = [...new Set(items.map((i) => i.product_id))];
+      const imageByProductId: Record<number, string | null> = {};
+      if (productIds.length > 0) {
         const { data: productsData } = await supabase
           .from("products")
           .select("id, images")
           .in("id", productIds);
         const products = (productsData ?? []) as { id: number; images: string[] }[];
-        const imageByProductId: Record<number, string | null> = {};
         for (const p of products) {
           const imgs = Array.isArray(p.images) ? p.images : [];
           imageByProductId[p.id] = imgs[0] ?? null;
         }
-
-        const countByOrder: Record<number, number> = {};
-        const itemsByOrder: Record<number, OrderItemRow[]> = {};
-        for (const item of items) {
-          countByOrder[item.order_id] = (countByOrder[item.order_id] ?? 0) + item.quantity;
-          if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
-          itemsByOrder[item.order_id].push({
-            ...item,
-            image_url: imageByProductId[item.product_id] ?? null,
-          });
-        }
-        for (const o of ordersList) {
-          o.items_count = countByOrder[o.id] ?? 0;
-        }
-        setOrders(ordersList);
-        setOrderItems(itemsByOrder);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Load error");
-      } finally {
-        setLoading(false);
       }
+
+      const countByOrder: Record<number, number> = {};
+      const itemsByOrder: Record<number, OrderItemRow[]> = {};
+      for (const item of items) {
+        countByOrder[item.order_id] = (countByOrder[item.order_id] ?? 0) + item.quantity;
+        if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
+        itemsByOrder[item.order_id].push({
+          ...item,
+          image_url: imageByProductId[item.product_id] ?? null,
+        });
+      }
+      for (const o of ordersList) {
+        o.items_count = countByOrder[o.id] ?? 0;
+      }
+      setOrders(ordersList);
+      setOrderItems(itemsByOrder);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Load error");
+    } finally {
+      setLoading(false);
     }
-    load();
   }, []);
+
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
 
   const formatPrice = (n: number) =>
     new Intl.NumberFormat("fr-FR", { style: "currency", currency: "TND", minimumFractionDigits: 2 }).format(n);
@@ -435,10 +441,28 @@ export default function DashboardAnalytiquesPage() {
 
   return (
     <div className="max-w-6xl mx-auto w-full min-w-0" style={style}>
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-xl sm:text-3xl font-bold text-black">Analytiques</h1>
-        <p className="text-sm text-zinc-600 mt-1">Orders & statistics</p>
+      <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-xl sm:text-3xl font-bold text-black">Analytiques</h1>
+          <p className="text-sm text-zinc-600 mt-1">Orders & statistics</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setCreateOrderOpen(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800"
+        >
+          <Plus className="h-4 w-4" />
+          Créer une commande
+        </button>
       </div>
+
+      <DashboardCreateOrderModal
+        open={createOrderOpen}
+        onClose={() => setCreateOrderOpen(false)}
+        onCreated={() => {
+          void loadOrders();
+        }}
+      />
 
       {error && (
         <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>

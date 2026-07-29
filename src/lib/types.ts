@@ -21,6 +21,11 @@ export type Color = {
   hex: string | null;
 };
 
+export type SizeStock = {
+  size: string;
+  stock: number;
+};
+
 export type Product = {
   id: number;
   name: string;
@@ -29,6 +34,7 @@ export type Product = {
   active?: boolean | null;
   description: string | null;
   price: number;
+  /** Total stock across all sizes (synced on save / order). */
   stock: number;
   category_id: number | null;
   /** Set when loaded with a categories join (e.g. collection, search). */
@@ -38,7 +44,8 @@ export type Product = {
   discount_price?: number | null;
   size_guide_image?: string | null;
   measurement_table?: string | null;
-  sizes?: string[];
+  /** Per-size inventory. Legacy string[] may still appear until re-saved. */
+  sizes?: SizeStock[] | string[];
   color?: string | null;
   color_id?: number | null;
   color_hex?: string | null;

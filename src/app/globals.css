@@ -51,7 +51,8 @@ html {
   overflow-x: clip;
 }
 
-/* Locked once on load via --hero-min-h (see layout.tsx). Fallback: 85svh. */
+/* Locked once on load via --hero-min-h (see layout.tsx). Fallback: 85svh.
+ * Mobile only (< 640px). From sm up = desktop full viewport. */
 #home-hero {
   min-height: var(--hero-min-h, 85svh);
 }
@@ -60,10 +61,12 @@ html {
   min-height: var(--hero-min-h, 85svh);
 }
 
-@media (min-width: 1024px) {
+/* Desktop / tablet: full viewport — no white gap. Matches site mobile break (639px). */
+@media (min-width: 640px) {
   #home-hero,
   #home-hero > .relative.z-10 {
-    min-height: 90svh;
+    min-height: 100svh;
+    height: 100svh;
   }
 }
 

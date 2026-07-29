@@ -3,8 +3,9 @@
 import { useEffect, useState, useRef } from "react";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import { productPathSlug } from "@/lib/productUrl";
-import type { Product, Category, Color, Coupon } from "@/lib/types";
+import type { Product, Category, Color, Coupon, SizeStock } from "@/lib/types";
 import { isProductOutOfStock } from "@/lib/productSizesDisplay";
+import { parseSizeStocks, totalSizeStock } from "@/lib/productSizeStock";
 import { uploadSizeGuideImage, uploadProductImage } from "@/lib/uploadProductImage";
 import Link from "next/link";
 import {
@@ -147,7 +148,6 @@ export default function DashboardProduitsPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("0");
   const [discountPrice, setDiscountPrice] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [colorId, setColorId] = useState<string>("");
@@ -160,8 +160,13 @@ export default function DashboardProduitsPage() {
     ["S", "", ""],
     ["M", "", ""],
   ]);
-  const [sizes, setSizes] = useState<string[]>([]);
+  /** Selected sizes → qty text. Missing key = size not selected. */
+  const [sizeStocks, setSizeStocks] = useState<Record<string, string>>({});
   const [productImageUrls, setProductImageUrls] = useState<string[]>([]);
+
+  const formTotalStock = Object.values(sizeStocks).reduce((sum, raw) => {
+    return sum + Math.max(0, Math.floor(Number(raw) || 0));
+  }, 0);
 
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [couponCode, setCouponCode] = useState("");
@@ -225,7 +230,6 @@ export default function DashboardProduitsPage() {
     setName("");
     setDescription("");
     setPrice("");
-    setStock("0");
     setDiscountPrice("");
     setCategoryId("");
     setColorId("");
@@ -233,7 +237,7 @@ export default function DashboardProduitsPage() {
     setImagesStr("");
     setSizeGuideUrl("");
     setMeasurementRows([["Taille", "Mesure 1", "Mesure 2"], ["XS", "", ""], ["S", "", ""], ["M", "", ""]]);
-    setSizes([]);
+    setSizeStocks({});
     setProductImageUrls([]);
     setShowUrlImages(false);
     setFormOpen(true);
@@ -244,8 +248,18 @@ export default function DashboardProduitsPage() {
     setName(p.name);
     setDescription(p.description ?? "");
     setPrice(String(p.price));
-    const editSizes = p.sizes == null ? [...SIZES] : Array.isArray(p.sizes) ? p.sizes : [];
-    setStock(editSizes.length === 0 ? "0" : String(p.stock));
+    const parsed = parseSizeStocks(p.sizes ?? null, p.stock);
+    const next: Record<string, string> = {};
+    if (parsed == null) {
+      const shared = String(Math.max(0, Math.floor(Number(p.stock) || 0)));
+      for (const size of SIZES) next[size] = shared;
+    } else {
+      for (const row of parsed) {
+        const match = SIZES.find((s) => s.toUpperCase() === row.size.trim().toUpperCase()) ?? row.size;
+        next[match] = String(Math.max(0, Math.floor(Number(row.stock) || 0)));
+      }
+    }
+    setSizeStocks(next);
     setDiscountPrice(p.discount_price != null ? String(p.discount_price) : "");
     setCategoryId(p.category_id ? String(p.category_id) : "");
     setColorId(p.color_id ? String(p.color_id) : "");
@@ -253,17 +267,36 @@ export default function DashboardProduitsPage() {
     setImagesStr("");
     setSizeGuideUrl(p.size_guide_image ?? "");
     setMeasurementRows(parseMeasurementTable(p.measurement_table as unknown));
-    setSizes(editSizes);
     setProductImageUrls(normalizeProductImages(p.images));
     setShowUrlImages(false);
     setFormOpen(true);
   };
 
   const toggleSize = (size: string) => {
-    setSizes((prev) => {
-      const next = prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size];
-      if (next.length === 0) setStock("0");
-      return next;
+    setSizeStocks((prev) => {
+      if (Object.prototype.hasOwnProperty.call(prev, size)) {
+        const next = { ...prev };
+        delete next[size];
+        return next;
+      }
+      return { ...prev, [size]: "0" };
+    });
+  };
+
+  const setSizeQty = (size: string, raw: string) => {
+    const cleaned = raw.replace(/[^\d]/g, "");
+    setSizeStocks((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, size)) return prev;
+      return { ...prev, [size]: cleaned };
+    });
+  };
+
+  const blurSizeQty = (size: string) => {
+    setSizeStocks((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, size)) return prev;
+      const raw = prev[size] ?? "";
+      if (raw === "") return { ...prev, [size]: "0" };
+      return { ...prev, [size]: String(Math.max(0, Math.floor(Number(raw) || 0))) };
     });
   };
 
@@ -299,12 +332,16 @@ export default function DashboardProduitsPage() {
       }
 
       const hasDescription = description.trim().length > 0;
-      const filteredSizes = sizes.filter((s) => typeof s === "string" && s.trim().length > 0);
+      const sizePayload: SizeStock[] = Object.entries(sizeStocks).map(([size, stock]) => ({
+        size,
+        stock: Math.max(0, Math.floor(Number(stock) || 0)),
+      }));
+      const totalStock = totalSizeStock(sizePayload);
       const payload: Record<string, unknown> = {
         name: name.trim(),
         description: hasDescription ? description : null,
         price: parseFloat(price) || 0,
-        stock: filteredSizes.length === 0 ? 0 : parseInt(stock, 10) || 0,
+        stock: totalStock,
         category_id: categoryId ? parseInt(categoryId, 10) : null,
         color_id: colorId ? parseInt(colorId, 10) : null,
         color_id_2: colorId2 ? parseInt(colorId2, 10) : null,
@@ -313,7 +350,7 @@ export default function DashboardProduitsPage() {
         size_guide_image: sizeGuideUrl || null,
         measurement_table:
           measurementRows.length > 0 ? measurementRows.map((r) => [...r]) : null,
-        sizes: filteredSizes,
+        sizes: sizePayload,
         active: true,
       };
 
@@ -361,10 +398,31 @@ export default function DashboardProduitsPage() {
     setError(null);
     try {
       const supabase = supabaseBrowserClient();
-      const newStock = isInStock(p) ? 0 : 100;
-      const { error: err } = await supabase.from("products").update({ stock: newStock }).eq("id", p.id);
+      const currentlyIn = isInStock(p);
+      let nextSizes: SizeStock[];
+      let newStock: number;
+      if (currentlyIn) {
+        const parsed = parseSizeStocks(p.sizes ?? null, p.stock) ?? [];
+        nextSizes = parsed.map((s) => ({ size: s.size, stock: 0 }));
+        if (nextSizes.length === 0) nextSizes = SIZES.map((size) => ({ size, stock: 0 }));
+        newStock = 0;
+      } else {
+        const parsed = parseSizeStocks(p.sizes ?? null, p.stock);
+        if (parsed && parsed.length > 0) {
+          nextSizes = parsed.map((s) => ({ size: s.size, stock: s.stock > 0 ? s.stock : 10 }));
+        } else {
+          nextSizes = SIZES.map((size) => ({ size, stock: 10 }));
+        }
+        newStock = totalSizeStock(nextSizes);
+      }
+      const { error: err } = await supabase
+        .from("products")
+        .update({ stock: newStock, sizes: nextSizes })
+        .eq("id", p.id);
       if (err) throw err;
-      setProducts((prev) => prev.map((x) => (x.id === p.id ? { ...x, stock: newStock } : x)));
+      setProducts((prev) =>
+        prev.map((x) => (x.id === p.id ? { ...x, stock: newStock, sizes: nextSizes } : x))
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed");
     } finally {
@@ -1200,8 +1258,8 @@ export default function DashboardProduitsPage() {
               />
             </div>
 
-            {/* Prix *, Stock *, Sale price */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Prix *, Sale price */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-black mb-1.5">
                   Price (DT) <span className="text-red-500">*</span>
@@ -1212,18 +1270,6 @@ export default function DashboardProduitsPage() {
                   min="0"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="number-spin-design w-full bg-white text-black text-xs border border-zinc-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-400 placeholder:text-zinc-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-black mb-1.5">
-                  Stock <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={stock}
-                  onChange={(e) => setStock(e.target.value)}
                   className="number-spin-design w-full bg-white text-black text-xs border border-zinc-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-400 placeholder:text-zinc-500"
                 />
               </div>
@@ -1556,30 +1602,63 @@ export default function DashboardProduitsPage() {
               )}
             </div>
 
-            {/* Available sizes */}
+            {/* Select sizes first, then type stock qty */}
             <div>
-              <label className="block text-xs font-medium text-black mb-2">Available sizes</label>
-              <div className="flex flex-wrap gap-2">
-                {SIZES.map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => toggleSize(size)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${
-                      sizes.includes(size)
-                        ? "border-black bg-black text-white"
-                        : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400"
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-              {sizes.length === 0 ? (
-                <p className="mt-2 text-xs font-medium text-red-600">
-                  Aucune taille sélectionnée — rupture de stock automatique
+              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                <label className="block text-xs font-medium text-black">
+                  Tailles & stock <span className="text-red-500">*</span>
+                </label>
+                <p className="text-xs font-semibold text-zinc-700">
+                  Total : <span className="text-black">{formTotalStock}</span>
                 </p>
-              ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {SIZES.map((size) => {
+                  const enabled = Object.prototype.hasOwnProperty.call(sizeStocks, size);
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => toggleSize(size)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${
+                        enabled
+                          ? "border-black bg-black text-white"
+                          : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  );
+                })}
+              </div>
+              {Object.keys(sizeStocks).length === 0 ? (
+                <p className="mt-2 text-xs font-medium text-red-600">
+                  Sélectionnez une taille, puis entrez le stock
+                </p>
+              ) : (
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {SIZES.filter((size) => Object.prototype.hasOwnProperty.call(sizeStocks, size)).map((size) => (
+                    <label
+                      key={size}
+                      className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2"
+                    >
+                      <span className="w-14 shrink-0 text-xs font-semibold uppercase text-black">{size}</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={sizeStocks[size] ?? "0"}
+                        placeholder="0"
+                        onFocus={(e) => e.currentTarget.select()}
+                        onChange={(e) => setSizeQty(size, e.target.value)}
+                        onBlur={() => blurSizeQty(size)}
+                        className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm font-medium tabular-nums text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                        aria-label={`Stock ${size}`}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -1636,6 +1715,14 @@ export default function DashboardProduitsPage() {
                     ) : (
                       <span>{p.price} DT</span>
                     )}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">
+                    Stock total {p.stock}
+                    {(() => {
+                      const rows = parseSizeStocks(p.sizes ?? null, p.stock);
+                      if (!rows || rows.length === 0) return null;
+                      return ` · ${rows.map((r) => `${r.size}:${r.stock}`).join(" ")}`;
+                    })()}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-1 shrink-0">
@@ -1786,7 +1873,18 @@ export default function DashboardProduitsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-2 py-2 hidden sm:table-cell text-zinc-600 text-center">{p.stock}</td>
+                  <td className="px-2 py-2 hidden sm:table-cell text-zinc-600 text-center">
+                    <div className="font-semibold text-black">{p.stock}</div>
+                    {(() => {
+                      const rows = parseSizeStocks(p.sizes ?? null, p.stock);
+                      if (!rows || rows.length === 0) return null;
+                      return (
+                        <div className="mt-0.5 text-[10px] leading-snug text-zinc-500">
+                          {rows.map((r) => `${r.size}:${r.stock}`).join(" · ")}
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td className="px-2 py-2 hidden md:table-cell text-zinc-600">
                     <span className="block truncate" title={categories.find((c) => c.id === p.category_id)?.name ?? "—"}>
                       {categories.find((c) => c.id === p.category_id)?.name ?? "—"}

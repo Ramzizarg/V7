@@ -19,7 +19,7 @@ import {
 } from "@/lib/favorisUx";
 import { addToCart, getWishlistIds, toggleWishlistId } from "@/lib/shopClientStorage";
 import { trackMetaViewContent, trackMetaAddToWishlist } from "@/lib/metaPixel";
-import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
+import { getSizeOptionsForProduct, isProductOutOfStock, remainingStockForSelectedSize } from "@/lib/productSizesDisplay";
 import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
@@ -386,7 +386,13 @@ export default function ProductDetailView({ product }: Props) {
       ? Math.max(1, Math.round(((compareAt - displayPrice) / compareAt) * 100))
       : null;
 
-  const stockQty = Math.max(0, Math.floor(Number(product.stock ?? 0)));
+  const totalStockQty = Math.max(0, Math.floor(Number(product.stock ?? 0)));
+  const stockQty = Math.max(
+    0,
+    selectedSize
+      ? remainingStockForSelectedSize(product, selectedSize)
+      : totalStockQty
+  );
 
   const colorHex = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(product.color_hex ?? "") ? product.color_hex : null;
   const colorHex2 = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(product.color_2_hex ?? "")
@@ -1262,7 +1268,7 @@ export default function ProductDetailView({ product }: Props) {
                     ) : null}
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-                    {sizeOptions.map(({ label, available }) => {
+                    {sizeOptions.map(({ label, available, stock }) => {
                       const selected = selectedSize === label;
                       return (
                         <button
@@ -1280,11 +1286,25 @@ export default function ProductDetailView({ product }: Props) {
                                 : "w-full border border-black/15 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-black transition hover:border-black/40 sm:w-auto sm:min-w-[2.75rem] sm:text-sm"
                           }
                         >
-                          {label}
+                          <span className="block">{label}</span>
+                          {available ? (
+                            <span
+                              className={`mt-0.5 block text-[10px] font-medium normal-case tracking-normal ${
+                                selected ? "text-white/75" : "text-zinc-500"
+                              }`}
+                            >
+                              {stock}
+                            </span>
+                          ) : null}
                         </button>
                       );
                     })}
                   </div>
+                  <p className="mt-2 text-xs text-zinc-500">
+                    {selectedSize
+                      ? `${stockQty} restant${stockQty > 1 ? "s" : ""} en ${selectedSize} · Total ${totalStockQty}`
+                      : `Total en stock : ${totalStockQty}`}
+                  </p>
                   {!hasPickedSize ? (
                     <p className="mt-2 text-xs font-medium text-zinc-600" role="status">
                       {t("product.selectSizeToContinue")}

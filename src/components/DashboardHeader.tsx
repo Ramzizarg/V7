@@ -21,11 +21,11 @@ export function DashboardHeader() {
         <div className="flex justify-center">
           <Link href="/dashboard" className="block rounded">
             <Image
-              src="/vero7-logo.webp"
-              alt="Vero7"
+              src="/V7/V7-2.webp"
+              alt="V7"
               width={64}
               height={64}
-              className="h-11 w-auto"
+              className="h-11 w-auto brightness-0 invert"
               priority
               loading="eager"
             />

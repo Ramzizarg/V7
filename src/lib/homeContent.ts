@@ -24,6 +24,11 @@ export interface HomeContent {
   heroImagePositionsMobile: number[];
   /** @deprecated Prefer `heroImagePositionsMobile`. Kept for older saved data. */
   heroImagePositionMobile: number | "left" | "center" | "right";
+  /**
+   * Per-image desktop hero vertical position (0 = top, 50 = center, 100 = bottom).
+   * Aligned with `heroImageUrls`.
+   */
+  heroImagePositionsDesktop: number[];
   heroSubtitle: string;
   heroSubtitleColor: string;
   /** When false, hero shows only images (no collection / title / description / CTAs). */
@@ -55,6 +60,7 @@ export const defaultHomeContent: HomeContent = {
   heroImageUrl: "",
   heroImagePositionsMobile: [],
   heroImagePositionMobile: 50,
+  heroImagePositionsDesktop: [],
   heroSubtitle: "Nouveauté",
   heroSubtitleColor: "#ffffff",
   heroShowOverlay: false,
@@ -115,6 +121,17 @@ export function syncHeroImagePositionsMobile(
   return urls.map((_, i) => toPositionNumber(src[i] ?? fallback));
 }
 
+/** Keep desktop vertical positions in sync with hero URLs (0 = top, 100 = bottom). Default 30 matches previous hard-coded crop. */
+export function syncHeroImagePositionsDesktop(
+  urls: string[],
+  positions: number[] | undefined,
+  fallback = 30
+): number[] {
+  const fb = toPositionNumber(fallback);
+  const src = Array.isArray(positions) ? positions : [];
+  return urls.map((_, i) => toPositionNumber(src[i] ?? fb));
+}
+
 function mergeWithDefaults(partial: Partial<HomeContent> | null): HomeContent {
   if (!partial || typeof partial !== "object") return { ...defaultHomeContent };
   const merged = { ...defaultHomeContent, ...partial };
@@ -147,6 +164,11 @@ function mergeWithDefaults(partial: Partial<HomeContent> | null): HomeContent {
   if (merged.heroImagePositionsMobile.length > 0) {
     merged.heroImagePositionMobile = merged.heroImagePositionsMobile[0] ?? 50;
   }
+  merged.heroImagePositionsDesktop = syncHeroImagePositionsDesktop(
+    merged.heroImageUrls,
+    Array.isArray(partial.heroImagePositionsDesktop) ? partial.heroImagePositionsDesktop : undefined,
+    30
+  );
   return merged;
 }
 

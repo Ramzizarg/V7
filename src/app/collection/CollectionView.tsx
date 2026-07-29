@@ -18,7 +18,7 @@ import { trackMetaAddToWishlist, trackMetaViewCategory } from "@/lib/metaPixel";
 import { getSizeOptionsForProduct, isProductOutOfStock } from "@/lib/productSizesDisplay";
 import { isProductAvailableForPurchase, isProductListedForSale } from "@/lib/productListing";
 import { productPathSlug } from "@/lib/productUrl";
-import type { Product, StorefrontCategory } from "@/lib/types";
+import type { Product, SizeStock, StorefrontCategory } from "@/lib/types";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 const PLACEHOLDER_IMAGE = "/V7/1.webp";
@@ -36,7 +36,7 @@ type GridProduct = {
   colorHex: string | null;
   color2: string | null;
   color2Hex: string | null;
-  sizes?: string[];
+  sizes?: SizeStock[] | string[];
   stock: number;
   listedForSale: boolean;
 };

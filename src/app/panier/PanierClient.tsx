@@ -17,6 +17,7 @@ import {
   TUNISIA_PHONE_LENGTH,
 } from "@/lib/phoneValidation";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
+import { parseSizeStocks } from "@/lib/productSizeStock";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
 const TUNISIA_GOVERNORATES = [
@@ -172,7 +173,11 @@ export default function PanierClient() {
   }, [products, items]);
 
   const sortedSizesFor = (p: Product) => {
-    const input = p.sizes?.filter((x) => typeof x === "string" && x.trim().length > 0);
+    const stocks = parseSizeStocks(p.sizes ?? null, p.stock);
+    const input =
+      stocks == null
+        ? ["STANDARD"]
+        : stocks.map((s) => s.size).filter((x) => x.trim().length > 0);
     if (!input || input.length === 0) return ["STANDARD"];
     const order = new Map<string, number>(SIZE_ORDER.map((v, i) => [v, i]));
     return [...input].sort((a, b) => {
