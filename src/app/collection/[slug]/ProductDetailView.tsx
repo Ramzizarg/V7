@@ -1268,7 +1268,7 @@ export default function ProductDetailView({ product }: Props) {
                     ) : null}
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-                    {sizeOptions.map(({ label, available, stock }) => {
+                    {sizeOptions.map(({ label, available }) => {
                       const selected = selectedSize === label;
                       return (
                         <button
@@ -1286,25 +1286,11 @@ export default function ProductDetailView({ product }: Props) {
                                 : "w-full border border-black/15 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-black transition hover:border-black/40 sm:w-auto sm:min-w-[2.75rem] sm:text-sm"
                           }
                         >
-                          <span className="block">{label}</span>
-                          {available ? (
-                            <span
-                              className={`mt-0.5 block text-[10px] font-medium normal-case tracking-normal ${
-                                selected ? "text-white/75" : "text-zinc-500"
-                              }`}
-                            >
-                              {stock}
-                            </span>
-                          ) : null}
+                          {label}
                         </button>
                       );
                     })}
                   </div>
-                  <p className="mt-2 text-xs text-zinc-500">
-                    {selectedSize
-                      ? `${stockQty} restant${stockQty > 1 ? "s" : ""} en ${selectedSize} · Total ${totalStockQty}`
-                      : `Total en stock : ${totalStockQty}`}
-                  </p>
                   {!hasPickedSize ? (
                     <p className="mt-2 text-xs font-medium text-zinc-600" role="status">
                       {t("product.selectSizeToContinue")}
