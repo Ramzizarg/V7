@@ -140,36 +140,42 @@ export async function sendOrderEmails(body: OrderEmailPayload): Promise<SendOrde
     }))
   );
 
-  const [adminResult, clientResult] = await Promise.all([
-    sendWithRetry(() =>
-      resend.emails.send({
-        from: FROM_EMAIL,
-        to: ADMIN_EMAIL,
-        subject: `Nouvelle commande #${body.orderId} — ${body.fullName}`,
-        html: templateNewOrderAdmin(order, items),
-      })
-    ),
-    sendWithRetry(() =>
-      resend.emails.send({
-        from: FROM_EMAIL,
-        to: domainVerified ? body.to : ADMIN_EMAIL,
-        replyTo: body.to,
-        subject: domainVerified
-          ? `Votre commande est confirmée — VERO7`
-          : `[Client: ${body.to}] Votre commande est confirmée — VERO7`,
-        html: templateOrderReceivedClient(order, items),
-        text: textOrderReceivedClient(order, items),
-      })
-    ),
-  ]);
+  const clientEmail = body.to?.trim() ?? "";
+  const sendClient = Boolean(clientEmail);
+
+  const adminPromise = sendWithRetry(() =>
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Nouvelle commande #${body.orderId} — ${body.fullName}`,
+      html: templateNewOrderAdmin(order, items),
+    })
+  );
+
+  const clientPromise = sendClient
+    ? sendWithRetry(() =>
+        resend.emails.send({
+          from: FROM_EMAIL,
+          to: domainVerified ? clientEmail : ADMIN_EMAIL,
+          replyTo: clientEmail,
+          subject: domainVerified
+            ? `Votre commande est confirmée — VERO7`
+            : `[Client: ${clientEmail}] Votre commande est confirmée — VERO7`,
+          html: templateOrderReceivedClient(order, items),
+          text: textOrderReceivedClient(order, items),
+        })
+      )
+    : Promise.resolve({ data: null, error: null });
+
+  const [adminResult, clientResult] = await Promise.all([adminPromise, clientPromise]);
 
   const adminSent = !adminResult.error;
-  const clientSent = !clientResult.error;
+  const clientSent = sendClient ? !clientResult.error : true;
 
   if (adminResult.error) console.error("[Resend] admin email error:", adminResult.error);
-  if (clientResult.error) console.error("[Resend] client email error:", clientResult.error);
+  if (sendClient && clientResult.error) console.error("[Resend] client email error:", clientResult.error);
 
-  if (!adminSent && !clientSent) {
+  if (!adminSent && !(sendClient && clientSent)) {
     return {
       ok: false,
       adminSent: false,
@@ -183,10 +189,10 @@ export async function sendOrderEmails(body: OrderEmailPayload): Promise<SendOrde
   return {
     ok: true,
     adminSent,
-    clientSent,
-    adminId: adminResult.data?.id,
-    clientId: clientResult.data?.id,
-    error: !clientSent
+    clientSent: sendClient ? clientSent : false,
+    adminId: adminResult.data?.id ?? undefined,
+    clientId: sendClient ? clientResult.data?.id ?? undefined : undefined,
+    error: sendClient && !clientSent
       ? "Email client non envoyé."
       : !adminSent
         ? "Email admin non envoyé."

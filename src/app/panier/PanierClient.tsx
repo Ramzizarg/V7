@@ -201,7 +201,7 @@ export default function PanierClient() {
     const gov = governorate.trim();
     const ct = city.trim();
     const addr = address.trim();
-    if (!fn || !em || !ph || !gov || !ct || !addr) {
+    if (!fn || !ph || !gov || !ct || !addr) {
       setOrderError(t("checkout.fillRequired"));
       return;
     }

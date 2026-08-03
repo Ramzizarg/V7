@@ -255,7 +255,7 @@ export const fr = {
     fullName: "Nom complet",
     fullNamePlaceholder: "Ex. Ahmed Ben Ali",
     email: "Email",
-    emailHint: "(confirmation de commande)",
+    emailHint: "(optionnel)",
     emailPlaceholder: "exemple@email.com",
     phone: "Numéro de téléphone",
     phoneHint: "8 chiffres obligatoires (ex. 20123456)",

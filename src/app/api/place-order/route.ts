@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     const governorate = body.governorate?.trim() ?? "";
     const items = Array.isArray(body.items) ? body.items : [];
 
-    if (!fullName || !email || !phone || !address || !city || !governorate) {
+    if (!fullName || !phone || !address || !city || !governorate) {
       return NextResponse.json({ error: "Champs requis manquants." }, { status: 400 });
     }
     if (!isValidTunisiaPhone(phone)) {
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
       RETURNING id`,
       [
         fullName,
-        email,
+        email || null,
         phone,
         address,
         city,
@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       orderId,
-      emailsSent: emailResult.adminSent && emailResult.clientSent,
+      emailsSent: emailResult.adminSent && (email ? emailResult.clientSent : true),
       adminEmailSent: emailResult.adminSent,
       clientEmailSent: emailResult.clientSent,
       adminEmailId: emailResult.adminId,

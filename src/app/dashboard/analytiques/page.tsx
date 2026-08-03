@@ -25,6 +25,7 @@ type OrderRow = {
   full_name: string;
   email: string | null;
   phone_number: string;
+  address: string | null;
   city: string;
   governorate: string;
   total_price: number;
@@ -289,7 +290,7 @@ export default function DashboardAnalytiquesPage() {
       const supabase = supabaseBrowserClient();
       const { data: ordersData, error: ordersErr } = await supabase
         .from("orders")
-        .select("id, full_name, email, phone_number, city, governorate, total_price, status, created_at, confirmed_by_phone")
+        .select("id, full_name, email, phone_number, address, city, governorate, total_price, status, created_at, confirmed_by_phone")
         .order("created_at", { ascending: false });
       if (ordersErr) throw ordersErr;
       const ordersList = (ordersData ?? []) as OrderRow[];
@@ -725,7 +726,13 @@ export default function DashboardAnalytiquesPage() {
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <span className="font-medium text-black block">{o.full_name}</span>
-                        {o.city && <span className="block text-xs text-zinc-500">{o.city}, {o.governorate}</span>}
+                        {(o.address || o.city || o.governorate) && (
+                          <span className="block text-xs text-zinc-500">
+                            {[o.address, [o.city, o.governorate].filter(Boolean).join(", ")]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </span>
+                        )}
                         {o.phone_number && <span className="block text-xs text-zinc-500 mt-0.5">{o.phone_number}</span>}
                       </td>
                       <td className="px-4 py-3 text-zinc-600">{formatDate(o.created_at)}</td>
@@ -769,8 +776,16 @@ export default function DashboardAnalytiquesPage() {
                                 </div>
                               );
                             })}
+                            {(o.address || o.city || o.governorate) && (
+                              <p className="mt-2 text-zinc-500">
+                                Adresse:{" "}
+                                {[o.address, [o.city, o.governorate].filter(Boolean).join(", ")]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                              </p>
+                            )}
                             {o.email && (
-                              <p className="mt-2 text-zinc-500">Email: {o.email}</p>
+                              <p className="mt-1 text-zinc-500">Email: {o.email}</p>
                             )}
                           </div>
                         </td>

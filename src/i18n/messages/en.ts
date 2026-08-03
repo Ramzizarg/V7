@@ -255,7 +255,7 @@ export const en = {
     fullName: "Full name",
     fullNamePlaceholder: "e.g. Ahmed Ben Ali",
     email: "Email",
-    emailHint: "(order confirmation)",
+    emailHint: "(optional)",
     emailPlaceholder: "example@email.com",
     phone: "Phone number",
     phoneHint: "8 digits required (e.g. 20123456)",

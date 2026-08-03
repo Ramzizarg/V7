@@ -234,8 +234,8 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
     const addr = address.trim();
     const ct = city.trim();
     const gov = governorate.trim();
-    if (!fn || !em || !ph || !addr || !ct || !gov) {
-      setFormError("Remplissez tous les champs client.");
+    if (!fn || !ph || !addr || !ct || !gov) {
+      setFormError("Remplissez tous les champs client (email optionnel).");
       return;
     }
     if (!isValidTunisiaPhone(ph)) {
@@ -340,9 +340,8 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
                   />
                 </label>
                 <label className="block text-xs font-medium text-black">
-                  Email
+                  Email <span className="font-normal text-zinc-400">(optionnel)</span>
                   <input
-                    required
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
