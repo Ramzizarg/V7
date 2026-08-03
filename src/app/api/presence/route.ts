@@ -70,7 +70,8 @@ export async function POST(req: NextRequest) {
 
     await upsertPresence({ visitorId, path, userAgent: ua });
 
-    if (Math.random() < 0.08) void pruneStalePresence();
+    // Clean inactive visitors (>30 min) often so the table stays small
+    if (Math.random() < 0.35) void pruneStalePresence();
 
     const online = await countOnlineVisitors();
     return noStoreJson({ ok: true, online });
@@ -84,6 +85,9 @@ export async function GET() {
   try {
     const ok = await ensurePresenceTable();
     if (!ok) return noStoreJson({ online: 0, pages: [] }, 503);
+
+    // Always clean visitors inactive > 30 min on dashboard polls
+    await pruneStalePresence();
 
     const [online, pages] = await Promise.all([countOnlineVisitors(), countOnlineByPath()]);
 

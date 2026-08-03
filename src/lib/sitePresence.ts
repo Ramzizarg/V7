@@ -3,6 +3,9 @@ import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
 /** Active if heartbeat within this window (Shopify-like “right now”). */
 export const PRESENCE_ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
+/** Delete presence rows inactive longer than this (keep DB small). */
+export const PRESENCE_RETENTION_MS = 30 * 60 * 1000;
+
 let presenceTableReady = false;
 
 export async function ensurePresenceTable(): Promise<boolean> {
@@ -85,10 +88,21 @@ export async function countOnlineByPath(windowMs = PRESENCE_ONLINE_WINDOW_MS): P
   }));
 }
 
-export async function pruneStalePresence(): Promise<void> {
+export async function pruneStalePresence(): Promise<number> {
   try {
-    await neonQuery(`DELETE FROM site_presence WHERE last_seen < now() - interval '48 hours'`);
+    const minutes = Math.max(5, Math.floor(PRESENCE_RETENTION_MS / 60_000));
+    const { rows } = await neonQuery<{ deleted: string | number }>(
+      `WITH deleted AS (
+         DELETE FROM site_presence
+         WHERE last_seen < now() - ($1::int * interval '1 minute')
+         RETURNING 1
+       )
+       SELECT COUNT(*)::int AS deleted FROM deleted`,
+      [minutes]
+    );
+    const raw = rows?.[0]?.deleted;
+    return typeof raw === "number" ? raw : Number(raw) || 0;
   } catch {
-    // ignore
+    return 0;
   }
 }
