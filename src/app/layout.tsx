@@ -6,6 +6,7 @@ import { GeistSans } from "geist/font/sans";
 import { AppBuildCacheGuard } from "@/components/AppBuildCacheGuard";
 import { MetaPixel } from "@/components/MetaPixel";
 import { PageLoadSplash } from "@/components/PageLoadSplash";
+import { PresenceBeacon } from "@/components/PresenceBeacon";
 import { WelcomeOfferModal } from "@/components/WelcomeOfferModal";
 import { SiteLocaleInit } from "@/components/SiteLocaleInit";
 import { SiteLocaleProvider } from "@/i18n/SiteLocaleProvider";
@@ -102,6 +103,7 @@ export default function RootLayout({
         <PageLoadSplash />
         <div id="vero7-app-root" className="flex min-h-full flex-1 flex-col overflow-x-clip">
           <AppBuildCacheGuard />
+          <PresenceBeacon />
           {children}
           <WelcomeOfferModal />
         </div>

@@ -1,7 +1,8 @@
 ﻿import { unstable_noStore as noStore } from "next/cache";
+import { DashboardOnlineVisitors } from "@/components/DashboardOnlineVisitors";
 import { DashboardRecentOrders } from "@/components/DashboardRecentOrders";
 import { neonQuery } from "@/lib/neon-db";
-import { ShoppingCart, Package2, PiggyBank, Users } from "lucide-react";
+import { ShoppingCart, Package2, PiggyBank } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -60,7 +61,6 @@ export default async function DashboardPage() {
     { label: "Total orders", value: data.totalOrders, icon: ShoppingCart, bg: "bg-white", border: "border-black", text: "text-black" },
     { label: "Products", value: data.productsCount, icon: Package2, bg: "bg-white", border: "border-black", text: "text-black" },
     { label: "Total revenue", value: formatPrice(data.totalRevenue), icon: PiggyBank, bg: "bg-black", border: "border-black", text: "text-white" },
-    { label: "Visitors", value: 0, icon: Users, bg: "bg-white", border: "border-black", text: "text-black" },
   ];
 
   return (
@@ -86,6 +86,7 @@ export default async function DashboardPage() {
             <span className="text-lg sm:text-xl font-bold truncate">{s.value}</span>
           </div>
         ))}
+        <DashboardOnlineVisitors variant="card" />
       </div>
       <DashboardRecentOrders orders={data.recentOrders} />
     </div>
