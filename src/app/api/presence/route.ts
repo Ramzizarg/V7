@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  countOnlineByPath,
   countOnlineVisitors,
   ensurePresenceTable,
   isStorefrontPath,
-  listRecentPresence,
   PRESENCE_ONLINE_WINDOW_MS,
   pruneStalePresence,
   upsertPresence,
@@ -83,23 +83,17 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   try {
     const ok = await ensurePresenceTable();
-    if (!ok) return noStoreJson({ online: 0 }, 503);
+    if (!ok) return noStoreJson({ online: 0, pages: [] }, 503);
 
-    const [online, recent] = await Promise.all([
-      countOnlineVisitors(),
-      listRecentPresence(6),
-    ]);
+    const [online, pages] = await Promise.all([countOnlineVisitors(), countOnlineByPath()]);
 
     return noStoreJson({
       online,
       windowSeconds: Math.floor(PRESENCE_ONLINE_WINDOW_MS / 1000),
-      recent: recent.map((r) => ({
-        path: r.path || "/",
-        lastSeen: r.last_seen,
-      })),
+      pages,
     });
   } catch (err) {
     console.error("[presence] GET error:", err);
-    return noStoreJson({ online: 0 }, 500);
+    return noStoreJson({ online: 0, pages: [] }, 500);
   }
 }

@@ -67,17 +67,22 @@ export async function countOnlineVisitors(windowMs = PRESENCE_ONLINE_WINDOW_MS):
   return Number.isFinite(n) ? n : 0;
 }
 
-export async function listRecentPresence(limit = 8, windowMs = PRESENCE_ONLINE_WINDOW_MS) {
+export async function countOnlineByPath(windowMs = PRESENCE_ONLINE_WINDOW_MS): Promise<
+  { path: string; count: number }[]
+> {
   const seconds = Math.max(60, Math.floor(windowMs / 1000));
-  const { rows } = await neonQuery<{ path: string | null; last_seen: string }>(
-    `SELECT path, last_seen
+  const { rows } = await neonQuery<{ path: string | null; count: string | number }>(
+    `SELECT COALESCE(NULLIF(TRIM(path), ''), '/') AS path, COUNT(*)::int AS count
      FROM site_presence
      WHERE last_seen > now() - ($1::int * interval '1 second')
-     ORDER BY last_seen DESC
-     LIMIT $2`,
-    [seconds, limit]
+     GROUP BY COALESCE(NULLIF(TRIM(path), ''), '/')
+     ORDER BY COUNT(*) DESC, path ASC`,
+    [seconds]
   );
-  return rows ?? [];
+  return (rows ?? []).map((r) => ({
+    path: r.path || "/",
+    count: typeof r.count === "number" ? r.count : Number(r.count) || 0,
+  }));
 }
 
 export async function pruneStalePresence(): Promise<void> {
