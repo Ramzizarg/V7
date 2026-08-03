@@ -71,8 +71,9 @@ export async function POST(req: NextRequest) {
     }
 
     for (const item of items) {
+      const productId = Number(item.productId);
       const qty = Math.floor(Number(item.quantity) || 0);
-      if (!item.productId || qty < 1) {
+      if (!Number.isFinite(productId) || productId < 1 || qty < 1) {
         return NextResponse.json({ error: "Article invalide dans le panier." }, { status: 400 });
       }
       if (!item.size || !String(item.size).trim()) {
@@ -86,14 +87,15 @@ export async function POST(req: NextRequest) {
     // Aggregate qty by productId+size for stock checks
     const demand = new Map<string, { productId: number; size: string; qty: number; name: string }>();
     for (const item of items) {
+      const productId = Number(item.productId);
       const size = String(item.size).trim();
-      const key = `${item.productId}::${size.toUpperCase()}`;
+      const key = `${productId}::${size.toUpperCase()}`;
       const prev = demand.get(key);
       const qty = Math.floor(Number(item.quantity) || 0);
       if (prev) prev.qty += qty;
       else {
         demand.set(key, {
-          productId: item.productId,
+          productId,
           size,
           qty,
           name: item.product_name,
@@ -108,7 +110,9 @@ export async function POST(req: NextRequest) {
       productIds
     );
 
-    const byId = new Map(productRows.map((r) => [Number(r.id), r]));
+    const byId = new Map(
+      (productRows ?? []).map((r) => [Number(r.id), r] as const).filter(([id]) => Number.isFinite(id) && id > 0)
+    );
     const nextByProduct = new Map<number, { sizes: SizeStock[]; total: number; name: string }>();
 
     for (const d of demand.values()) {
@@ -183,10 +187,10 @@ export async function POST(req: NextRequest) {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           orderId,
-          item.productId,
+          Number(item.productId),
           item.product_name,
-          item.quantity,
-          item.price,
+          Math.floor(Number(item.quantity) || 0),
+          Number(item.price),
           item.size ?? null,
           item.color ?? null,
         ]

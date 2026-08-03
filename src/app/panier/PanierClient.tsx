@@ -235,9 +235,9 @@ export default function PanierClient() {
           subtotal,
           shipping,
           items: items.map((it) => ({
-            productId: it.productId,
+            productId: Number(it.productId),
             product_name: it.name,
-            quantity: it.quantity,
+            quantity: Number(it.quantity),
             price: it.discountPrice ?? it.price,
             size: it.size ?? null,
             color: it.color ?? null,

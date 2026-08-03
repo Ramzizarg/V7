@@ -202,7 +202,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
         ...prev,
         {
           key: `${pickProduct.id}-${pickSize}-${Date.now()}`,
-          productId: pickProduct.id,
+          productId: Number(pickProduct.id),
           name: pickProduct.name,
           price,
           size: pickSize,
@@ -265,10 +265,10 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
           subtotal,
           shipping,
           items: lines.map((it) => ({
-            productId: it.productId,
+            productId: Number(it.productId),
             product_name: it.name,
-            quantity: it.quantity,
-            price: it.price,
+            quantity: Number(it.quantity),
+            price: Number(it.price),
             size: it.size,
             color: it.color || null,
             image_url: it.image,
