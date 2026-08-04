@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, Plus, Trash2, X } from "lucide-react";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import {
@@ -92,6 +93,25 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
   const [freeShipping, setFreeShipping] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open, onClose, saving]);
 
   useEffect(() => {
     if (!open) return;
@@ -188,7 +208,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
     const price = unitPrice(pickProduct);
     setLines((prev) => {
       const existing = prev.find(
-        (l) => l.productId === pickProduct.id && l.size.toUpperCase() === pickSize.toUpperCase()
+        (l) => Number(l.productId) === Number(pickProduct.id) && l.size.toUpperCase() === pickSize.toUpperCase()
       );
       if (existing) {
         const nextQty = existing.quantity + qty;
@@ -288,23 +308,26 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
     }
   };
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center p-0 sm:p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center p-0 sm:p-4">
       <button
         type="button"
         className="absolute inset-0 bg-black/40"
         aria-label="Fermer"
-        onClick={onClose}
+        onClick={() => {
+          if (!saving) onClose();
+        }}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Créer une commande"
-        className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+        className="relative z-10 flex h-[min(92dvh,100%)] max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-2xl"
       >
-        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 sm:px-5">
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-4 py-3 sm:px-5">
           <div>
             <h2 className="text-base font-bold text-black">Créer une commande</h2>
             <p className="text-xs text-zinc-500">Pour n’importe quel client · stock déduit automatiquement</p>
@@ -312,15 +335,16 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-zinc-500 hover:bg-zinc-100 hover:text-black"
+            disabled={saving}
+            className="rounded-full p-2 text-zinc-500 hover:bg-zinc-100 hover:text-black disabled:opacity-50"
             aria-label="Fermer"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-5">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 [-webkit-overflow-scrolling:touch]">
             {formError ? (
               <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {formError}
@@ -450,7 +474,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
                     type="button"
                     onClick={addLine}
                     disabled={!pickProduct || !pickSize || pickMax < 1}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-40"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-40 sm:w-auto sm:py-2.5"
                   >
                     <Plus className="h-4 w-4" />
                     Ajouter
@@ -528,18 +552,19 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
             </section>
           </div>
 
-          <div className="flex flex-col-reverse gap-2 border-t border-zinc-200 px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+          <div className="flex shrink-0 flex-col gap-2 border-t border-zinc-200 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:px-5 sm:pb-3">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-black hover:bg-zinc-50"
+              disabled={saving}
+              className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-black hover:bg-zinc-50 disabled:opacity-50 sm:order-1"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={saving || lines.length === 0}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50 sm:order-2"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Créer la commande
@@ -547,6 +572,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

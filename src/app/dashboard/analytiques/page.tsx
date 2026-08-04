@@ -450,7 +450,7 @@ export default function DashboardAnalytiquesPage() {
         <button
           type="button"
           onClick={() => setCreateOrderOpen(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800 sm:w-auto sm:py-2.5"
         >
           <Plus className="h-4 w-4" />
           Créer une commande
