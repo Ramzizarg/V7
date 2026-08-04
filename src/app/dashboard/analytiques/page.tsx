@@ -17,6 +17,7 @@ import {
   X,
   Plus,
   BadgeCheck,
+  Trash2,
 } from "lucide-react";
 import { sumNetOrderRevenue } from "@/lib/orderRevenue";
 import DashboardCreateOrderModal from "@/components/DashboardCreateOrderModal";
@@ -176,6 +177,7 @@ export default function DashboardAnalytiquesPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [savingPhoneId, setSavingPhoneId] = useState<number | null>(null);
   const [savingStatusId, setSavingStatusId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [orderItems, setOrderItems] = useState<Record<number, OrderItemRow[]>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [phoneFilter, setPhoneFilter] = useState<PhoneFilter>("all");
@@ -256,6 +258,58 @@ export default function DashboardAnalytiquesPage() {
     } finally {
       setSavingStatusId(null);
     }
+  };
+
+  const handleDeleteOrder = async (order: OrderRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (deletingId === order.id) return;
+    const ok = window.confirm(
+      `Supprimer la commande #${order.id} (${order.full_name}) ?\nLe stock des tailles sera remis.`
+    );
+    if (!ok) return;
+
+    setDeletingId(order.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/backoffice/delete-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      if (!res.ok) {
+        throw new Error(data?.error || "Suppression impossible.");
+      }
+      setOrders((prev) => prev.filter((o) => o.id !== order.id));
+      setOrderItems((prev) => {
+        const next = { ...prev };
+        delete next[order.id];
+        return next;
+      });
+      if (expandedId === order.id) setExpandedId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de supprimer la commande.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const renderDeleteButton = (order: OrderRow, compact = false) => {
+    const saving = deletingId === order.id;
+    return (
+      <button
+        type="button"
+        onClick={(e) => handleDeleteOrder(order, e)}
+        disabled={saving}
+        title="Supprimer la commande"
+        aria-label={`Supprimer commande #${order.id}`}
+        className={`inline-flex items-center justify-center rounded-full text-zinc-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 ${
+          compact ? "h-7 w-7" : "h-8 w-8"
+        }`}
+      >
+        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+      </button>
+    );
   };
 
   const renderPhoneConfirm = (order: OrderRow, compact = false) => {
@@ -773,6 +827,7 @@ export default function DashboardAnalytiquesPage() {
                         </p>
                         {renderPhoneConfirm(o, true)}
                         {renderStatusSelect(o, true)}
+                        <span onClick={(e) => e.stopPropagation()}>{renderDeleteButton(o, true)}</span>
                       </div>
                       {expandedId === o.id ? <ChevronUp className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" />}
                     </div>
@@ -798,6 +853,21 @@ export default function DashboardAnalytiquesPage() {
                           })}
                         </div>
                         {o.email && <p className="mt-2 text-xs text-zinc-500">Email: {o.email}</p>}
+                        <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteOrder(o, e)}
+                            disabled={deletingId === o.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+                          >
+                            {deletingId === o.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                            Supprimer la commande
+                          </button>
+                        </div>
                       </div>
                     )}
                   </Fragment>
@@ -816,6 +886,7 @@ export default function DashboardAnalytiquesPage() {
                   <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-zinc-600">Taille</th>
                   <th className="px-4 py-3 text-right font-semibold uppercase tracking-wider text-zinc-600">Total</th>
                   <th className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-zinc-600">Status</th>
+                  <th className="px-4 py-3 text-center font-semibold uppercase tracking-wider text-zinc-600 w-12"> </th>
                   <th className="px-4 py-3 w-10" />
                 </tr>
               </thead>
@@ -866,6 +937,9 @@ export default function DashboardAnalytiquesPage() {
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         {renderStatusSelect(o)}
                       </td>
+                      <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        {renderDeleteButton(o)}
+                      </td>
                       <td className="px-4 py-3">
                         {expandedId === o.id ? (
                           <ChevronUp className="h-4 w-4 text-zinc-400" />
@@ -876,7 +950,7 @@ export default function DashboardAnalytiquesPage() {
                     </tr>
                     {expandedId === o.id && orderItems[o.id] && (
                       <tr className="bg-zinc-50/50">
-                        <td colSpan={9} className="px-4 py-3">
+                        <td colSpan={10} className="px-4 py-3">
                           <div className="pl-0 sm:pl-4 space-y-1 text-xs">
                             <p className="font-semibold text-zinc-700 mb-2">Items</p>
                             {orderItems[o.id].map((item, i) => {

@@ -125,6 +125,25 @@ export function decrementSizeStock(
   return { sizes: next, total: totalSizeStock(next) };
 }
 
+/** Restore qty for a size (creates the size row if missing). */
+export function incrementSizeStock(
+  sizes: SizeStock[],
+  size: string,
+  qty: number
+): { sizes: SizeStock[]; total: number } {
+  const add = Math.max(0, Math.floor(Number(qty) || 0));
+  if (add < 1) return { sizes: sizes.map((s) => ({ ...s })), total: totalSizeStock(sizes) };
+  const key = normalizeSizeKey(size);
+  const idx = sizes.findIndex((s) => normalizeSizeKey(s.size) === key);
+  if (idx < 0) {
+    const next = [...sizes.map((s) => ({ ...s })), { size: size.trim(), stock: add }];
+    return { sizes: next, total: totalSizeStock(next) };
+  }
+  const current = Math.max(0, Math.floor(Number(sizes[idx].stock) || 0));
+  const next = sizes.map((s, i) => (i === idx ? { ...s, stock: current + add } : { ...s }));
+  return { sizes: next, total: totalSizeStock(next) };
+}
+
 export function serializeSizeStocks(sizes: SizeStock[]): SizeStock[] {
   return sizes
     .filter((s) => typeof s.size === "string" && s.size.trim().length > 0)
