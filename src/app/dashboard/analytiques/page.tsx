@@ -16,6 +16,7 @@ import {
   Filter,
   X,
   Plus,
+  BadgeCheck,
 } from "lucide-react";
 import { sumNetOrderRevenue } from "@/lib/orderRevenue";
 import DashboardCreateOrderModal from "@/components/DashboardCreateOrderModal";
@@ -35,7 +36,9 @@ type OrderRow = {
   items_count?: number;
 };
 
-type StatusFilter = "all" | "pending" | "rejected" | "delivered" | "out_for_delivery";
+type StatusFilter = "all" | "pending" | "confirmed" | "rejected" | "delivered" | "out_for_delivery";
+
+type PhoneFilter = "all" | "yes" | "no";
 
 type DatePreset = "all" | "today" | "week" | "month" | "custom";
 
@@ -96,6 +99,7 @@ function detectDatePreset(from: string, to: string, now = new Date()): DatePrese
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
+  { value: "confirmed", label: "Confirmed" },
   { value: "rejected", label: "Rejected" },
   { value: "out_for_delivery", label: "Out for delivery" },
   { value: "delivered", label: "Delivered" },
@@ -125,16 +129,41 @@ function formatOrderItemLabel(item: Pick<OrderItemRow, "product_name" | "quantit
 
 function formatOrderSizes(items: OrderItemRow[] | undefined): string {
   if (!items?.length) return "—";
-  const sizes = items
-    .map((item) => item.size?.trim())
-    .filter((size): size is string => Boolean(size));
-  if (sizes.length === 0) return "—";
-  return sizes.join(", ");
+  const bySize = new Map<string, number>();
+  for (const item of items) {
+    const size = item.size?.trim();
+    if (!size) continue;
+    bySize.set(size, (bySize.get(size) ?? 0) + item.quantity);
+  }
+  if (bySize.size === 0) return "—";
+  return [...bySize.entries()]
+    .sort(([a], [b]) => compareSizes(a, b))
+    .map(([size, qty]) => (qty > 1 ? `${size} ×${qty}` : size))
+    .join(", ");
+}
+
+const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "3XL", "4XL"];
+
+function compareSizes(a: string, b: string) {
+  const ua = a.toUpperCase();
+  const ub = b.toUpperCase();
+  const ia = SIZE_ORDER.indexOf(ua);
+  const ib = SIZE_ORDER.indexOf(ub);
+  if (ia !== -1 || ib !== -1) {
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  }
+  const na = Number(a);
+  const nb = Number(b);
+  if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+  return ua.localeCompare(ub, "fr");
 }
 
 function normalizeStatus(status: string): EditableStatus {
   const s = status?.toLowerCase();
-  if (s === "confirmed" || s === "delivered") return "delivered";
+  if (s === "delivered") return "delivered";
+  if (s === "confirmed") return "confirmed";
   if (s === "shipped" || s === "out_for_delivery") return "out_for_delivery";
   if (s === "rejected") return "rejected";
   return "pending";
@@ -149,6 +178,7 @@ export default function DashboardAnalytiquesPage() {
   const [savingStatusId, setSavingStatusId] = useState<number | null>(null);
   const [orderItems, setOrderItems] = useState<Record<number, OrderItemRow[]>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [phoneFilter, setPhoneFilter] = useState<PhoneFilter>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
@@ -171,6 +201,7 @@ export default function DashboardAnalytiquesPage() {
     const s = normalizeStatus(status);
     if (s === "rejected") return "bg-red-100 text-red-800";
     if (s === "delivered") return "bg-emerald-100 text-emerald-800";
+    if (s === "confirmed") return "bg-violet-100 text-violet-800";
     if (s === "pending") return "bg-amber-100 text-amber-800";
     if (s === "out_for_delivery") return "bg-blue-100 text-blue-800";
     return "bg-zinc-100 text-zinc-700";
@@ -362,26 +393,58 @@ export default function DashboardAnalytiquesPage() {
 
   const totalOrders = orders.length;
   const totalRevenue = sumNetOrderRevenue(orders);
-  const pending = orders.filter((o) => o.status === "pending").length;
-  const rejected = orders.filter((o) => o.status === "rejected").length;
-  const delivered = orders.filter((o) => o.status === "delivered" || o.status === "confirmed").length;
-  const outForDelivery = orders.filter((o) => o.status === "out_for_delivery" || o.status === "shipped").length;
+  const pending = orders.filter((o) => normalizeStatus(o.status) === "pending").length;
+  const confirmed = orders.filter((o) => normalizeStatus(o.status) === "confirmed").length;
+  const rejected = orders.filter((o) => normalizeStatus(o.status) === "rejected").length;
+  const delivered = orders.filter((o) => normalizeStatus(o.status) === "delivered").length;
+  const outForDelivery = orders.filter((o) => normalizeStatus(o.status) === "out_for_delivery").length;
 
   const ordersThisWeek = orders.filter((o) => new Date(o.created_at) >= startOfWeek);
   const revenueThisWeek = sumNetOrderRevenue(ordersThisWeek);
   const ordersThisMonth = orders.filter((o) => new Date(o.created_at) >= startOfMonth);
   const revenueThisMonth = sumNetOrderRevenue(ordersThisMonth);
 
-  const filteredOrders = useMemo(() => {
+  const dateStatusFiltered = useMemo(() => {
     let list = orders;
     if (dateFrom || dateTo) {
       list = list.filter((o) => orderMatchesDateRange(o.created_at, dateFrom, dateTo));
     }
     if (statusFilter === "all") return list;
-    if (statusFilter === "delivered") return list.filter((o) => o.status === "delivered" || o.status === "confirmed");
-    if (statusFilter === "out_for_delivery") return list.filter((o) => o.status === "out_for_delivery" || o.status === "shipped");
-    return list.filter((o) => o.status === statusFilter);
+    if (statusFilter === "delivered") return list.filter((o) => normalizeStatus(o.status) === "delivered");
+    if (statusFilter === "out_for_delivery") return list.filter((o) => normalizeStatus(o.status) === "out_for_delivery");
+    if (statusFilter === "confirmed") return list.filter((o) => normalizeStatus(o.status) === "confirmed");
+    return list.filter((o) => normalizeStatus(o.status) === statusFilter);
   }, [orders, statusFilter, dateFrom, dateTo]);
+
+  const phoneYesCount = useMemo(
+    () => dateStatusFiltered.filter((o) => Boolean(o.confirmed_by_phone)).length,
+    [dateStatusFiltered]
+  );
+  const phoneNoCount = dateStatusFiltered.length - phoneYesCount;
+
+  const filteredOrders = useMemo(() => {
+    if (phoneFilter === "yes") return dateStatusFiltered.filter((o) => Boolean(o.confirmed_by_phone));
+    if (phoneFilter === "no") return dateStatusFiltered.filter((o) => !o.confirmed_by_phone);
+    return dateStatusFiltered;
+  }, [dateStatusFiltered, phoneFilter]);
+
+  const sizeTotals = useMemo(() => {
+    const bySize = new Map<string, number>();
+    let totalPieces = 0;
+    for (const o of filteredOrders) {
+      for (const item of orderItems[o.id] ?? []) {
+        const size = item.size?.trim();
+        if (!size) continue;
+        const qty = item.quantity || 0;
+        bySize.set(size, (bySize.get(size) ?? 0) + qty);
+        totalPieces += qty;
+      }
+    }
+    const rows = [...bySize.entries()]
+      .sort(([a], [b]) => compareSizes(a, b))
+      .map(([size, count]) => ({ size, count }));
+    return { rows, totalPieces };
+  }, [filteredOrders, orderItems]);
 
   const stats = [
     { label: "Total orders", value: totalOrders, icon: ShoppingCart, bg: "bg-white", border: "border-black", text: "text-black" },
@@ -395,6 +458,7 @@ export default function DashboardAnalytiquesPage() {
       text: "text-white",
     },
     { label: "Pending", value: pending, icon: Clock, bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-800" },
+    { label: "Confirmed", value: confirmed, icon: BadgeCheck, bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-800" },
     { label: "Rejected", value: rejected, icon: X, bg: "bg-red-50", border: "border-red-200", text: "text-red-800" },
     { label: "Delivered", value: delivered, icon: CheckCircle, bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800" },
     { label: "Out for delivery", value: outForDelivery, icon: Truck, bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800" },
@@ -416,6 +480,7 @@ export default function DashboardAnalytiquesPage() {
   const filterLabels: Record<StatusFilter, string> = {
     all: "All",
     pending: "Pending",
+    confirmed: "Confirmed",
     rejected: "Rejected",
     delivered: "Delivered",
     out_for_delivery: "Shipped",
@@ -470,7 +535,7 @@ export default function DashboardAnalytiquesPage() {
       )}
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 mb-6">
         {stats.map((s) => (
           <div
             key={s.label}
@@ -533,6 +598,9 @@ export default function DashboardAnalytiquesPage() {
               <p className="text-xs text-zinc-500 mt-0.5">
                 {filteredOrders.length} / {totalOrders} commande{totalOrders !== 1 ? "s" : ""}
                 {dateFilterSummary ? ` · ${dateFilterSummary}` : null}
+                {sizeTotals.totalPieces > 0
+                  ? ` · ${sizeTotals.totalPieces} pièce${sizeTotals.totalPieces !== 1 ? "s" : ""}`
+                  : null}
               </p>
             </div>
             <div className="flex flex-col gap-2 min-w-0 sm:items-end">
@@ -588,7 +656,7 @@ export default function DashboardAnalytiquesPage() {
               <div className="flex items-center gap-2 min-w-0 flex-wrap">
                 <Filter className="h-4 w-4 text-zinc-500 shrink-0" />
                 <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-200 p-0.5 bg-zinc-50">
-                  {(["all", "pending", "rejected", "delivered", "out_for_delivery"] as const).map((f) => (
+                  {(["all", "pending", "confirmed", "rejected", "delivered", "out_for_delivery"] as const).map((f) => (
                     <button
                       key={f}
                       type="button"
@@ -604,13 +672,66 @@ export default function DashboardAnalytiquesPage() {
                   ))}
                 </div>
               </div>
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 shrink-0">
+                  Conf. téléphone
+                </span>
+                <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-200 p-0.5 bg-zinc-50">
+                  {(
+                    [
+                      { value: "all" as const, label: "Tous", count: dateStatusFiltered.length },
+                      { value: "yes" as const, label: "Oui", count: phoneYesCount },
+                      { value: "no" as const, label: "Non", count: phoneNoCount },
+                    ] as const
+                  ).map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => setPhoneFilter(f.value)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium uppercase rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                        phoneFilter === f.value
+                          ? "bg-white text-black shadow-sm border border-zinc-200"
+                          : "text-zinc-500 hover:text-zinc-700"
+                      }`}
+                    >
+                      {f.label}
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
+                          phoneFilter === f.value ? "bg-zinc-100 text-zinc-800" : "bg-zinc-200/70 text-zinc-600"
+                        }`}
+                      >
+                        {f.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
+          {sizeTotals.rows.length > 0 ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 shrink-0">
+                Tailles
+              </span>
+              {sizeTotals.rows.map(({ size, count }) => (
+                <span
+                  key={size}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-800"
+                >
+                  <span className="font-semibold">{size}</span>
+                  <span className="tabular-nums text-zinc-500">{count}</span>
+                </span>
+              ))}
+              <span className="text-xs text-zinc-500 tabular-nums">
+                Total {sizeTotals.totalPieces}
+              </span>
+            </div>
+          ) : null}
         </div>
         <div className="overflow-x-auto">
           {filteredOrders.length === 0 ? (
             <p className="px-4 sm:px-6 py-12 text-center text-zinc-500 text-sm">
-              {statusFilter === "all" && !hasActiveDateFilter
+              {statusFilter === "all" && phoneFilter === "all" && !hasActiveDateFilter
                 ? "No orders yet."
                 : `No orders match the current filters.`}
             </p>

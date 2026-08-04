@@ -54,7 +54,7 @@ async function getDashboardData() {
     }).length;
     const deliveredOrders = ordersList.filter((o) => {
       const s = String(o.status ?? "").toLowerCase();
-      return s === "delivered" || s === "confirmed";
+      return s === "delivered";
     }).length;
     const totalRevenue = ordersList.reduce((s, o) => s + Number(o.total_price ?? 0), 0);
 

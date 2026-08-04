@@ -77,7 +77,7 @@ export type Coupon = {
   created_at: string;
 };
 
-export type OrderStatus = 'pending' | 'confirmed' | 'shipped';
+export type OrderStatus = 'pending' | 'confirmed' | 'out_for_delivery' | 'delivered' | 'rejected' | 'shipped';
 
 export type Order = {
   id: number;
