@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireBackofficeSession } from "@/lib/requireBackofficeSession";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
-import { calirexGetPosDetailsList, mapCalirexEtatToOrderStatus } from "@/lib/calirex";
+import {
+  calirexGetPosDetailsList,
+  mapCalirexEtatToOrderStatus,
+  pickCalirexEtat,
+} from "@/lib/calirex";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,6 +19,7 @@ export async function POST() {
       return NextResponse.json({ error: "DATABASE_URL manquant." }, { status: 503 });
     }
 
+    // Sync all Calirex-shipped orders (including delivered, so late updates apply)
     const { rows } = await neonQuery<{
       id: number;
       status: string;
@@ -23,9 +28,8 @@ export async function POST() {
       `SELECT id, status, calirex_code_colis
        FROM orders
        WHERE calirex_code_colis IS NOT NULL AND calirex_code_colis <> ''
-         AND status NOT IN ('delivered', 'rejected')
        ORDER BY calirex_shipped_at DESC NULLS LAST
-       LIMIT 80`
+       LIMIT 100`
     );
 
     if (!rows.length) {
@@ -41,12 +45,9 @@ export async function POST() {
     for (const [code, detail] of Object.entries(batch)) {
       const order = byCode.get(code);
       if (!order) continue;
-      const etat =
-        (typeof detail.colis?.etat === "string" && detail.colis.etat) ||
-        detail.etat_colis?.[0]?.etat ||
-        null;
+      const etat = pickCalirexEtat(detail);
       const mapped = mapCalirexEtatToOrderStatus(etat);
-      const nextStatus = mapped && order.status !== "rejected" ? mapped : order.status;
+      const nextStatus = mapped ?? order.status;
 
       await neonQuery(
         `UPDATE orders SET

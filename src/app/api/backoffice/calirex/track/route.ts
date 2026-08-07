@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBackofficeSession } from "@/lib/requireBackofficeSession";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
-import { calirexGetPosDetail, mapCalirexEtatToOrderStatus } from "@/lib/calirex";
+import {
+  calirexGetPosDetail,
+  mapCalirexEtatToOrderStatus,
+  pickCalirexEtat,
+} from "@/lib/calirex";
 
 export const runtime = "nodejs";
 
@@ -29,24 +33,15 @@ export async function GET(req: NextRequest) {
     }
 
     const detail = await calirexGetPosDetail(order.calirex_code_colis);
-    const etat =
-      (typeof detail.colis?.etat === "string" && detail.colis.etat) ||
-      detail.etat_colis?.[0]?.etat ||
-      null;
-
+    const etat = pickCalirexEtat(detail);
     const mapped = mapCalirexEtatToOrderStatus(etat);
+    const nextStatus = mapped ?? order.status;
+
     if (etat) {
-      if (mapped && mapped !== order.status && order.status !== "rejected") {
-        await neonQuery(
-          `UPDATE orders SET calirex_etat = $1, status = $2, calirex_last_sync_at = NOW() WHERE id = $3`,
-          [etat, mapped, orderId]
-        );
-      } else {
-        await neonQuery(
-          `UPDATE orders SET calirex_etat = $1, calirex_last_sync_at = NOW() WHERE id = $2`,
-          [etat, orderId]
-        );
-      }
+      await neonQuery(
+        `UPDATE orders SET calirex_etat = $1, status = $2, calirex_last_sync_at = NOW() WHERE id = $3`,
+        [etat, nextStatus, orderId]
+      );
     }
 
     return NextResponse.json({
@@ -54,7 +49,7 @@ export async function GET(req: NextRequest) {
       orderId,
       code_colis: order.calirex_code_colis,
       etat,
-      status: mapped || order.status,
+      status: nextStatus,
       colis: detail.colis ?? null,
       etat_colis: detail.etat_colis ?? [],
     });

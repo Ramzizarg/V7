@@ -102,7 +102,6 @@ export async function POST(req: NextRequest) {
       nb_pieces: nbPieces,
       designation,
       codeClient: `VERO7-${orderId}`,
-      commentaire_client: `Commande site Vero7 #${orderId}`,
       poids: 1,
       echange: "non",
       fragile: "non",

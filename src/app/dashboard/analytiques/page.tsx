@@ -343,6 +343,22 @@ export default function DashboardAnalytiquesPage() {
         calirex_etat: "en attente",
         status: data?.status || "out_for_delivery",
       });
+      // Pull Calirex etat right after ship so status matches carrier
+      if (data?.code_colis) {
+        void fetch(`/api/backoffice/calirex/track?orderId=${order.id}`)
+          .then(async (r) => {
+            const t = (await r.json().catch(() => null)) as {
+              etat?: string | null;
+              status?: string;
+            } | null;
+            if (!r.ok || !t) return;
+            patchOrder(order.id, {
+              calirex_etat: t.etat ?? "en attente",
+              status: t.status || "out_for_delivery",
+            });
+          })
+          .catch(() => {});
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur Calirex.");
     } finally {
@@ -486,6 +502,34 @@ export default function DashboardAnalytiquesPage() {
   const renderStatusSelect = (order: OrderRow, compact = false) => {
     const current = normalizeStatus(order.status);
     const saving = savingStatusId === order.id;
+    const calirexShipped = Boolean(order.calirex_code_colis);
+    const calirexLabel = order.calirex_etat?.trim() || null;
+
+    // After Calirex ship: show live Calirex etat as the commande status
+    if (calirexShipped) {
+      return (
+        <div className={`flex flex-col gap-1 ${compact ? "items-end" : "items-start"}`}>
+          <span
+            className={`inline-flex max-w-[11rem] truncate rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusStyle(
+              current
+            )} ${compact ? "text-[10px] px-2 py-0.5 max-w-[9rem]" : ""}`}
+            title={calirexLabel || STATUS_OPTIONS.find((o) => o.value === current)?.label}
+          >
+            {calirexLabel || STATUS_OPTIONS.find((o) => o.value === current)?.label || current}
+          </span>
+          {!compact ? (
+            <button
+              type="button"
+              onClick={(e) => handleTrackCalirex(order, e)}
+              disabled={trackingId === order.id}
+              className="text-[10px] font-medium text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline disabled:opacity-50"
+            >
+              {trackingId === order.id ? "Maj…" : "Maj Calirex"}
+            </button>
+          ) : null}
+        </div>
+      );
+    }
 
     return (
       <select
@@ -580,6 +624,37 @@ export default function DashboardAnalytiquesPage() {
   useEffect(() => {
     void loadOrders();
   }, [loadOrders]);
+
+  // Auto-sync Calirex statuses when the page has shipped orders
+  useEffect(() => {
+    if (loading || orders.length === 0) return;
+    const hasShipped = orders.some((o) => o.calirex_code_colis);
+    if (!hasShipped) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/backoffice/calirex/sync", { method: "POST" });
+        const data = (await res.json().catch(() => null)) as {
+          results?: { orderId: number; etat: string | null; status: string }[];
+        } | null;
+        if (cancelled || !res.ok || !data?.results?.length) return;
+        setOrders((prev) =>
+          prev.map((o) => {
+            const hit = data.results!.find((r) => r.orderId === o.id);
+            if (!hit) return o;
+            return { ...o, calirex_etat: hit.etat ?? o.calirex_etat, status: hit.status };
+          })
+        );
+      } catch {
+        // silent — manual Sync still available
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Only on first successful load of orders for this visit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const formatPrice = (n: number) =>
     new Intl.NumberFormat("fr-FR", { style: "currency", currency: "TND", minimumFractionDigits: 2 }).format(n);

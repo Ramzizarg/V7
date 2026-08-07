@@ -243,34 +243,73 @@ export async function calirexGetPosDetailsList(
   });
 }
 
-/** Map Calirex etat text → local order status when possible. */
+/**
+ * Map Calirex etat → local order status.
+ * After shipping, commande status follows Calirex.
+ */
 export function mapCalirexEtatToOrderStatus(etat: string | null | undefined): string | null {
   if (!etat) return null;
-  const e = etat.trim().toLowerCase();
+  const e = etat
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  // Delivered
   if (
-    e.includes("livré") ||
     e.includes("livre") ||
-    e === "colis livré" ||
-    e === "livrés payés" ||
-    e === "livres payes"
+    e === "colis livre" ||
+    e === "livres payes" ||
+    e === "echange livree" ||
+    e.includes("echange livr")
   ) {
     return "delivered";
   }
-  if (e.includes("retour") || e.includes("réclamation") || e.includes("reclamation")) {
+
+  // Return / cancel / claim → rejected
+  if (
+    e.includes("retour") ||
+    e.includes("reclamation") ||
+    e.includes("cloture") ||
+    e.includes("annul")
+  ) {
     return "rejected";
   }
+
+  // Still in delivery pipeline
   if (
     e.includes("en cours") ||
-    e.includes("enlève") ||
     e.includes("enleve") ||
-    e.includes("dépôt") ||
     e.includes("depot") ||
-    e.includes("expédi") ||
     e.includes("expedi") ||
-    e === "a enlever" ||
-    e === "en attente"
+    e.includes("attente") ||
+    e.includes("a enlever") ||
+    e.includes("probleme") ||
+    e.includes("echange") ||
+    e.includes("verification")
   ) {
     return "out_for_delivery";
+  }
+
+  // Unknown Calirex etat after ship → keep as out for delivery
+  return "out_for_delivery";
+}
+
+/** Prefer latest timeline event, then colis.etat. */
+export function pickCalirexEtat(detail: CalirexColisDetail | null | undefined): string | null {
+  if (!detail) return null;
+  const events = Array.isArray(detail.etat_colis) ? detail.etat_colis : [];
+  if (events.length > 0) {
+    const sorted = [...events].sort((a, b) => {
+      const da = a.date ? Date.parse(a.date) : 0;
+      const db = b.date ? Date.parse(b.date) : 0;
+      return db - da;
+    });
+    const latest = sorted[0]?.etat;
+    if (typeof latest === "string" && latest.trim()) return latest.trim();
+  }
+  if (typeof detail.colis?.etat === "string" && detail.colis.etat.trim()) {
+    return detail.colis.etat.trim();
   }
   return null;
 }
