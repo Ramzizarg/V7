@@ -18,6 +18,9 @@ import {
   Plus,
   BadgeCheck,
   Trash2,
+  ExternalLink,
+  RefreshCw,
+  FileText,
 } from "lucide-react";
 import { sumNetOrderRevenue } from "@/lib/orderRevenue";
 import DashboardCreateOrderModal from "@/components/DashboardCreateOrderModal";
@@ -35,6 +38,10 @@ type OrderRow = {
   created_at: string;
   confirmed_by_phone?: boolean;
   items_count?: number;
+  calirex_code_colis?: string | null;
+  calirex_etat?: string | null;
+  calirex_bl_url?: string | null;
+  calirex_shipped_at?: string | null;
 };
 
 type StatusFilter = "all" | "pending" | "confirmed" | "rejected" | "delivered" | "out_for_delivery";
@@ -178,6 +185,15 @@ export default function DashboardAnalytiquesPage() {
   const [savingPhoneId, setSavingPhoneId] = useState<number | null>(null);
   const [savingStatusId, setSavingStatusId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [shippingId, setShippingId] = useState<number | null>(null);
+  const [trackingId, setTrackingId] = useState<number | null>(null);
+  const [syncingCalirex, setSyncingCalirex] = useState(false);
+  const [calirexOk, setCalirexOk] = useState<boolean | null>(null);
+  const [trackPanel, setTrackPanel] = useState<{
+    orderId: number;
+    etat: string | null;
+    events: { etat?: string; date?: string; description?: string; lieu?: string; PROBLEME?: string }[];
+  } | null>(null);
   const [orderItems, setOrderItems] = useState<Record<number, OrderItemRow[]>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [phoneFilter, setPhoneFilter] = useState<PhoneFilter>("all");
@@ -294,6 +310,129 @@ export default function DashboardAnalytiquesPage() {
     }
   };
 
+  const handleShipCalirex = async (order: OrderRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (shippingId === order.id) return;
+    if (order.calirex_code_colis) {
+      window.alert(`Déjà expédié : ${order.calirex_code_colis}`);
+      return;
+    }
+    const ok = window.confirm(
+      `Créer le colis Calirex pour #${order.id} (${order.full_name}) ?\nStatut → Out for delivery`
+    );
+    if (!ok) return;
+
+    setShippingId(order.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/backoffice/calirex/ship", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        code_colis?: string;
+        bl_url?: string | null;
+        status?: string;
+      } | null;
+      if (!res.ok) throw new Error(data?.error || "Expédition Calirex impossible.");
+      patchOrder(order.id, {
+        calirex_code_colis: data?.code_colis ?? null,
+        calirex_bl_url: data?.bl_url ?? null,
+        calirex_etat: "en attente",
+        status: data?.status || "out_for_delivery",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur Calirex.");
+    } finally {
+      setShippingId(null);
+    }
+  };
+
+  const handleTrackCalirex = async (order: OrderRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!order.calirex_code_colis || trackingId === order.id) return;
+    setTrackingId(order.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/backoffice/calirex/track?orderId=${order.id}`);
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        etat?: string | null;
+        status?: string;
+        etat_colis?: { etat?: string; date?: string; description?: string; lieu?: string; PROBLEME?: string }[];
+      } | null;
+      if (!res.ok) throw new Error(data?.error || "Suivi Calirex impossible.");
+      patchOrder(order.id, {
+        calirex_etat: data?.etat ?? order.calirex_etat,
+        status: data?.status || order.status,
+      });
+      setTrackPanel({
+        orderId: order.id,
+        etat: data?.etat ?? null,
+        events: data?.etat_colis ?? [],
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur suivi Calirex.");
+    } finally {
+      setTrackingId(null);
+    }
+  };
+
+  const handleOpenBon = async (order: OrderRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!order.calirex_code_colis) return;
+    if (order.calirex_bl_url) {
+      window.open(order.calirex_bl_url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/backoffice/calirex/bon?orderId=${order.id}`);
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        download_link?: string | null;
+      } | null;
+      if (!res.ok) throw new Error(data?.error || "Bon de livraison introuvable.");
+      if (data?.download_link) {
+        patchOrder(order.id, { calirex_bl_url: data.download_link });
+        window.open(data.download_link, "_blank", "noopener,noreferrer");
+      } else {
+        throw new Error("Lien PDF non disponible pour le moment.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur bon de livraison.");
+    }
+  };
+
+  const handleSyncCalirex = async () => {
+    if (syncingCalirex) return;
+    setSyncingCalirex(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/backoffice/calirex/sync", { method: "POST" });
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        updated?: number;
+        results?: { orderId: number; etat: string | null; status: string }[];
+      } | null;
+      if (!res.ok) throw new Error(data?.error || "Sync Calirex échoué.");
+      if (data?.results?.length) {
+        setOrders((prev) =>
+          prev.map((o) => {
+            const hit = data.results!.find((r) => r.orderId === o.id);
+            if (!hit) return o;
+            return { ...o, calirex_etat: hit.etat ?? o.calirex_etat, status: hit.status };
+          })
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur sync Calirex.");
+    } finally {
+      setSyncingCalirex(false);
+    }
+  };
+
   const renderDeleteButton = (order: OrderRow, compact = false) => {
     const saving = deletingId === order.id;
     return (
@@ -375,10 +514,18 @@ export default function DashboardAnalytiquesPage() {
       const supabase = supabaseBrowserClient();
       const { data: ordersData, error: ordersErr } = await supabase
         .from("orders")
-        .select("id, full_name, email, phone_number, address, city, governorate, total_price, status, created_at, confirmed_by_phone")
+        .select("id, full_name, email, phone_number, address, city, governorate, total_price, status, created_at, confirmed_by_phone, calirex_code_colis, calirex_etat, calirex_bl_url, calirex_shipped_at")
         .order("created_at", { ascending: false });
       if (ordersErr) throw ordersErr;
       const ordersList = (ordersData ?? []) as OrderRow[];
+
+      // Probe Calirex connection once (non-blocking)
+      void fetch("/api/backoffice/calirex/status")
+        .then(async (r) => {
+          const j = (await r.json().catch(() => null)) as { connected?: boolean } | null;
+          setCalirexOk(Boolean(j?.connected));
+        })
+        .catch(() => setCalirexOk(false));
 
       const { data: itemsData, error: itemsErr } = await supabase
         .from("order_items")
@@ -566,15 +713,41 @@ export default function DashboardAnalytiquesPage() {
           <h1 className="text-xl sm:text-3xl font-bold text-black">Analytiques</h1>
           <p className="text-sm text-zinc-600 mt-1">Orders & statistics</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setCreateOrderOpen(true)}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800 sm:w-auto sm:py-2.5"
-        >
-          <Plus className="h-4 w-4" />
-          Créer une commande
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => void handleSyncCalirex()}
+            disabled={syncingCalirex}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-zinc-50 disabled:opacity-50 sm:w-auto sm:py-2.5"
+            title="Synchroniser les états Calirex"
+          >
+            {syncingCalirex ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Sync Calirex
+          </button>
+          <button
+            type="button"
+            onClick={() => setCreateOrderOpen(true)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800 sm:w-auto sm:py-2.5"
+          >
+            <Plus className="h-4 w-4" />
+            Créer une commande
+          </button>
+        </div>
       </div>
+
+      {calirexOk != null ? (
+        <div
+          className={`mb-4 rounded-lg border px-3 py-2 text-xs sm:text-sm ${
+            calirexOk
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          {calirexOk
+            ? "Calirex TN connecté — vous pouvez créer des colis depuis chaque commande."
+            : "Calirex TN non connecté — vérifiez CALIREX_LOGIN / CALIREX_PASSWORD dans .env.local"}
+        </div>
+      ) : null}
 
       <DashboardCreateOrderModal
         open={createOrderOpen}
@@ -853,6 +1026,77 @@ export default function DashboardAnalytiquesPage() {
                           })}
                         </div>
                         {o.email && <p className="mt-2 text-xs text-zinc-500">Email: {o.email}</p>}
+                        <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                          {!o.calirex_code_colis ? (
+                            <button
+                              type="button"
+                              onClick={(e) => handleShipCalirex(o, e)}
+                              disabled={shippingId === o.id}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                            >
+                              {shippingId === o.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Truck className="h-3.5 w-3.5" />
+                              )}
+                              Expédier Calirex
+                            </button>
+                          ) : (
+                            <>
+                              <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-800">
+                                {o.calirex_code_colis}
+                                {o.calirex_etat ? ` · ${o.calirex_etat}` : ""}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => handleTrackCalirex(o, e)}
+                                disabled={trackingId === o.id}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-zinc-50 disabled:opacity-60"
+                              >
+                                {trackingId === o.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                )}
+                                Suivi
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleOpenBon(o, e)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-zinc-50"
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                Bon livraison
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        {trackPanel?.orderId === o.id ? (
+                          <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-xs" onClick={(e) => e.stopPropagation()}>
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <p className="font-semibold text-zinc-800">
+                                Suivi{trackPanel.etat ? ` — ${trackPanel.etat}` : ""}
+                              </p>
+                              <button type="button" onClick={() => setTrackPanel(null)} aria-label="Fermer">
+                                <X className="h-4 w-4 text-zinc-400" />
+                              </button>
+                            </div>
+                            {trackPanel.events.length === 0 ? (
+                              <p className="text-zinc-500">Aucun événement.</p>
+                            ) : (
+                              <ul className="space-y-2">
+                                {trackPanel.events.map((ev, i) => (
+                                  <li key={i} className="border-l-2 border-zinc-200 pl-2">
+                                    <p className="font-medium text-black">{ev.etat || "—"}</p>
+                                    <p className="text-zinc-500">
+                                      {[ev.date, ev.lieu, ev.description].filter(Boolean).join(" · ")}
+                                    </p>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ) : null}
                         <div className="mt-3" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
@@ -982,6 +1226,89 @@ export default function DashboardAnalytiquesPage() {
                             {o.email && (
                               <p className="mt-1 text-zinc-500">Email: {o.email}</p>
                             )}
+                            <div className="mt-3 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              {!o.calirex_code_colis ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleShipCalirex(o, e)}
+                                  disabled={shippingId === o.id}
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                                >
+                                  {shippingId === o.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Truck className="h-3.5 w-3.5" />
+                                  )}
+                                  Expédier via Calirex
+                                </button>
+                              ) : (
+                                <>
+                                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-900">
+                                    {o.calirex_code_colis}
+                                    {o.calirex_etat ? ` · ${o.calirex_etat}` : ""}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleTrackCalirex(o, e)}
+                                    disabled={trackingId === o.id}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50 disabled:opacity-60"
+                                  >
+                                    {trackingId === o.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="h-3.5 w-3.5" />
+                                    )}
+                                    Suivi
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleOpenBon(o, e)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50"
+                                  >
+                                    <FileText className="h-3.5 w-3.5" />
+                                    Bon de livraison
+                                    <ExternalLink className="h-3 w-3 opacity-60" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                            {trackPanel?.orderId === o.id ? (
+                              <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-3">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                  <p className="font-semibold text-zinc-800">
+                                    Suivi Calirex{trackPanel.etat ? ` — ${trackPanel.etat}` : ""}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    className="text-zinc-400 hover:text-zinc-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTrackPanel(null);
+                                    }}
+                                    aria-label="Fermer suivi"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                                {trackPanel.events.length === 0 ? (
+                                  <p className="text-zinc-500">Aucun événement pour le moment.</p>
+                                ) : (
+                                  <ul className="space-y-2">
+                                    {trackPanel.events.map((ev, i) => (
+                                      <li key={i} className="border-l-2 border-zinc-200 pl-3">
+                                        <p className="font-medium text-black">{ev.etat || "—"}</p>
+                                        <p className="text-zinc-500">
+                                          {[ev.date, ev.lieu, ev.description].filter(Boolean).join(" · ")}
+                                        </p>
+                                        {ev.PROBLEME ? (
+                                          <p className="text-red-600">Problème: {ev.PROBLEME}</p>
+                                        ) : null}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         </td>
                       </tr>
