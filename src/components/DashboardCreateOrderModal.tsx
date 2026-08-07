@@ -71,13 +71,38 @@ function formatMoney(n: number) {
   }).format(n);
 }
 
+type EditOrderItem = {
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  price: number;
+  color: string | null;
+  size: string | null;
+  image_url?: string | null;
+};
+
+type EditOrder = {
+  id: number;
+  full_name: string;
+  email: string | null;
+  phone_number: string;
+  address: string | null;
+  city: string;
+  governorate: string;
+  total_price: number;
+  items: EditOrderItem[];
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  /** When set, modal edits this order instead of creating. */
+  editOrder?: EditOrder | null;
 };
 
-export default function DashboardCreateOrderModal({ open, onClose, onCreated }: Props) {
+export default function DashboardCreateOrderModal({ open, onClose, onCreated, editOrder = null }: Props) {
+  const isEdit = Boolean(editOrder?.id);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -140,6 +165,27 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
 
   useEffect(() => {
     if (!open) return;
+    if (editOrder) {
+      setFullName(editOrder.full_name || "");
+      setEmail(editOrder.email || "");
+      setPhone(normalizeTunisiaPhoneDigits(editOrder.phone_number || ""));
+      setAddress(editOrder.address || "");
+      setCity(editOrder.city || "");
+      setGovernorate(editOrder.governorate || "");
+      setPickProductId("");
+      setPickSize("");
+      setPickQty("1");
+      setFormError(null);
+      // Lines filled once products loaded (need stock caps)
+      setLines([]);
+      const sub = (editOrder.items || []).reduce(
+        (s, it) => s + Number(it.price) * Number(it.quantity),
+        0
+      );
+      const total = Number(editOrder.total_price) || 0;
+      setFreeShipping(total <= sub + 0.001);
+      return;
+    }
     setFullName("");
     setEmail("");
     setPhone("");
@@ -152,7 +198,34 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
     setPickQty("1");
     setFreeShipping(false);
     setFormError(null);
-  }, [open]);
+  }, [open, editOrder]);
+
+  // After products load in edit mode, hydrate lines with correct maxStock (+ reserved qty)
+  useEffect(() => {
+    if (!open || !editOrder || products.length === 0) return;
+    const nextLines: DraftLine[] = [];
+    for (const it of editOrder.items || []) {
+      const productId = Number(it.product_id);
+      const p = products.find((x) => Number(x.id) === productId);
+      const size = (it.size || "").trim();
+      if (!p || !size) continue;
+      const parsed = parseSizeStocks(p.sizes ?? null, p.stock);
+      const available = stockForSize(parsed, size, p.stock);
+      const qty = Math.max(1, Math.floor(Number(it.quantity) || 1));
+      nextLines.push({
+        key: `${productId}-${size}-${nextLines.length}`,
+        productId,
+        name: it.product_name || p.name,
+        price: Number(it.price) || unitPrice(p),
+        size,
+        color: it.color || "",
+        quantity: qty,
+        image: it.image_url || productImage(p),
+        maxStock: available + qty,
+      });
+    }
+    setLines(nextLines);
+  }, [open, editOrder, products]);
 
   const pickProduct = useMemo(
     () => products.find((p) => String(p.id) === pickProductId) ?? null,
@@ -269,35 +342,64 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
 
     setSaving(true);
     try {
-      const res = await fetch("/api/place-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: fn,
-          email: em,
-          phone: ph,
-          address: addr,
-          city: ct,
-          governorate: gov,
-          couponCode: null,
-          discountAmount: 0,
-          total,
-          subtotal,
-          shipping,
-          items: lines.map((it) => ({
-            productId: Number(it.productId),
-            product_name: it.name,
-            quantity: Number(it.quantity),
-            price: Number(it.price),
-            size: it.size,
-            color: it.color || null,
-            image_url: it.image,
-          })),
-        }),
-      });
-      const data = (await res.json().catch(() => null)) as { error?: string; orderId?: number } | null;
-      if (!res.ok) {
-        throw new Error(data?.error || "Création de commande impossible.");
+      if (isEdit && editOrder) {
+        const res = await fetch("/api/backoffice/update-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: editOrder.id,
+            fullName: fn,
+            email: em,
+            phone: ph,
+            address: addr,
+            city: ct,
+            governorate: gov,
+            total,
+            subtotal,
+            shipping,
+            items: lines.map((it) => ({
+              productId: Number(it.productId),
+              product_name: it.name,
+              quantity: Number(it.quantity),
+              price: Number(it.price),
+              size: it.size,
+              color: it.color || null,
+            })),
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (!res.ok) throw new Error(data?.error || "Modification impossible.");
+      } else {
+        const res = await fetch("/api/place-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fullName: fn,
+            email: em,
+            phone: ph,
+            address: addr,
+            city: ct,
+            governorate: gov,
+            couponCode: null,
+            discountAmount: 0,
+            total,
+            subtotal,
+            shipping,
+            items: lines.map((it) => ({
+              productId: Number(it.productId),
+              product_name: it.name,
+              quantity: Number(it.quantity),
+              price: Number(it.price),
+              size: it.size,
+              color: it.color || null,
+              image_url: it.image,
+            })),
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as { error?: string; orderId?: number } | null;
+        if (!res.ok) {
+          throw new Error(data?.error || "Création de commande impossible.");
+        }
       }
       onCreated();
       onClose();
@@ -323,14 +425,20 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Créer une commande"
+        aria-label={isEdit ? "Modifier la commande" : "Créer une commande"}
         onClick={(e) => e.stopPropagation()}
         className="relative z-10 flex h-[min(92dvh,100%)] max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:h-auto sm:max-h-[90vh] sm:rounded-2xl"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-4 py-3 sm:px-5">
           <div>
-            <h2 className="text-base font-bold text-black">Créer une commande</h2>
-            <p className="text-xs text-zinc-500">Pour n’importe quel client · stock déduit automatiquement</p>
+            <h2 className="text-base font-bold text-black">
+              {isEdit ? `Modifier commande #${editOrder?.id}` : "Créer une commande"}
+            </h2>
+            <p className="text-xs text-zinc-500">
+              {isEdit
+                ? "Client, adresse et produits · stock ajusté automatiquement"
+                : "Pour n’importe quel client · stock déduit automatiquement"}
+            </p>
           </div>
           <button
             type="button"
@@ -567,7 +675,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated }: 
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50 sm:order-2"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Créer la commande
+              {isEdit ? "Enregistrer" : "Créer la commande"}
             </button>
           </div>
         </form>

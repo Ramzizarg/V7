@@ -199,7 +199,7 @@ export async function calirexCreateColis(input: CalirexCreateColisInput): Promis
     params.set("tel_client", input.tel_client);
     params.set("adresse_client", input.adresse_client);
     params.set("gouvernorat_client", input.gouvernorat_client);
-    params.set("prix", String(Number(input.prix) || 0));
+    params.set("prix", String(Math.round(Number(input.prix) || 0)));
     params.set("nb_pieces", String(Math.max(1, Math.floor(Number(input.nb_pieces) || 1))));
     params.set("designation", input.designation);
     if (input.delegation_client) params.set("delegation_client", input.delegation_client);

@@ -21,6 +21,7 @@ import {
   ExternalLink,
   RefreshCw,
   FileText,
+  Pencil,
 } from "lucide-react";
 import { sumNetOrderRevenue } from "@/lib/orderRevenue";
 import DashboardCreateOrderModal from "@/components/DashboardCreateOrderModal";
@@ -200,6 +201,7 @@ export default function DashboardAnalytiquesPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
 
   const datePreset = useMemo(() => detectDatePreset(dateFrom, dateTo), [dateFrom, dateTo]);
 
@@ -448,6 +450,51 @@ export default function DashboardAnalytiquesPage() {
       setSyncingCalirex(false);
     }
   };
+
+  const openEditOrder = (order: OrderRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingOrderId(order.id);
+    setCreateOrderOpen(true);
+  };
+
+  const editOrderPayload = useMemo(() => {
+    if (editingOrderId == null) return null;
+    const order = orders.find((o) => o.id === editingOrderId);
+    if (!order) return null;
+    return {
+      id: order.id,
+      full_name: order.full_name,
+      email: order.email,
+      phone_number: order.phone_number,
+      address: order.address,
+      city: order.city,
+      governorate: order.governorate,
+      total_price: Number(order.total_price),
+      items: (orderItems[order.id] ?? []).map((it) => ({
+        product_id: it.product_id,
+        product_name: it.product_name,
+        quantity: it.quantity,
+        price: it.price,
+        color: it.color,
+        size: it.size,
+        image_url: it.image_url,
+      })),
+    };
+  }, [editingOrderId, orders, orderItems]);
+
+  const renderEditButton = (order: OrderRow, compact = false) => (
+    <button
+      type="button"
+      onClick={(e) => openEditOrder(order, e)}
+      title="Modifier la commande"
+      aria-label={`Modifier commande #${order.id}`}
+      className={`inline-flex items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-black ${
+        compact ? "h-7 w-7" : "h-8 w-8"
+      }`}
+    >
+      <Pencil className="h-3.5 w-3.5" />
+    </button>
+  );
 
   const renderDeleteButton = (order: OrderRow, compact = false) => {
     const saving = deletingId === order.id;
@@ -815,7 +862,10 @@ export default function DashboardAnalytiquesPage() {
           </button>
           <button
             type="button"
-            onClick={() => setCreateOrderOpen(true)}
+            onClick={() => {
+              setEditingOrderId(null);
+              setCreateOrderOpen(true);
+            }}
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800 sm:w-auto sm:py-2.5"
           >
             <Plus className="h-4 w-4" />
@@ -832,7 +882,11 @@ export default function DashboardAnalytiquesPage() {
 
       <DashboardCreateOrderModal
         open={createOrderOpen}
-        onClose={() => setCreateOrderOpen(false)}
+        editOrder={editOrderPayload}
+        onClose={() => {
+          setCreateOrderOpen(false);
+          setEditingOrderId(null);
+        }}
         onCreated={() => {
           void loadOrders();
         }}
@@ -1081,6 +1135,7 @@ export default function DashboardAnalytiquesPage() {
                         </p>
                         {renderPhoneConfirm(o, true)}
                         {renderStatusSelect(o, true)}
+                        <span onClick={(e) => e.stopPropagation()}>{renderEditButton(o, true)}</span>
                         <span onClick={(e) => e.stopPropagation()}>{renderDeleteButton(o, true)}</span>
                       </div>
                       {expandedId === o.id ? <ChevronUp className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" />}
@@ -1182,7 +1237,15 @@ export default function DashboardAnalytiquesPage() {
                             )}
                           </div>
                         ) : null}
-                        <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={(e) => openEditOrder(o, e)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-zinc-50"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Modifier
+                          </button>
                           <button
                             type="button"
                             onClick={(e) => handleDeleteOrder(o, e)}
@@ -1194,7 +1257,7 @@ export default function DashboardAnalytiquesPage() {
                             ) : (
                               <Trash2 className="h-3.5 w-3.5" />
                             )}
-                            Supprimer la commande
+                            Supprimer
                           </button>
                         </div>
                       </div>
@@ -1267,7 +1330,10 @@ export default function DashboardAnalytiquesPage() {
                         {renderStatusSelect(o)}
                       </td>
                       <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                        {renderDeleteButton(o)}
+                        <div className="inline-flex items-center gap-0.5">
+                          {renderEditButton(o)}
+                          {renderDeleteButton(o)}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         {expandedId === o.id ? (
@@ -1312,6 +1378,14 @@ export default function DashboardAnalytiquesPage() {
                                 {o.email && (
                                   <p className="mt-1 text-zinc-500">Email: {o.email}</p>
                                 )}
+                                <button
+                                  type="button"
+                                  onClick={(e) => openEditOrder(o, e)}
+                                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Modifier la commande
+                                </button>
                               </div>
                               <div
                                 className="flex shrink-0 flex-wrap items-center justify-end gap-2"

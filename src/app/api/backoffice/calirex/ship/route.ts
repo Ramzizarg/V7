@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
       gouvernorat_client: order.governorate.trim(),
       delegation_client: order.city?.trim() || undefined,
       localite_client: order.city?.trim() || undefined,
-      prix: Number(order.total_price) || 0,
+      prix: Math.round(Number(order.total_price) || 0),
       nb_pieces: nbPieces,
       designation,
       codeClient: `VERO7-${orderId}`,
