@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBackofficeSession } from "@/lib/requireBackofficeSession";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
-import { calirexCreateColis, calirexGetBonLivraison } from "@/lib/calirex";
+import { calirexCreateColis, calirexGetBonLivraison, isCalirexConfigured } from "@/lib/calirex";
 import { normalizeTunisiaPhoneDigits } from "@/lib/phoneValidation";
 
 export const runtime = "nodejs";
@@ -32,6 +32,16 @@ export async function POST(req: NextRequest) {
   try {
     if (!resolveDatabaseUrl()) {
       return NextResponse.json({ error: "DATABASE_URL manquant." }, { status: 503 });
+    }
+
+    if (!(await isCalirexConfigured())) {
+      return NextResponse.json(
+        {
+          error:
+            "Calirex non configuré sur le serveur. Ajoutez CALIREX_LOGIN / CALIREX_PASSWORD sur Vercel (ou app_settings).",
+        },
+        { status: 503 }
+      );
     }
 
     const body = (await req.json()) as { orderId?: number | string };

@@ -17,18 +17,18 @@ async function ensureToken(attempts = 3): Promise<string> {
   throw lastError instanceof Error ? lastError : new Error("Connexion Calirex échouée.");
 }
 
-/** Keep Calirex session warm — always reconnect automatically when configured. */
+/** Keep Calirex session warm — credentials from env or Neon app_settings. */
 export async function GET() {
   const denied = await requireBackofficeSession();
   if (denied) return denied;
 
-  if (!isCalirexConfigured()) {
+  if (!(await isCalirexConfigured())) {
     return NextResponse.json(
       {
         success: false,
         configured: false,
         connected: false,
-        error: "CALIREX_LOGIN / CALIREX_PASSWORD manquants sur le serveur.",
+        error: "Configuration Calirex manquante.",
       },
       { status: 503 }
     );
@@ -43,7 +43,6 @@ export async function GET() {
       tokenPreview: `${token.slice(0, 8)}…`,
     });
   } catch (err) {
-    // Credentials exist — treat as configured; UI stays ready, ship will retry
     return NextResponse.json({
       success: false,
       configured: true,

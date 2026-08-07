@@ -1088,69 +1088,73 @@ export default function DashboardAnalytiquesPage() {
                     {expandedId === o.id && orderItems[o.id] && (
                       <div className="px-4 py-3 bg-zinc-50/80">
                         <p className="text-xs font-semibold text-zinc-700 mb-2">Items</p>
-                        <div className="space-y-2">
-                          {orderItems[o.id].map((item, i) => {
-                            const label = formatOrderItemLabel(item);
-                            return (
-                              <div key={i} className="flex items-center gap-3 py-1.5">
-                                <div className="h-10 w-10 rounded border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0">
-                                  {item.image_url ? (
-                                    <img src={item.image_url} alt="" className="h-full w-full object-cover" />
-                                  ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-zinc-400 text-[10px]">—</div>
-                                  )}
+                        <div className="flex items-start gap-3">
+                          <div className="min-w-0 flex-1 space-y-2">
+                            {orderItems[o.id].map((item, i) => {
+                              const label = formatOrderItemLabel(item);
+                              return (
+                                <div key={i} className="flex items-center gap-3 py-1.5">
+                                  <div className="h-10 w-10 rounded border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0">
+                                    {item.image_url ? (
+                                      <img src={item.image_url} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                      <div className="h-full w-full flex items-center justify-center text-zinc-400 text-[10px]">—</div>
+                                    )}
+                                  </div>
+                                  <span className="text-xs font-medium text-black truncate flex-1 min-w-0">{label}</span>
                                 </div>
-                                <span className="text-xs font-medium text-black truncate flex-1 min-w-0">{label}</span>
-                                <span className="text-xs text-zinc-600 font-semibold shrink-0">{formatPrice(item.price * item.quantity)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {o.email && <p className="mt-2 text-xs text-zinc-500">Email: {o.email}</p>}
-                        <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-                          {!o.calirex_code_colis ? (
-                            <button
-                              type="button"
-                              onClick={(e) => handleShipCalirex(o, e)}
-                              disabled={shippingId === o.id}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-                            >
-                              {shippingId === o.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Truck className="h-3.5 w-3.5" />
-                              )}
-                              Expédier Calirex
-                            </button>
-                          ) : (
-                            <>
-                              <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-800">
-                                {o.calirex_code_colis}
-                                {o.calirex_etat ? ` · ${o.calirex_etat}` : ""}
-                              </span>
+                              );
+                            })}
+                            {o.email && <p className="text-xs text-zinc-500">Email: {o.email}</p>}
+                          </div>
+                          <div
+                            className="flex shrink-0 flex-col items-end gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {!o.calirex_code_colis ? (
                               <button
                                 type="button"
-                                onClick={(e) => handleTrackCalirex(o, e)}
-                                disabled={trackingId === o.id}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-zinc-50 disabled:opacity-60"
+                                onClick={(e) => handleShipCalirex(o, e)}
+                                disabled={shippingId === o.id}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                               >
-                                {trackingId === o.id ? (
+                                {shippingId === o.id ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                  <RefreshCw className="h-3.5 w-3.5" />
+                                  <Truck className="h-3.5 w-3.5" />
                                 )}
-                                Suivi
+                                Expédier
                               </button>
-                              <button
-                                type="button"
-                                onClick={(e) => handleOpenBon(o, e)}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-zinc-50"
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                                Bon livraison
-                              </button>
-                            </>
-                          )}
+                            ) : (
+                              <>
+                                <span className="inline-flex max-w-[9.5rem] items-center truncate rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-800">
+                                  {o.calirex_code_colis}
+                                  {o.calirex_etat ? ` · ${o.calirex_etat}` : ""}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleTrackCalirex(o, e)}
+                                  disabled={trackingId === o.id}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50 disabled:opacity-60"
+                                >
+                                  {trackingId === o.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                  )}
+                                  Suivi
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleOpenBon(o, e)}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                  Bon
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                         {trackPanel?.orderId === o.id ? (
                           <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-xs" onClick={(e) => e.stopPropagation()}>
@@ -1278,80 +1282,86 @@ export default function DashboardAnalytiquesPage() {
                         <td colSpan={10} className="px-4 py-3">
                           <div className="pl-0 sm:pl-4 space-y-1 text-xs">
                             <p className="font-semibold text-zinc-700 mb-2">Items</p>
-                            {orderItems[o.id].map((item, i) => {
-                              const label = formatOrderItemLabel(item);
-                              return (
-                                <div key={i} className="flex items-center gap-3 py-1.5">
-                                  <div className="h-12 w-12 rounded border border-zinc-200 overflow-hidden bg-zinc-100 flex-shrink-0">
-                                    {item.image_url ? (
-                                      <img src={item.image_url} alt={item.product_name} className="h-full w-full object-cover" />
-                                    ) : (
-                                      <div className="h-full w-full flex items-center justify-center text-zinc-400 text-xs">—</div>
-                                    )}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <span className="font-medium text-black">{label}</span>
-                                  </div>
-                                  <span className="text-zinc-600 font-semibold shrink-0">{formatPrice(item.price * item.quantity)}</span>
-                                </div>
-                              );
-                            })}
-                            {(o.address || o.city || o.governorate) && (
-                              <p className="mt-2 text-zinc-500">
-                                Adresse:{" "}
-                                {[o.address, [o.city, o.governorate].filter(Boolean).join(", ")]
-                                  .filter(Boolean)
-                                  .join(", ")}
-                              </p>
-                            )}
-                            {o.email && (
-                              <p className="mt-1 text-zinc-500">Email: {o.email}</p>
-                            )}
-                            <div className="mt-3 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              {!o.calirex_code_colis ? (
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleShipCalirex(o, e)}
-                                  disabled={shippingId === o.id}
-                                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-                                >
-                                  {shippingId === o.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <Truck className="h-3.5 w-3.5" />
-                                  )}
-                                  Expédier via Calirex
-                                </button>
-                              ) : (
-                                <>
-                                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-900">
-                                    {o.calirex_code_colis}
-                                    {o.calirex_etat ? ` · ${o.calirex_etat}` : ""}
-                                  </span>
+                            <div className="flex items-start gap-4">
+                              <div className="min-w-0 flex-1 space-y-1">
+                                {orderItems[o.id].map((item, i) => {
+                                  const label = formatOrderItemLabel(item);
+                                  return (
+                                    <div key={i} className="flex items-center gap-3 py-1.5">
+                                      <div className="h-12 w-12 rounded border border-zinc-200 overflow-hidden bg-zinc-100 flex-shrink-0">
+                                        {item.image_url ? (
+                                          <img src={item.image_url} alt={item.product_name} className="h-full w-full object-cover" />
+                                        ) : (
+                                          <div className="h-full w-full flex items-center justify-center text-zinc-400 text-xs">—</div>
+                                        )}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <span className="font-medium text-black">{label}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {(o.address || o.city || o.governorate) && (
+                                  <p className="mt-2 text-zinc-500">
+                                    Adresse:{" "}
+                                    {[o.address, [o.city, o.governorate].filter(Boolean).join(", ")]
+                                      .filter(Boolean)
+                                      .join(", ")}
+                                  </p>
+                                )}
+                                {o.email && (
+                                  <p className="mt-1 text-zinc-500">Email: {o.email}</p>
+                                )}
+                              </div>
+                              <div
+                                className="flex shrink-0 flex-wrap items-center justify-end gap-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {!o.calirex_code_colis ? (
                                   <button
                                     type="button"
-                                    onClick={(e) => handleTrackCalirex(o, e)}
-                                    disabled={trackingId === o.id}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50 disabled:opacity-60"
+                                    onClick={(e) => handleShipCalirex(o, e)}
+                                    disabled={shippingId === o.id}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                                   >
-                                    {trackingId === o.id ? (
+                                    {shippingId === o.id ? (
                                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                     ) : (
-                                      <RefreshCw className="h-3.5 w-3.5" />
+                                      <Truck className="h-3.5 w-3.5" />
                                     )}
-                                    Suivi
+                                    Expédier via Calirex
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleOpenBon(o, e)}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50"
-                                  >
-                                    <FileText className="h-3.5 w-3.5" />
-                                    Bon de livraison
-                                    <ExternalLink className="h-3 w-3 opacity-60" />
-                                  </button>
-                                </>
-                              )}
+                                ) : (
+                                  <>
+                                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-900">
+                                      {o.calirex_code_colis}
+                                      {o.calirex_etat ? ` · ${o.calirex_etat}` : ""}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleTrackCalirex(o, e)}
+                                      disabled={trackingId === o.id}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50 disabled:opacity-60"
+                                    >
+                                      {trackingId === o.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <RefreshCw className="h-3.5 w-3.5" />
+                                      )}
+                                      Suivi
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleOpenBon(o, e)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50"
+                                    >
+                                      <FileText className="h-3.5 w-3.5" />
+                                      Bon de livraison
+                                      <ExternalLink className="h-3 w-3 opacity-60" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                             {trackPanel?.orderId === o.id ? (
                               <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-3">

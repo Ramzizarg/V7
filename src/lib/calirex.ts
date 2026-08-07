@@ -1,7 +1,12 @@
 /**
  * Calirex TN delivery API client
  * Docs: https://client.calirextn.com/Api/documentation.html
+ *
+ * Credentials: env (CALIREX_*) first, then Neon `app_settings` fallback
+ * so production works even if Vercel env vars are missing.
  */
+
+import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
 
 const DEFAULT_BASE = "https://client.calirextn.com/Api";
 
@@ -59,23 +64,65 @@ function stripEnvQuotes(value: string) {
   return v;
 }
 
-function getBaseUrl() {
-  return stripEnvQuotes(process.env.CALIREX_API_BASE || DEFAULT_BASE).replace(/\/$/, "");
-}
+type CalirexCreds = { login: string; password: string; baseUrl: string };
 
-export function isCalirexConfigured() {
-  const login = stripEnvQuotes(process.env.CALIREX_LOGIN ?? "");
-  const password = stripEnvQuotes(process.env.CALIREX_PASSWORD ?? "");
-  return Boolean(login && password);
-}
+let cachedDbCreds: { value: CalirexCreds; expiresAt: number } | null = null;
 
-function getCredentials() {
-  const login = stripEnvQuotes(process.env.CALIREX_LOGIN ?? "");
-  const password = stripEnvQuotes(process.env.CALIREX_PASSWORD ?? "");
-  if (!login || !password) {
-    throw new Error("Configuration Calirex manquante (CALIREX_LOGIN / CALIREX_PASSWORD).");
+async function loadDbCredentials(): Promise<Partial<CalirexCreds>> {
+  if (!resolveDatabaseUrl()) return {};
+  if (cachedDbCreds && cachedDbCreds.expiresAt > Date.now()) {
+    return cachedDbCreds.value;
   }
-  return { login, password };
+  try {
+    const { rows } = await neonQuery<{ key: string; value: string }>(
+      `SELECT key, value FROM app_settings
+       WHERE key IN ('calirex_login', 'calirex_password', 'calirex_api_base')`
+    );
+    const map = new Map(rows.map((r) => [r.key, r.value]));
+    const value: CalirexCreds = {
+      login: (map.get("calirex_login") || "").trim(),
+      password: (map.get("calirex_password") || "").trim(),
+      baseUrl: (map.get("calirex_api_base") || DEFAULT_BASE).trim() || DEFAULT_BASE,
+    };
+    cachedDbCreds = { value, expiresAt: Date.now() + 5 * 60 * 1000 };
+    return value;
+  } catch {
+    return {};
+  }
+}
+
+async function resolveCalirexConfig(): Promise<CalirexCreds> {
+  const envLogin = stripEnvQuotes(process.env.CALIREX_LOGIN ?? "");
+  const envPassword = stripEnvQuotes(process.env.CALIREX_PASSWORD ?? "");
+  const envBase = stripEnvQuotes(process.env.CALIREX_API_BASE ?? "");
+
+  if (envLogin && envPassword) {
+    return {
+      login: envLogin,
+      password: envPassword,
+      baseUrl: (envBase || DEFAULT_BASE).replace(/\/$/, ""),
+    };
+  }
+
+  const db = await loadDbCredentials();
+  const login = envLogin || db.login || "";
+  const password = envPassword || db.password || "";
+  const baseUrl = (envBase || db.baseUrl || DEFAULT_BASE).replace(/\/$/, "");
+  if (!login || !password) {
+    throw new Error(
+      "Configuration Calirex manquante. Ajoutez CALIREX_LOGIN / CALIREX_PASSWORD sur Vercel, ou dans app_settings."
+    );
+  }
+  return { login, password, baseUrl };
+}
+
+export async function isCalirexConfigured(): Promise<boolean> {
+  try {
+    await resolveCalirexConfig();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function parseJsonSafe(res: Response): Promise<Record<string, unknown>> {
@@ -101,9 +148,9 @@ export async function calirexGetToken(force = false): Promise<string> {
     return cachedToken.value;
   }
 
-  const { login, password } = getCredentials();
+  const { login, password, baseUrl } = await resolveCalirexConfig();
   const body = new URLSearchParams({ login, password });
-  const urls = [`${getBaseUrl()}/get_token.php`, `${getBaseUrl()}/get_token`];
+  const urls = [`${baseUrl}/get_token.php`, `${baseUrl}/get_token`];
 
   let lastError = "Impossible d'obtenir le token Calirex.";
   for (const url of urls) {
@@ -128,15 +175,16 @@ export async function calirexGetToken(force = false): Promise<string> {
   throw new Error(lastError);
 }
 
-async function withTokenRetry<T>(fn: (token: string) => Promise<T>): Promise<T> {
+async function withTokenRetry<T>(fn: (token: string, baseUrl: string) => Promise<T>): Promise<T> {
+  const cfg = await resolveCalirexConfig();
   const token = await calirexGetToken();
   try {
-    return await fn(token);
+    return await fn(token, cfg.baseUrl);
   } catch (e) {
     const msg = e instanceof Error ? e.message.toLowerCase() : "";
     if (msg.includes("token")) {
       const fresh = await calirexGetToken(true);
-      return await fn(fresh);
+      return await fn(fresh, cfg.baseUrl);
     }
     throw e;
   }
@@ -144,7 +192,7 @@ async function withTokenRetry<T>(fn: (token: string) => Promise<T>): Promise<T> 
 
 /** POST /createcolis.php — create parcel, returns code_colis (CAL…). */
 export async function calirexCreateColis(input: CalirexCreateColisInput): Promise<string> {
-  return withTokenRetry(async (token) => {
+  return withTokenRetry(async (token, baseUrl) => {
     const params = new URLSearchParams();
     params.set("token", token);
     params.set("nom_client", input.nom_client);
@@ -167,7 +215,7 @@ export async function calirexCreateColis(input: CalirexCreateColisInput): Promis
     if (input.codeClient) params.set("codeClient", input.codeClient);
     if (input.ouvcolis != null) params.set("ouvcolis", String(input.ouvcolis));
 
-    const res = await fetch(`${getBaseUrl()}/createcolis.php`, {
+    const res = await fetch(`${baseUrl}/createcolis.php`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: params,
@@ -201,9 +249,9 @@ export type CalirexBonLivraison = {
 
 /** GET /getbonlivraison.php — delivery note / bordereau PDF link. */
 export async function calirexGetBonLivraison(codeColis: string): Promise<CalirexBonLivraison> {
-  return withTokenRetry(async (token) => {
+  return withTokenRetry(async (token, baseUrl) => {
     const qs = new URLSearchParams({ token, codecolis: codeColis });
-    const res = await fetch(`${getBaseUrl()}/getbonlivraison.php?${qs}`, {
+    const res = await fetch(`${baseUrl}/getbonlivraison.php?${qs}`, {
       method: "GET",
       cache: "no-store",
     });
@@ -228,9 +276,9 @@ export async function calirexGetBonLivraison(codeColis: string): Promise<Calirex
 
 /** GET /getposdetaille.php — parcel detail + status timeline. */
 export async function calirexGetPosDetail(codeColis: string): Promise<CalirexColisDetail> {
-  return withTokenRetry(async (token) => {
+  return withTokenRetry(async (token, baseUrl) => {
     const qs = new URLSearchParams({ token, codecolis: codeColis });
-    const res = await fetch(`${getBaseUrl()}/getposdetaille.php?${qs}`, {
+    const res = await fetch(`${baseUrl}/getposdetaille.php?${qs}`, {
       method: "GET",
       cache: "no-store",
     });
@@ -247,8 +295,8 @@ export async function calirexGetPosDetailsList(
   const list = [...new Set(codes.map((c) => c.trim()).filter(Boolean))];
   if (list.length === 0) return {};
 
-  return withTokenRetry(async (token) => {
-    const res = await fetch(`${getBaseUrl()}/get_pos_details_list.php`, {
+  return withTokenRetry(async (token, baseUrl) => {
+    const res = await fetch(`${baseUrl}/get_pos_details_list.php`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ TOKEN: token, POSBARCODE_LIST: list }),
