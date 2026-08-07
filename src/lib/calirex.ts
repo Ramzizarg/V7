@@ -48,13 +48,30 @@ export type CalirexColisDetail = {
   etat_colis?: CalirexEtatEvent[];
 };
 
+function stripEnvQuotes(value: string) {
+  const v = value.trim();
+  if (
+    (v.startsWith('"') && v.endsWith('"')) ||
+    (v.startsWith("'") && v.endsWith("'"))
+  ) {
+    return v.slice(1, -1);
+  }
+  return v;
+}
+
 function getBaseUrl() {
-  return (process.env.CALIREX_API_BASE || DEFAULT_BASE).replace(/\/$/, "");
+  return stripEnvQuotes(process.env.CALIREX_API_BASE || DEFAULT_BASE).replace(/\/$/, "");
+}
+
+export function isCalirexConfigured() {
+  const login = stripEnvQuotes(process.env.CALIREX_LOGIN ?? "");
+  const password = stripEnvQuotes(process.env.CALIREX_PASSWORD ?? "");
+  return Boolean(login && password);
 }
 
 function getCredentials() {
-  const login = process.env.CALIREX_LOGIN?.trim() ?? "";
-  const password = process.env.CALIREX_PASSWORD?.trim() ?? "";
+  const login = stripEnvQuotes(process.env.CALIREX_LOGIN ?? "");
+  const password = stripEnvQuotes(process.env.CALIREX_PASSWORD ?? "");
   if (!login || !password) {
     throw new Error("Configuration Calirex manquante (CALIREX_LOGIN / CALIREX_PASSWORD).");
   }

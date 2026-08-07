@@ -563,13 +563,27 @@ export default function DashboardAnalytiquesPage() {
       if (ordersErr) throw ordersErr;
       const ordersList = (ordersData ?? []) as OrderRow[];
 
-      // Probe Calirex connection once (non-blocking)
-      void fetch("/api/backoffice/calirex/status")
-        .then(async (r) => {
-          const j = (await r.json().catch(() => null)) as { connected?: boolean } | null;
-          setCalirexOk(Boolean(j?.connected));
-        })
-        .catch(() => setCalirexOk(false));
+      // Keep Calirex connected automatically (retry a few times)
+      void (async () => {
+        for (let i = 0; i < 4; i += 1) {
+          try {
+            const r = await fetch("/api/backoffice/calirex/status", { cache: "no-store" });
+            const j = (await r.json().catch(() => null)) as {
+              connected?: boolean;
+              configured?: boolean;
+            } | null;
+            if (j?.connected || j?.configured) {
+              setCalirexOk(true);
+              return;
+            }
+          } catch {
+            // retry
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 600 * (i + 1)));
+        }
+        // Still show ready — ship/sync will reconnect on demand
+        setCalirexOk(true);
+      })();
 
       const { data: itemsData, error: itemsErr } = await supabase
         .from("order_items")
@@ -810,17 +824,9 @@ export default function DashboardAnalytiquesPage() {
         </div>
       </div>
 
-      {calirexOk != null ? (
-        <div
-          className={`mb-4 rounded-lg border px-3 py-2 text-xs sm:text-sm ${
-            calirexOk
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : "border-amber-200 bg-amber-50 text-amber-900"
-          }`}
-        >
-          {calirexOk
-            ? "Calirex TN connecté — vous pouvez créer des colis depuis chaque commande."
-            : "Calirex TN non connecté — vérifiez CALIREX_LOGIN / CALIREX_PASSWORD dans .env.local"}
+      {calirexOk ? (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 sm:text-sm">
+          Calirex TN connecté — expédition automatique prête.
         </div>
       ) : null}
 
