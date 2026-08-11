@@ -11,6 +11,7 @@ type OrderRow = {
   id: number;
   full_name: string;
   phone_number: string;
+  phone_number_2: string | null;
   address: string;
   city: string;
   governorate: string;
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
     }
 
     const orderRes = await neonQuery<OrderRow>(
-      `SELECT id, full_name, phone_number, address, city, governorate, total_price, status, calirex_code_colis
+      `SELECT id, full_name, phone_number, phone_number_2, address, city, governorate, total_price, status, calirex_code_colis
        FROM orders WHERE id = $1 LIMIT 1`,
       [orderId]
     );
@@ -95,6 +96,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    const phone2Raw = normalizeTunisiaPhoneDigits(order.phone_number_2 ?? "");
+    const phone2 = phone2Raw.length === 8 ? phone2Raw : undefined;
 
     const address = [order.address, order.city].filter(Boolean).join(", ").trim();
     if (!address || !order.governorate?.trim() || !order.full_name?.trim()) {
@@ -104,6 +107,7 @@ export async function POST(req: NextRequest) {
     const codeColis = await calirexCreateColis({
       nom_client: order.full_name.trim(),
       tel_client: phone,
+      tel2_client: phone2,
       adresse_client: address,
       gouvernorat_client: order.governorate.trim(),
       delegation_client: order.city?.trim() || undefined,

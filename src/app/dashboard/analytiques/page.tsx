@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, Fragment, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import {
   ShoppingCart,
@@ -23,6 +24,7 @@ import {
   FileText,
   Pencil,
   Search,
+  AlertTriangle,
 } from "lucide-react";
 import { sumNetOrderRevenue } from "@/lib/orderRevenue";
 import DashboardCreateOrderModal from "@/components/DashboardCreateOrderModal";
@@ -32,6 +34,7 @@ type OrderRow = {
   full_name: string;
   email: string | null;
   phone_number: string;
+  phone_number_2?: string | null;
   address: string | null;
   city: string;
   governorate: string;
@@ -204,6 +207,13 @@ export default function DashboardAnalytiquesPage() {
   const [dateTo, setDateTo] = useState("");
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<null | {
+    kind: "ship" | "delete" | "info";
+    order: OrderRow;
+    title: string;
+    description: string;
+    detail?: string;
+  }>(null);
 
   const datePreset = useMemo(() => detectDatePreset(dateFrom, dateTo), [dateFrom, dateTo]);
 
@@ -280,14 +290,8 @@ export default function DashboardAnalytiquesPage() {
     }
   };
 
-  const handleDeleteOrder = async (order: OrderRow, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const executeDeleteOrder = async (order: OrderRow) => {
     if (deletingId === order.id) return;
-    const ok = window.confirm(
-      `Supprimer la commande #${order.id} (${order.full_name}) ?\nLe stock des tailles sera remis.`
-    );
-    if (!ok) return;
-
     setDeletingId(order.id);
     setError(null);
     try {
@@ -307,6 +311,7 @@ export default function DashboardAnalytiquesPage() {
         return next;
       });
       if (expandedId === order.id) setExpandedId(null);
+      setConfirmDialog(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de supprimer la commande.");
     } finally {
@@ -314,18 +319,20 @@ export default function DashboardAnalytiquesPage() {
     }
   };
 
-  const handleShipCalirex = async (order: OrderRow, e: React.MouseEvent) => {
+  const handleDeleteOrder = (order: OrderRow, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (shippingId === order.id) return;
-    if (order.calirex_code_colis) {
-      window.alert(`Déjà expédié : ${order.calirex_code_colis}`);
-      return;
-    }
-    const ok = window.confirm(
-      `Créer le colis Calirex pour #${order.id} (${order.full_name}) ?\nStatut → Out for delivery`
-    );
-    if (!ok) return;
+    if (deletingId === order.id) return;
+    setConfirmDialog({
+      kind: "delete",
+      order,
+      title: `Supprimer la commande #${order.id} ?`,
+      description: `${order.full_name} · ${formatPrice(Number(order.total_price))}`,
+      detail: "Le stock des tailles sera remis automatiquement.",
+    });
+  };
 
+  const executeShipCalirex = async (order: OrderRow) => {
+    if (shippingId === order.id) return;
     setShippingId(order.id);
     setError(null);
     try {
@@ -347,7 +354,7 @@ export default function DashboardAnalytiquesPage() {
         calirex_etat: "en attente",
         status: data?.status || "out_for_delivery",
       });
-      // Pull Calirex etat right after ship so status matches carrier
+      setConfirmDialog(null);
       if (data?.code_colis) {
         void fetch(`/api/backoffice/calirex/track?orderId=${order.id}`)
           .then(async (r) => {
@@ -368,6 +375,29 @@ export default function DashboardAnalytiquesPage() {
     } finally {
       setShippingId(null);
     }
+  };
+
+  const handleShipCalirex = (order: OrderRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (shippingId === order.id) return;
+    if (order.calirex_code_colis) {
+      setConfirmDialog({
+        kind: "info",
+        order,
+        title: "Déjà expédié",
+        description: `Cette commande a déjà un colis Calirex.`,
+        detail: order.calirex_code_colis,
+      });
+      return;
+    }
+    const rounded = Math.round(Number(order.total_price) || 0);
+    setConfirmDialog({
+      kind: "ship",
+      order,
+      title: "Expédier avec Calirex",
+      description: `Commande #${order.id} · ${order.full_name}`,
+      detail: `Prix COD envoyé à Calirex : ${rounded} DT · Statut → Out for delivery`,
+    });
   };
 
   const handleTrackCalirex = async (order: OrderRow, e: React.MouseEvent) => {
@@ -468,6 +498,7 @@ export default function DashboardAnalytiquesPage() {
       full_name: order.full_name,
       email: order.email,
       phone_number: order.phone_number,
+      phone_number_2: order.phone_number_2 ?? null,
       address: order.address,
       city: order.city,
       governorate: order.governorate,
@@ -607,7 +638,7 @@ export default function DashboardAnalytiquesPage() {
       const supabase = supabaseBrowserClient();
       const { data: ordersData, error: ordersErr } = await supabase
         .from("orders")
-        .select("id, full_name, email, phone_number, address, city, governorate, total_price, status, created_at, confirmed_by_phone, calirex_code_colis, calirex_etat, calirex_bl_url, calirex_shipped_at")
+        .select("id, full_name, email, phone_number, phone_number_2, address, city, governorate, total_price, status, created_at, confirmed_by_phone, calirex_code_colis, calirex_etat, calirex_bl_url, calirex_shipped_at")
         .order("created_at", { ascending: false });
       if (ordersErr) throw ordersErr;
       const ordersList = (ordersData ?? []) as OrderRow[];
@@ -772,8 +803,9 @@ export default function DashboardAnalytiquesPage() {
     return list.filter((o) => {
       const name = (o.full_name || "").toLowerCase();
       const phone = (o.phone_number || "").replace(/\D/g, "");
+      const phone2 = (o.phone_number_2 || "").replace(/\D/g, "");
       if (name.includes(q)) return true;
-      if (qDigits.length > 0 && phone.includes(qDigits)) return true;
+      if (qDigits.length > 0 && (phone.includes(qDigits) || phone2.includes(qDigits))) return true;
       return false;
     });
   }, [dateStatusFiltered, phoneFilter, searchQuery]);
@@ -857,6 +889,114 @@ export default function DashboardAnalytiquesPage() {
 
   return (
     <div className="max-w-6xl mx-auto w-full min-w-0" style={style}>
+      {typeof document !== "undefined" && confirmDialog
+        ? createPortal(
+            <div className="fixed inset-0 z-[220] flex items-end justify-center p-0 sm:items-center sm:p-4">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/45"
+                aria-label="Fermer"
+                onClick={() => {
+                  if (shippingId == null && deletingId == null) setConfirmDialog(null);
+                }}
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="analytiques-confirm-title"
+                className="relative z-10 w-full max-w-md overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+              >
+                <div className="flex items-start gap-3 border-b border-zinc-100 px-5 py-4">
+                  <div
+                    className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                      confirmDialog.kind === "delete"
+                        ? "bg-red-50 text-red-600"
+                        : confirmDialog.kind === "ship"
+                          ? "bg-blue-50 text-blue-700"
+                          : "bg-zinc-100 text-zinc-700"
+                    }`}
+                  >
+                    {confirmDialog.kind === "delete" ? (
+                      <Trash2 className="h-5 w-5" />
+                    ) : confirmDialog.kind === "ship" ? (
+                      <Truck className="h-5 w-5" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 id="analytiques-confirm-title" className="text-base font-bold text-black">
+                      {confirmDialog.title}
+                    </h2>
+                    <p className="mt-1 text-sm text-zinc-600">{confirmDialog.description}</p>
+                    {confirmDialog.detail ? (
+                      <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-xs leading-relaxed text-zinc-600">
+                        {confirmDialog.detail}
+                      </p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (shippingId == null && deletingId == null) setConfirmDialog(null);
+                    }}
+                    className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-black"
+                    aria-label="Fermer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:justify-end">
+                  {confirmDialog.kind === "info" ? (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDialog(null)}
+                      className="inline-flex items-center justify-center rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800"
+                    >
+                      OK
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        disabled={shippingId != null || deletingId != null}
+                        onClick={() => setConfirmDialog(null)}
+                        className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-black hover:bg-zinc-50 disabled:opacity-50"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        type="button"
+                        disabled={shippingId != null || deletingId != null}
+                        onClick={() => {
+                          if (confirmDialog.kind === "ship") void executeShipCalirex(confirmDialog.order);
+                          else if (confirmDialog.kind === "delete") void executeDeleteOrder(confirmDialog.order);
+                        }}
+                        className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${
+                          confirmDialog.kind === "delete"
+                            ? "bg-red-600 hover:bg-red-700"
+                            : "bg-blue-600 hover:bg-blue-700"
+                        }`}
+                      >
+                        {(confirmDialog.kind === "ship" && shippingId === confirmDialog.order.id) ||
+                        (confirmDialog.kind === "delete" && deletingId === confirmDialog.order.id) ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : confirmDialog.kind === "ship" ? (
+                          <Truck className="h-4 w-4" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        {confirmDialog.kind === "ship" ? "Créer le colis" : "Supprimer"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
       <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-3xl font-bold text-black">Analytiques</h1>
@@ -1352,6 +1492,7 @@ export default function DashboardAnalytiquesPage() {
                           </span>
                         )}
                         {o.phone_number && <span className="block text-xs text-zinc-500 mt-0.5">{o.phone_number}</span>}
+                        {o.phone_number_2 && <span className="block text-xs text-zinc-500">{o.phone_number_2}</span>}
                       </td>
                       <td className="px-4 py-3 text-zinc-600">{formatDate(o.created_at)}</td>
                       <td className="px-4 py-3 hidden md:table-cell" onClick={(e) => e.stopPropagation()}>

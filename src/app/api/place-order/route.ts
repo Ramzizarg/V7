@@ -27,6 +27,7 @@ type PlaceOrderBody = {
   fullName?: string;
   email?: string;
   phone?: string;
+  phone2?: string;
   address?: string;
   city?: string;
   governorate?: string;
@@ -55,6 +56,8 @@ export async function POST(req: NextRequest) {
     const fullName = body.fullName?.trim() ?? "";
     const email = body.email?.trim() ?? "";
     const phone = normalizeTunisiaPhoneDigits(body.phone ?? "");
+    const phone2Raw = normalizeTunisiaPhoneDigits(body.phone2 ?? "");
+    const phone2 = phone2Raw.length > 0 ? phone2Raw : "";
     const address = body.address?.trim() ?? "";
     const city = body.city?.trim() ?? "";
     const governorate = body.governorate?.trim() ?? "";
@@ -65,6 +68,9 @@ export async function POST(req: NextRequest) {
     }
     if (!isValidTunisiaPhone(phone)) {
       return NextResponse.json({ error: TUNISIA_PHONE_ERROR }, { status: 400 });
+    }
+    if (phone2 && !isValidTunisiaPhone(phone2)) {
+      return NextResponse.json({ error: "Le 2ᵉ téléphone doit contenir exactement 8 chiffres." }, { status: 400 });
     }
     if (items.length === 0) {
       return NextResponse.json({ error: "Panier vide." }, { status: 400 });
@@ -157,14 +163,15 @@ export async function POST(req: NextRequest) {
 
     const orderRes = await neonQuery<{ id: number }>(
       `INSERT INTO orders (
-        full_name, email, phone_number, address, city, governorate,
+        full_name, email, phone_number, phone_number_2, address, city, governorate,
         coupon_code, discount_amount, total_price, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING id`,
       [
         fullName,
         email || null,
         phone,
+        phone2 || null,
         address,
         city,
         governorate,

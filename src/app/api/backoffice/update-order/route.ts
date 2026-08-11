@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       fullName?: string;
       email?: string;
       phone?: string;
+      phone2?: string;
       address?: string;
       city?: string;
       governorate?: string;
@@ -71,6 +72,8 @@ export async function POST(req: NextRequest) {
     const fullName = body.fullName?.trim() ?? "";
     const email = body.email?.trim() ?? "";
     const phone = normalizeTunisiaPhoneDigits(body.phone ?? "");
+    const phone2Raw = normalizeTunisiaPhoneDigits(body.phone2 ?? "");
+    const phone2 = phone2Raw.length > 0 ? phone2Raw : "";
     const address = body.address?.trim() ?? "";
     const city = body.city?.trim() ?? "";
     const governorate = body.governorate?.trim() ?? "";
@@ -81,6 +84,9 @@ export async function POST(req: NextRequest) {
     }
     if (!isValidTunisiaPhone(phone)) {
       return NextResponse.json({ error: TUNISIA_PHONE_ERROR }, { status: 400 });
+    }
+    if (phone2 && !isValidTunisiaPhone(phone2)) {
+      return NextResponse.json({ error: "Le 2ᵉ téléphone doit contenir exactement 8 chiffres." }, { status: 400 });
     }
     if (items.length === 0) {
       return NextResponse.json({ error: "Ajoutez au moins un produit." }, { status: 400 });
@@ -223,12 +229,13 @@ export async function POST(req: NextRequest) {
          full_name = $1,
          email = $2,
          phone_number = $3,
-         address = $4,
-         city = $5,
-         governorate = $6,
-         total_price = $7
-       WHERE id = $8`,
-      [fullName, email || null, phone, address, city, governorate, total, orderId]
+         phone_number_2 = $4,
+         address = $5,
+         city = $6,
+         governorate = $7,
+         total_price = $8
+       WHERE id = $9`,
+      [fullName, email || null, phone, phone2 || null, address, city, governorate, total, orderId]
     );
 
     await neonQuery(`DELETE FROM order_items WHERE order_id = $1`, [orderId]);

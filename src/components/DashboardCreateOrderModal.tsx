@@ -86,6 +86,7 @@ type EditOrder = {
   full_name: string;
   email: string | null;
   phone_number: string;
+  phone_number_2?: string | null;
   address: string | null;
   city: string;
   governorate: string;
@@ -108,6 +109,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [phone2, setPhone2] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [governorate, setGovernorate] = useState("");
@@ -116,6 +118,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
   const [pickSize, setPickSize] = useState("");
   const [pickQty, setPickQty] = useState("1");
   const [freeShipping, setFreeShipping] = useState(false);
+  const [totalOverride, setTotalOverride] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -169,6 +172,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
       setFullName(editOrder.full_name || "");
       setEmail(editOrder.email || "");
       setPhone(normalizeTunisiaPhoneDigits(editOrder.phone_number || ""));
+      setPhone2(normalizeTunisiaPhoneDigits(editOrder.phone_number_2 || ""));
       setAddress(editOrder.address || "");
       setCity(editOrder.city || "");
       setGovernorate(editOrder.governorate || "");
@@ -182,13 +186,15 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
         (s, it) => s + Number(it.price) * Number(it.quantity),
         0
       );
-      const total = Number(editOrder.total_price) || 0;
-      setFreeShipping(total <= sub + 0.001);
+      const orderTotal = Number(editOrder.total_price) || 0;
+      setFreeShipping(orderTotal <= sub + 0.001);
+      setTotalOverride(String(orderTotal));
       return;
     }
     setFullName("");
     setEmail("");
     setPhone("");
+    setPhone2("");
     setAddress("");
     setCity("");
     setGovernorate("");
@@ -197,6 +203,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
     setPickSize("");
     setPickQty("1");
     setFreeShipping(false);
+    setTotalOverride(null);
     setFormError(null);
   }, [open, editOrder]);
 
@@ -256,7 +263,11 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
     [lines]
   );
   const shipping = freeShipping || subtotal >= 200 ? 0 : 8;
-  const total = subtotal + shipping;
+  const computedTotal = subtotal + shipping;
+  const total =
+    totalOverride != null && totalOverride.trim() !== "" && Number.isFinite(Number(totalOverride))
+      ? Math.max(0, Number(totalOverride))
+      : computedTotal;
 
   const addLine = () => {
     setFormError(null);
@@ -318,12 +329,20 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
     );
   };
 
+  const updateLinePrice = (key: string, raw: string) => {
+    const n = Math.max(0, Number(raw));
+    if (!Number.isFinite(n)) return;
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, price: n } : l)));
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     const fn = fullName.trim();
     const em = email.trim();
     const ph = normalizeTunisiaPhoneDigits(phone);
+    const ph2Raw = normalizeTunisiaPhoneDigits(phone2);
+    const ph2 = ph2Raw.length > 0 ? ph2Raw : "";
     const addr = address.trim();
     const ct = city.trim();
     const gov = governorate.trim();
@@ -333,6 +352,10 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
     }
     if (!isValidTunisiaPhone(ph)) {
       setFormError(TUNISIA_PHONE_ERROR);
+      return;
+    }
+    if (ph2 && !isValidTunisiaPhone(ph2)) {
+      setFormError("Le 2ᵉ téléphone doit contenir exactement 8 chiffres.");
       return;
     }
     if (lines.length === 0) {
@@ -351,6 +374,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
             fullName: fn,
             email: em,
             phone: ph,
+            phone2: ph2 || null,
             address: addr,
             city: ct,
             governorate: gov,
@@ -377,6 +401,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
             fullName: fn,
             email: em,
             phone: ph,
+            phone2: ph2 || null,
             address: addr,
             city: ct,
             governorate: gov,
@@ -491,6 +516,17 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
                     className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black/15"
                   />
                 </label>
+                <label className="block text-xs font-medium text-black">
+                  2ᵉ téléphone <span className="font-normal text-zinc-400">(optionnel)</span>
+                  <input
+                    inputMode="numeric"
+                    maxLength={TUNISIA_PHONE_LENGTH}
+                    value={phone2}
+                    onChange={(e) => setPhone2(normalizeTunisiaPhoneDigits(e.target.value))}
+                    placeholder="8 chiffres"
+                    className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black/15"
+                  />
+                </label>
                 <label className="block text-xs font-medium text-black sm:col-span-2">
                   Adresse
                   <input
@@ -598,20 +634,34 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
               ) : (
                 <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
                   {lines.map((l) => (
-                    <li key={l.key} className="flex items-center gap-3 px-3 py-2.5">
+                    <li key={l.key} className="flex flex-wrap items-center gap-2 px-3 py-2.5 sm:flex-nowrap sm:gap-3">
                       <div className="h-11 w-11 shrink-0 overflow-hidden rounded border border-zinc-200 bg-zinc-100">
                         {l.image ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={l.image} alt="" className="h-full w-full object-cover" />
                         ) : null}
                       </div>
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] sm:basis-auto">
                         <p className="truncate text-sm font-medium text-black">{l.name}</p>
                         <p className="text-xs text-zinc-500">
                           {l.size}
-                          {l.color ? ` · ${l.color}` : ""} · {formatMoney(l.price)}
+                          {l.color ? ` · ${l.color}` : ""}
                         </p>
                       </div>
+                      <label className="flex items-center gap-1 text-xs text-zinc-500">
+                        <span className="sr-only">Prix</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={l.price}
+                          onChange={(e) => updateLinePrice(l.key, e.target.value)}
+                          className="number-spin-design w-20 rounded-md border border-zinc-300 px-2 py-1.5 text-sm text-black"
+                          aria-label={`Prix ${l.name}`}
+                          title="Prix unitaire"
+                        />
+                        <span>TND</span>
+                      </label>
                       <input
                         type="number"
                         min={1}
@@ -620,6 +670,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
                         onChange={(e) => updateLineQty(l.key, e.target.value)}
                         className="number-spin-design w-16 rounded-md border border-zinc-300 px-2 py-1.5 text-sm text-black"
                         aria-label={`Quantité ${l.name}`}
+                        title="Quantité"
                       />
                       <button
                         type="button"
@@ -653,10 +704,36 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
                 />
                 Livraison offerte (commande manuelle)
               </label>
-              <div className="flex justify-between border-t border-zinc-100 pt-2 text-base font-bold text-black">
-                <span>Total</span>
-                <span>{formatMoney(total)}</span>
+              <div className="flex items-center justify-between gap-3 border-t border-zinc-100 pt-2">
+                <span className="text-base font-bold text-black">Total</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={totalOverride != null ? totalOverride : String(computedTotal)}
+                    onChange={(e) => setTotalOverride(e.target.value)}
+                    className="number-spin-design w-28 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-right text-base font-bold text-black focus:outline-none focus:ring-2 focus:ring-black/15"
+                    aria-label="Total commande"
+                    title="Modifier le prix total"
+                  />
+                  <span className="text-sm font-semibold text-zinc-600">TND</span>
+                  {totalOverride != null && Number(totalOverride) !== computedTotal ? (
+                    <button
+                      type="button"
+                      onClick={() => setTotalOverride(null)}
+                      className="text-xs font-medium text-zinc-500 underline hover:text-black"
+                    >
+                      Auto
+                    </button>
+                  ) : null}
+                </div>
               </div>
+              {totalOverride != null && Number.isFinite(Number(totalOverride)) && Number(totalOverride) !== computedTotal ? (
+                <p className="text-[11px] text-zinc-500">
+                  Prix personnalisé (calculé : {formatMoney(computedTotal)})
+                </p>
+              ) : null}
             </section>
           </div>
 
