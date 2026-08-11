@@ -22,6 +22,7 @@ import {
   RefreshCw,
   FileText,
   Pencil,
+  Search,
 } from "lucide-react";
 import { sumNetOrderRevenue } from "@/lib/orderRevenue";
 import DashboardCreateOrderModal from "@/components/DashboardCreateOrderModal";
@@ -198,6 +199,7 @@ export default function DashboardAnalytiquesPage() {
   const [orderItems, setOrderItems] = useState<Record<number, OrderItemRow[]>>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [phoneFilter, setPhoneFilter] = useState<PhoneFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [createOrderOpen, setCreateOrderOpen] = useState(false);
@@ -760,10 +762,21 @@ export default function DashboardAnalytiquesPage() {
   const phoneNoCount = dateStatusFiltered.length - phoneYesCount;
 
   const filteredOrders = useMemo(() => {
-    if (phoneFilter === "yes") return dateStatusFiltered.filter((o) => Boolean(o.confirmed_by_phone));
-    if (phoneFilter === "no") return dateStatusFiltered.filter((o) => !o.confirmed_by_phone);
-    return dateStatusFiltered;
-  }, [dateStatusFiltered, phoneFilter]);
+    let list = dateStatusFiltered;
+    if (phoneFilter === "yes") list = list.filter((o) => Boolean(o.confirmed_by_phone));
+    else if (phoneFilter === "no") list = list.filter((o) => !o.confirmed_by_phone);
+
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return list;
+    const qDigits = q.replace(/\D/g, "");
+    return list.filter((o) => {
+      const name = (o.full_name || "").toLowerCase();
+      const phone = (o.phone_number || "").replace(/\D/g, "");
+      if (name.includes(q)) return true;
+      if (qDigits.length > 0 && phone.includes(qDigits)) return true;
+      return false;
+    });
+  }, [dateStatusFiltered, phoneFilter, searchQuery]);
 
   const sizeTotals = useMemo(() => {
     const bySize = new Map<string, number>();
@@ -966,6 +979,27 @@ export default function DashboardAnalytiquesPage() {
               </p>
             </div>
             <div className="flex flex-col gap-2 min-w-0 sm:items-end">
+              <div className="relative w-full sm:w-72">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Nom ou téléphone…"
+                  aria-label="Rechercher par nom ou téléphone"
+                  className="w-full rounded-lg border border-zinc-200 bg-white py-2 pl-8 pr-8 text-xs text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-black/10"
+                />
+                {searchQuery.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-zinc-400 hover:text-zinc-700"
+                    aria-label="Effacer la recherche"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
               <div className="flex items-center gap-2 min-w-0 flex-wrap">
                 <Calendar className="h-4 w-4 text-zinc-500 shrink-0" />
                 <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-200 p-0.5 bg-zinc-50">
@@ -1093,7 +1127,7 @@ export default function DashboardAnalytiquesPage() {
         <div className="overflow-x-auto">
           {filteredOrders.length === 0 ? (
             <p className="px-4 sm:px-6 py-12 text-center text-zinc-500 text-sm">
-              {statusFilter === "all" && phoneFilter === "all" && !hasActiveDateFilter
+              {statusFilter === "all" && phoneFilter === "all" && !hasActiveDateFilter && !searchQuery.trim()
                 ? "No orders yet."
                 : `No orders match the current filters.`}
             </p>
