@@ -76,10 +76,9 @@ export async function POST(req: NextRequest) {
       [orderId]
     );
     const items = itemsRes.rows ?? [];
-    const nbPieces = Math.max(
-      1,
-      items.reduce((sum, i) => sum + Math.max(0, Math.floor(Number(i.quantity) || 0)), 0)
-    );
+    // Always 1 colis / 1 pièce for Calirex — full order total as COD price
+    // (e.g. 2 t-shirts 144 DT → 1 piece @ 144 DT, not 2 pieces)
+    const nbPieces = 1;
     const designation =
       items
         .map((i) => {
