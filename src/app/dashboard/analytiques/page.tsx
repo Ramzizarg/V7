@@ -1158,14 +1158,14 @@ export default function DashboardAnalytiquesPage() {
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex w-full items-center gap-1.5 sm:w-auto">
                   <input
                     type="date"
                     value={dateFrom}
                     max={dateTo || undefined}
                     onChange={(e) => setDateFrom(e.target.value)}
                     aria-label="Date de début"
-                    className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                    className="min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-black/10 sm:flex-none"
                   />
                   <span className="text-xs text-zinc-400">–</span>
                   <input
@@ -1174,7 +1174,7 @@ export default function DashboardAnalytiquesPage() {
                     min={dateFrom || undefined}
                     onChange={(e) => setDateTo(e.target.value)}
                     aria-label="Date de fin"
-                    className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-black/10"
+                    className="min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-black focus:outline-none focus:ring-2 focus:ring-black/10 sm:flex-none"
                   />
                   {hasActiveDateFilter ? (
                     <button
@@ -1279,14 +1279,13 @@ export default function DashboardAnalytiquesPage() {
                   <Fragment key={o.id}>
                     <div
                       onClick={() => setExpandedId(expandedId === o.id ? null : o.id)}
-                      className="px-4 py-3 flex items-center gap-3 cursor-pointer active:bg-zinc-50/50"
+                      className="px-4 py-3 cursor-pointer active:bg-zinc-50/50"
                     >
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono font-semibold text-black">#{o.id}</span>
-                        {orderItems[o.id] && (
-                          <div className="flex -space-x-2">
-                            {orderItems[o.id].slice(0, 3).map((item, i) => (
-                              <div key={i} className="h-8 w-8 rounded border border-white overflow-hidden bg-zinc-100 ring-1 ring-zinc-200">
+                      <div className="flex items-start gap-3">
+                        {orderItems[o.id]?.length ? (
+                          <div className="flex -space-x-2 shrink-0 pt-0.5">
+                            {orderItems[o.id].slice(0, 2).map((item, i) => (
+                              <div key={i} className="h-10 w-10 rounded-lg border border-white overflow-hidden bg-zinc-100 ring-1 ring-zinc-200">
                                 {item.image_url ? (
                                   <img src={item.image_url} alt="" className="h-full w-full object-cover" />
                                 ) : (
@@ -1295,95 +1294,121 @@ export default function DashboardAnalytiquesPage() {
                               </div>
                             ))}
                           </div>
-                        )}
+                        ) : null}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-mono text-xs font-semibold text-zinc-500 shrink-0">#{o.id}</span>
+                            <span className="truncate text-sm font-semibold text-black">{o.full_name}</span>
+                          </div>
+                          <p className="mt-0.5 text-[11px] text-zinc-500">
+                            {formatDateShort(o.created_at)} · {o.items_count ?? 0} item{(o.items_count ?? 0) !== 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-sm font-bold text-black tabular-nums">{formatPrice(Number(o.total_price))}</span>
+                          {expandedId === o.id ? (
+                            <ChevronUp className="h-4 w-4 text-zinc-400" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-zinc-400" />
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-zinc-600 truncate">{o.full_name}</p>
-                        <p className="text-[11px] text-zinc-500">{formatDateShort(o.created_at)}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <p className="text-sm font-semibold text-black">{formatPrice(Number(o.total_price))}</p>
-                        <p className="text-[10px] text-zinc-500">{o.items_count ?? 0} item{(o.items_count ?? 0) !== 1 ? "s" : ""}</p>
-                        <p className="text-[10px] font-medium text-zinc-600">
-                          Taille : {formatOrderSizes(orderItems[o.id])}
-                        </p>
+                      <div
+                        className="mt-2.5 flex flex-wrap items-center gap-1.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {formatOrderSizes(orderItems[o.id]) !== "—" ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700">
+                            Taille {formatOrderSizes(orderItems[o.id])}
+                          </span>
+                        ) : null}
                         {renderPhoneConfirm(o, true)}
                         {renderStatusSelect(o, true)}
-                        <span onClick={(e) => e.stopPropagation()}>{renderEditButton(o, true)}</span>
-                        <span onClick={(e) => e.stopPropagation()}>{renderDeleteButton(o, true)}</span>
+                        <span className="ml-auto flex items-center gap-0.5">
+                          {renderEditButton(o, true)}
+                          {renderDeleteButton(o, true)}
+                        </span>
                       </div>
-                      {expandedId === o.id ? <ChevronUp className="h-4 w-4 text-zinc-400 shrink-0" /> : <ChevronDown className="h-4 w-4 text-zinc-400 shrink-0" />}
                     </div>
                     {expandedId === o.id && orderItems[o.id] && (
                       <div className="px-4 py-3 bg-zinc-50/80">
                         <p className="text-xs font-semibold text-zinc-700 mb-2">Items</p>
-                        <div className="flex items-start gap-3">
-                          <div className="min-w-0 flex-1 space-y-2">
-                            {orderItems[o.id].map((item, i) => {
-                              const label = formatOrderItemLabel(item);
-                              return (
-                                <div key={i} className="flex items-center gap-3 py-1.5">
-                                  <div className="h-10 w-10 rounded border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0">
-                                    {item.image_url ? (
-                                      <img src={item.image_url} alt="" className="h-full w-full object-cover" />
-                                    ) : (
-                                      <div className="h-full w-full flex items-center justify-center text-zinc-400 text-[10px]">—</div>
-                                    )}
-                                  </div>
-                                  <span className="text-xs font-medium text-black truncate flex-1 min-w-0">{label}</span>
+                        <div className="space-y-2">
+                          {orderItems[o.id].map((item, i) => {
+                            const label = formatOrderItemLabel(item);
+                            return (
+                              <div key={i} className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded border border-zinc-200 overflow-hidden bg-zinc-100 shrink-0">
+                                  {item.image_url ? (
+                                    <img src={item.image_url} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-zinc-400 text-[10px]">—</div>
+                                  )}
                                 </div>
-                              );
-                            })}
-                            {o.email && <p className="text-xs text-zinc-500">Email: {o.email}</p>}
-                          </div>
-                          <div
-                            className="flex shrink-0 flex-col items-end gap-2"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {!o.calirex_code_colis ? (
+                                <span className="text-xs font-medium text-black truncate flex-1 min-w-0">{label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-2.5 space-y-0.5 text-[11px] text-zinc-500">
+                          {o.phone_number ? <p>Tél : {o.phone_number}</p> : null}
+                          {o.phone_number_2 ? <p>Tél 2 : {o.phone_number_2}</p> : null}
+                          {(o.address || o.city || o.governorate) && (
+                            <p>
+                              {[o.address, [o.city, o.governorate].filter(Boolean).join(", ")]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </p>
+                          )}
+                          {o.email ? <p className="truncate">{o.email}</p> : null}
+                        </div>
+                        <div
+                          className="mt-3 grid grid-cols-2 gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {!o.calirex_code_colis ? (
+                            <button
+                              type="button"
+                              onClick={(e) => handleShipCalirex(o, e)}
+                              disabled={shippingId === o.id}
+                              className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                            >
+                              {shippingId === o.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Truck className="h-3.5 w-3.5" />
+                              )}
+                              Expédier via Calirex
+                            </button>
+                          ) : (
+                            <>
+                              <span className="col-span-2 block truncate rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[11px] font-semibold text-blue-800">
+                                {o.calirex_code_colis}
+                                {o.calirex_etat ? ` · ${o.calirex_etat}` : ""}
+                              </span>
                               <button
                                 type="button"
-                                onClick={(e) => handleShipCalirex(o, e)}
-                                disabled={shippingId === o.id}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                                onClick={(e) => handleTrackCalirex(o, e)}
+                                disabled={trackingId === o.id}
+                                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs font-semibold text-black hover:bg-zinc-50 disabled:opacity-60"
                               >
-                                {shippingId === o.id ? (
+                                {trackingId === o.id ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                  <Truck className="h-3.5 w-3.5" />
+                                  <RefreshCw className="h-3.5 w-3.5" />
                                 )}
-                                Expédier
+                                Suivi
                               </button>
-                            ) : (
-                              <>
-                                <span className="inline-flex max-w-[9.5rem] items-center truncate rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10px] font-semibold text-blue-800">
-                                  {o.calirex_code_colis}
-                                  {o.calirex_etat ? ` · ${o.calirex_etat}` : ""}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleTrackCalirex(o, e)}
-                                  disabled={trackingId === o.id}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50 disabled:opacity-60"
-                                >
-                                  {trackingId === o.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <RefreshCw className="h-3.5 w-3.5" />
-                                  )}
-                                  Suivi
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleOpenBon(o, e)}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50"
-                                >
-                                  <FileText className="h-3.5 w-3.5" />
-                                  Bon
-                                </button>
-                              </>
-                            )}
-                          </div>
+                              <button
+                                type="button"
+                                onClick={(e) => handleOpenBon(o, e)}
+                                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs font-semibold text-black hover:bg-zinc-50"
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                Bon
+                              </button>
+                            </>
+                          )}
                         </div>
                         {trackPanel?.orderId === o.id ? (
                           <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-3 text-xs" onClick={(e) => e.stopPropagation()}>
@@ -1411,11 +1436,11 @@ export default function DashboardAnalytiquesPage() {
                             )}
                           </div>
                         ) : null}
-                        <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="mt-2 grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             onClick={(e) => openEditOrder(o, e)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-zinc-50"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-xs font-semibold text-black hover:bg-zinc-50"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                             Modifier
@@ -1424,7 +1449,7 @@ export default function DashboardAnalytiquesPage() {
                             type="button"
                             onClick={(e) => handleDeleteOrder(o, e)}
                             disabled={deletingId === o.id}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60"
                           >
                             {deletingId === o.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
