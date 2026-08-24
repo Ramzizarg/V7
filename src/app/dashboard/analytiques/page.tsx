@@ -23,6 +23,7 @@ import {
   RefreshCw,
   FileText,
   Pencil,
+  Phone,
   Search,
   AlertTriangle,
 } from "lucide-react";
@@ -171,6 +172,14 @@ function compareSizes(a: string, b: string) {
   const nb = Number(b);
   if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
   return ua.localeCompare(ub, "fr");
+}
+
+function orderTelHref(phone: string | null | undefined): string | null {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.length === 8) return `tel:+216${digits}`;
+  if (digits.startsWith("216")) return `tel:+${digits}`;
+  return `tel:${digits}`;
 }
 
 function normalizeStatus(status: string): EditableStatus {
@@ -514,6 +523,24 @@ export default function DashboardAnalytiquesPage() {
       })),
     };
   }, [editingOrderId, orders, orderItems]);
+
+  const renderCallButton = (order: OrderRow, compact = false) => {
+    const href = orderTelHref(order.phone_number);
+    if (!href) return null;
+    return (
+      <a
+        href={href}
+        onClick={(e) => e.stopPropagation()}
+        title={`Appeler ${order.phone_number}`}
+        aria-label={`Appeler ${order.full_name}`}
+        className={`inline-flex items-center justify-center rounded-full text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700 ${
+          compact ? "h-7 w-7" : "h-8 w-8"
+        }`}
+      >
+        <Phone className="h-3.5 w-3.5" />
+      </a>
+    );
+  };
 
   const renderEditButton = (order: OrderRow, compact = false) => (
     <button
@@ -1325,6 +1352,7 @@ export default function DashboardAnalytiquesPage() {
                         {renderPhoneConfirm(o, true)}
                         {renderStatusSelect(o, true)}
                         <span className="ml-auto flex items-center gap-0.5">
+                          {renderCallButton(o, true)}
                           {renderEditButton(o, true)}
                           {renderDeleteButton(o, true)}
                         </span>
@@ -1436,7 +1464,19 @@ export default function DashboardAnalytiquesPage() {
                             )}
                           </div>
                         ) : null}
-                        <div className="mt-2 grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className={`mt-2 grid gap-2 ${o.phone_number ? "grid-cols-3" : "grid-cols-2"}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {o.phone_number ? (
+                            <a
+                              href={orderTelHref(o.phone_number) ?? undefined}
+                              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                            >
+                              <Phone className="h-3.5 w-3.5" />
+                              Appeler
+                            </a>
+                          ) : null}
                           <button
                             type="button"
                             onClick={(e) => openEditOrder(o, e)}
@@ -1531,6 +1571,7 @@ export default function DashboardAnalytiquesPage() {
                       </td>
                       <td className="px-2 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="inline-flex items-center gap-0.5">
+                          {renderCallButton(o)}
                           {renderEditButton(o)}
                           {renderDeleteButton(o)}
                         </div>
@@ -1578,14 +1619,26 @@ export default function DashboardAnalytiquesPage() {
                                 {o.email && (
                                   <p className="mt-1 text-zinc-500">Email: {o.email}</p>
                                 )}
-                                <button
-                                  type="button"
-                                  onClick={(e) => openEditOrder(o, e)}
-                                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                  Modifier la commande
-                                </button>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  {orderTelHref(o.phone_number) ? (
+                                    <a
+                                      href={orderTelHref(o.phone_number)!}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                                    >
+                                      <Phone className="h-3.5 w-3.5" />
+                                      Appeler
+                                    </a>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => openEditOrder(o, e)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-black hover:bg-zinc-50"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                    Modifier la commande
+                                  </button>
+                                </div>
                               </div>
                               <div
                                 className="flex shrink-0 flex-wrap items-center justify-end gap-2"
