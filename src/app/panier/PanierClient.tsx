@@ -19,7 +19,7 @@ import {
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { parseSizeStocks } from "@/lib/productSizeStock";
 
-const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
+const SIZE_ORDER = ["S", "M", "L", "XL", "XXL", "3XL", "STANDARD"] as const;
 const TUNISIA_GOVERNORATES = [
   "Ariana", "Beja", "Ben Arous", "Bizerte", "Gabes", "Gafsa", "Jendouba",
   "Kairouan", "Kasserine", "Kebili", "Le Kef", "Mahdia", "Manouba", "Medenine",

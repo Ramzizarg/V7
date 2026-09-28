@@ -12,7 +12,6 @@ export type SizeGuideRow = {
 
 export const SIZE_GUIDE_ROWS: Record<SizeGuideCategory, SizeGuideRow[]> = {
   homme: [
-    { size: "XS", chest: [87, 91], waist: [72, 76], hips: [87, 91] },
     { size: "S", chest: [92, 96], waist: [77, 81], hips: [92, 96] },
     { size: "M", chest: [97, 101], waist: [82, 86], hips: [97, 101] },
     { size: "L", chest: [102, 107], waist: 87, hips: [102, 107] },
@@ -21,7 +20,6 @@ export const SIZE_GUIDE_ROWS: Record<SizeGuideCategory, SizeGuideRow[]> = {
     { size: "3XL", chest: [120, 125], waist: [99, 104], hips: [120, 125] },
   ],
   femme: [
-    { size: "XS", chest: [78, 82], waist: [60, 64], hips: [84, 88] },
     { size: "S", chest: [83, 87], waist: [65, 69], hips: [89, 93] },
     { size: "M", chest: [88, 92], waist: [70, 74], hips: [94, 98] },
     { size: "L", chest: [93, 98], waist: [75, 80], hips: [99, 104] },

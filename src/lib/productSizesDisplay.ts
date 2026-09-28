@@ -6,10 +6,10 @@ import {
   type SizeStock,
 } from "@/lib/productSizeStock";
 
-/** Display row for product detail (matches dashboard S / M / L / XL / XXL). */
-export const DEFAULT_DISPLAY_SIZES = ["XS", "S", "M", "L", "XL", "XXL"] as const;
+/** Display row for product detail (matches dashboard S / M / L / XL / XXL / 3XL). */
+export const DEFAULT_DISPLAY_SIZES = ["S", "M", "L", "XL", "XXL", "3XL"] as const;
 
-const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "STANDARD"] as const;
+const SIZE_ORDER = ["S", "M", "L", "XL", "XXL", "3XL", "STANDARD"] as const;
 
 export { normalizeSizeKey };
 

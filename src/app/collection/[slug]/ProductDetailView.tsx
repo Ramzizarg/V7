@@ -1240,18 +1240,17 @@ export default function ProductDetailView({ product }: Props) {
                     <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-600" aria-hidden />
                     {t("product.outOfStockNoOrder")}
                   </p>
-                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-700">{t("product.sizeWithColon")}</p>
-                    {product.size_guide_image ? (
+                  {product.size_guide_image ? (
+                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
                       <button
                         type="button"
                         onClick={() => setSizeGuideOpen(true)}
-                        className="text-xs font-semibold uppercase tracking-wider text-zinc-600 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
+                        className="text-sm font-semibold text-zinc-700 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
                       >
                         {t("product.sizeGuide")}
                       </button>
-                    ) : null}
-                  </div>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <>

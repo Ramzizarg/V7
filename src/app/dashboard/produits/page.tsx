@@ -25,7 +25,7 @@ import {
   GripVertical,
 } from "lucide-react";
 
-const SIZES = ["Standard", "S", "M", "L", "XL", "XXL"];
+const SIZES = ["Standard", "S", "M", "L", "XL", "XXL", "3XL"];
 
 function CouponCountdown({ expiresAt, startsAt }: { expiresAt: string | null; startsAt: string | null }) {
   const [now, setNow] = useState(() => Date.now());
@@ -55,9 +55,9 @@ function CouponCountdown({ expiresAt, startsAt }: { expiresAt: string | null; st
 
 const DEFAULT_MEASUREMENT: string[][] = [
   ["Taille", "Mesure 1", "Mesure 2"],
-  ["XS", "", ""],
   ["S", "", ""],
   ["M", "", ""],
+  ["L", "", ""],
 ];
 
 function parseMeasurementTable(raw: string | null | undefined | unknown): string[][] {
@@ -156,9 +156,9 @@ export default function DashboardProduitsPage() {
   const [sizeGuideUrl, setSizeGuideUrl] = useState("");
   const [measurementRows, setMeasurementRows] = useState<string[][]>([
     ["Taille", "Mesure 1", "Mesure 2"],
-    ["XS", "", ""],
     ["S", "", ""],
     ["M", "", ""],
+    ["L", "", ""],
   ]);
   /** Selected sizes → qty text. Missing key = size not selected. */
   const [sizeStocks, setSizeStocks] = useState<Record<string, string>>({});
@@ -236,7 +236,7 @@ export default function DashboardProduitsPage() {
     setColorId2("");
     setImagesStr("");
     setSizeGuideUrl("");
-    setMeasurementRows([["Taille", "Mesure 1", "Mesure 2"], ["XS", "", ""], ["S", "", ""], ["M", "", ""]]);
+    setMeasurementRows([["Taille", "Mesure 1", "Mesure 2"], ["S", "", ""], ["M", "", ""], ["L", "", ""]]);
     setSizeStocks({});
     setProductImageUrls([]);
     setShowUrlImages(false);
