@@ -107,19 +107,51 @@ function relayToConversionsApi(
   }).catch(() => {});
 }
 
+type PendingPixelEvent = {
+  eventName: string;
+  customData: Record<string, unknown> | undefined;
+  eventId: string;
+};
+
+const PIXEL_READY_TIMEOUT_MS = 10_000;
+const pendingPixelEvents: PendingPixelEvent[] = [];
+let pixelFlushTimer: number | null = null;
+
+function firePixelEvent(fbq: FbqFn, event: PendingPixelEvent) {
+  fbq("track", event.eventName, event.customData, { eventID: event.eventId });
+}
+
+/** The pixel base code loads after hydration, so events fired on first render must wait for `fbq`. */
+function sendPixelEvent(event: PendingPixelEvent) {
+  if (typeof window === "undefined") return;
+  if (typeof window.fbq === "function") {
+    firePixelEvent(window.fbq, event);
+    return;
+  }
+  pendingPixelEvents.push(event);
+  if (pixelFlushTimer != null) return;
+  const startedAt = Date.now();
+  pixelFlushTimer = window.setInterval(() => {
+    const fbq = window.fbq;
+    if (typeof fbq === "function") {
+      for (const pending of pendingPixelEvents.splice(0)) firePixelEvent(fbq, pending);
+    } else if (Date.now() - startedAt < PIXEL_READY_TIMEOUT_MS) {
+      return;
+    } else {
+      pendingPixelEvents.length = 0;
+    }
+    window.clearInterval(pixelFlushTimer!);
+    pixelFlushTimer = null;
+  }, 100);
+}
+
 function trackDual(
   eventName: string,
   customData: Record<string, unknown> | undefined,
   options?: TrackOptions,
 ): string {
   const eventId = options?.eventId ?? createMetaEventId(eventName.toLowerCase());
-  if (typeof window !== "undefined" && typeof window.fbq === "function") {
-    if (customData) {
-      window.fbq("track", eventName, customData, { eventID: eventId });
-    } else {
-      window.fbq("track", eventName, undefined, { eventID: eventId });
-    }
-  }
+  sendPixelEvent({ eventName, customData, eventId });
   relayToConversionsApi(eventName, eventId, customData, options?.userData);
   return eventId;
 }
