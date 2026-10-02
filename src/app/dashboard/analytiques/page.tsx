@@ -253,23 +253,24 @@ export default function DashboardAnalytiquesPage() {
 
   const handlePhoneConfirm = async (order: OrderRow, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (order.confirmed_by_phone || savingPhoneId === order.id) return;
+    if (savingPhoneId === order.id) return;
 
     setSavingPhoneId(order.id);
     setError(null);
     const previous = order.confirmed_by_phone;
-    patchOrder(order.id, { confirmed_by_phone: true });
+    const next = !previous;
+    patchOrder(order.id, { confirmed_by_phone: next });
 
     try {
       const supabase = supabaseBrowserClient();
       const { error: updateErr } = await supabase
         .from("orders")
-        .update({ confirmed_by_phone: true })
+        .update({ confirmed_by_phone: next })
         .eq("id", order.id);
       if (updateErr) throw updateErr;
     } catch (err) {
       patchOrder(order.id, { confirmed_by_phone: previous });
-      setError(err instanceof Error ? err.message : "Impossible de confirmer le téléphone.");
+      setError(err instanceof Error ? err.message : "Impossible de modifier la confirmation téléphone.");
     } finally {
       setSavingPhoneId(null);
     }
@@ -578,30 +579,21 @@ export default function DashboardAnalytiquesPage() {
     const confirmed = Boolean(order.confirmed_by_phone);
     const saving = savingPhoneId === order.id;
 
-    if (confirmed) {
-      return (
-        <span
-          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 ${
-            compact ? "text-[10px] px-2 py-0.5" : ""
-          }`}
-        >
-          Oui
-        </span>
-      );
-    }
-
     return (
       <button
         type="button"
         onClick={(e) => handlePhoneConfirm(order, e)}
         disabled={saving}
-        title="Cliquer pour confirmer par téléphone"
-        className={`inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60 ${
-          compact ? "text-[10px] px-2 py-0.5" : ""
-        }`}
+        title={confirmed ? "Cliquer pour passer à Non" : "Cliquer pour confirmer par téléphone"}
+        aria-pressed={confirmed}
+        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition disabled:opacity-60 ${
+          confirmed
+            ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+            : "bg-red-50 text-red-700 hover:bg-red-100"
+        } ${compact ? "text-[10px] px-2 py-0.5" : ""}`}
       >
         {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-        Non
+        {confirmed ? "Oui" : "Non"}
       </button>
     );
   };
