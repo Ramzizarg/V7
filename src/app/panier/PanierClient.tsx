@@ -105,7 +105,7 @@ export default function PanierClient() {
     if (appliedCoupon.expires_at && appliedCoupon.expires_at < now) return 0;
     if (!appliedCoupon.active) return 0;
     const applicableItems = appliedCoupon.product_id
-      ? items.filter((i) => i.productId === appliedCoupon.product_id)
+      ? items.filter((i) => Number(i.productId) === appliedCoupon.product_id)
       : items;
     const applicableSubtotal = applicableItems.reduce((s, i) => s + (i.discountPrice ?? i.price) * i.quantity, 0);
     if (applicableSubtotal <= 0) return 0;
@@ -325,7 +325,14 @@ export default function PanierClient() {
         .eq("active", true)
         .maybeSingle();
       if (error) throw error;
-      const c = (data ?? null) as Coupon | null;
+      const raw = (data ?? null) as Coupon | null;
+      const c: Coupon | null = raw
+        ? {
+            ...raw,
+            product_id: raw.product_id != null ? Number(raw.product_id) : null,
+            discount_value: Number(raw.discount_value),
+          }
+        : null;
       if (!c) {
         setCouponError(t("checkout.couponInvalid"));
         return;
@@ -339,7 +346,7 @@ export default function PanierClient() {
         setCouponError(t("checkout.couponExpired"));
         return;
       }
-      if (c.product_id && !items.some((i) => i.productId === c.product_id)) {
+      if (c.product_id && !items.some((i) => Number(i.productId) === c.product_id)) {
         setCouponError(t("checkout.couponNoMatch"));
         return;
       }
