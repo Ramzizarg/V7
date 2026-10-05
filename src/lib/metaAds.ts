@@ -71,7 +71,7 @@ export type CreativeRow = AdsMetrics & {
 
 export type MetaAdsReport = {
   account: { id: string; name: string; currency: string; timezone: string | null };
-  preset: MetaAdsPreset;
+  preset: MetaAdsPreset | "custom";
   range: { since: string; until: string } | null;
   previousRange: { since: string; until: string } | null;
   totals: AdsMetrics;
@@ -79,6 +79,7 @@ export type MetaAdsReport = {
   trend: { granularity: TrendGranularity; points: TrendPoint[] };
   campaigns: CampaignRow[];
   creatives: CreativeRow[];
+  warnings: string[];
   fetchedAt: string;
 };
 
@@ -176,11 +177,16 @@ async function graphGet<T>(path: string, params: Record<string, string>, token: 
   return body;
 }
 
-async function graphGetAll<T>(path: string, params: Record<string, string>, token: string): Promise<T[]> {
+async function graphGetAll<T>(
+  path: string,
+  params: Record<string, string>,
+  token: string,
+  maxPages = MAX_PAGES
+): Promise<T[]> {
   const first = await graphGet<{ data?: T[]; paging?: { next?: string } }>(path, params, token);
   const rows = [...(first.data ?? [])];
   let next = first.paging?.next;
-  for (let page = 1; next && page < MAX_PAGES; page += 1) {
+  for (let page = 1; next && page < maxPages; page += 1) {
     const res = await fetch(next, { cache: "no-store" });
     const body = (await res.json().catch(() => null)) as { data?: T[]; paging?: { next?: string } } | null;
     if (!res.ok || !body) break;
@@ -219,49 +225,116 @@ const CREATIVE_FIELDS_FULL =
   "asset_feed_spec{images{url},videos{thumbnail_url,video_id}}";
 const CREATIVE_FIELDS_BASIC = "thumbnail_url,image_url,title,body,object_type,video_id";
 
-async function graphGetByIds<T>(ids: string[], params: Record<string, string>, token: string) {
-  const out = new Map<string, T>();
-  for (let i = 0; i < ids.length; i += 50) {
-    const res = await graphGet<Record<string, T>>("", { ...params, ids: ids.slice(i, i + 50).join(",") }, token);
-    for (const [id, value] of Object.entries(res)) out.set(id, value);
+type RawAd = { id: string; effective_status?: string; creative?: CreativeDetails & { id?: string } };
+
+const ALL_AD_STATUSES = [
+  "ACTIVE",
+  "PAUSED",
+  "DELETED",
+  "ARCHIVED",
+  "PENDING_REVIEW",
+  "DISAPPROVED",
+  "PREAPPROVED",
+  "PENDING_BILLING_INFO",
+  "CAMPAIGN_PAUSED",
+  "ADSET_PAUSED",
+  "IN_PROCESS",
+  "WITH_ISSUES",
+];
+
+const MAX_SINGLE_AD_LOOKUPS = 40;
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
+
+async function listAccountAds(accountId: string, creativeFields: string, token: string) {
+  return graphGetAll<RawAd>(
+    `${accountId}/ads`,
+    {
+      fields: `id,effective_status,creative{id,${creativeFields}}`,
+      effective_status: JSON.stringify(ALL_AD_STATUSES),
+      limit: "100",
+    },
+    token,
+    20
+  );
+}
+
+/** Reads each ad on its own so one deleted/inaccessible ad can't fail the whole batch. */
+async function lookupAdsOneByOne(adIds: string[], token: string) {
+  const out = new Map<string, RawAd>();
+  const ids = adIds.slice(0, MAX_SINGLE_AD_LOOKUPS);
+  for (let i = 0; i < ids.length; i += 10) {
+    const results = await Promise.allSettled(
+      ids.slice(i, i + 10).map((id) =>
+        graphGet<RawAd>(id, { fields: `id,effective_status,creative{id,${CREATIVE_FIELDS_BASIC}}` }, token)
+      )
+    );
+    for (const r of results) if (r.status === "fulfilled" && r.value?.id) out.set(r.value.id, r.value);
   }
   return out;
 }
 
-async function fetchCreativeDetails(creativeIds: string[], token: string) {
-  const size = { thumbnail_width: "480", thumbnail_height: "480" };
-  try {
-    return await graphGetByIds<CreativeDetails>(creativeIds, { ...size, fields: CREATIVE_FIELDS_FULL }, token);
-  } catch (err) {
-    console.warn("[metaAds] creative details (full) failed, retrying basic fields:", err);
+/** Asks Meta for 480px thumbnails (the nested default is tiny). Best effort. */
+async function fetchLargeThumbnails(creativeIds: string[], token: string) {
+  const out = new Map<string, string>();
+  for (let i = 0; i < creativeIds.length; i += 50) {
+    try {
+      const res = await graphGet<Record<string, { thumbnail_url?: string }>>(
+        "",
+        {
+          ids: creativeIds.slice(i, i + 50).join(","),
+          fields: "thumbnail_url",
+          thumbnail_width: "480",
+          thumbnail_height: "480",
+        },
+        token
+      );
+      for (const [id, v] of Object.entries(res)) if (v?.thumbnail_url) out.set(id, v.thumbnail_url);
+    } catch {
+      // keep the default thumbnails for this chunk
+    }
   }
-  try {
-    return await graphGetByIds<CreativeDetails>(creativeIds, { fields: CREATIVE_FIELDS_BASIC }, token);
-  } catch (err) {
-    console.error("[metaAds] creative details failed:", err);
-    return new Map<string, CreativeDetails>();
-  }
+  return out;
 }
 
-async function fetchAdCreatives(adIds: string[], token: string) {
-  const byId = new Map<string, AdCreativeInfo>();
-  let ads: Map<string, { effective_status?: string; creative?: { id?: string } }>;
+async function fetchAdCreatives(accountId: string, adIds: string[], token: string, warnings: string[]) {
+  const wanted = new Set(adIds);
+  const found = new Map<string, RawAd>();
+
+  let listed: RawAd[] = [];
   try {
-    ads = await graphGetByIds(adIds, { fields: "effective_status,creative{id}" }, token);
+    listed = await listAccountAds(accountId, CREATIVE_FIELDS_FULL, token);
   } catch (err) {
-    console.error("[metaAds] ad lookup failed:", err);
-    return byId;
+    console.warn("[metaAds] ads list (full fields) failed, retrying basic:", err);
+    try {
+      listed = await listAccountAds(accountId, CREATIVE_FIELDS_BASIC, token);
+    } catch (err2) {
+      console.error("[metaAds] ads list failed:", err2);
+      warnings.push(`Créas : ${errorMessage(err2)}`);
+    }
+  }
+  for (const ad of listed) if (wanted.has(ad.id)) found.set(ad.id, ad);
+
+  const missing = adIds.filter((id) => !found.has(id));
+  if (missing.length) {
+    const single = await lookupAdsOneByOne(missing, token);
+    for (const [id, ad] of single) found.set(id, ad);
   }
 
-  const creativeIds = [...new Set([...ads.values()].map((a) => a.creative?.id).filter((id): id is string => !!id))];
-  const details = creativeIds.length ? await fetchCreativeDetails(creativeIds, token) : new Map<string, CreativeDetails>();
+  const creativeIds = [...new Set([...found.values()].map((a) => a.creative?.id).filter((id): id is string => !!id))];
+  const large = creativeIds.length ? await fetchLargeThumbnails(creativeIds, token) : new Map<string, string>();
 
-  for (const [id, ad] of ads) {
-    byId.set(id, {
-      id,
-      effective_status: ad.effective_status,
-      creative: ad.creative?.id ? details.get(ad.creative.id) : undefined,
-    });
+  const byId = new Map<string, AdCreativeInfo>();
+  for (const [id, ad] of found) {
+    const creative = ad.creative
+      ? { ...ad.creative, thumbnail_url: (ad.creative.id && large.get(ad.creative.id)) || ad.creative.thumbnail_url }
+      : undefined;
+    byId.set(id, { id, effective_status: ad.effective_status, creative });
+  }
+  if (adIds.length && byId.size === 0 && !warnings.length) {
+    warnings.push("Créas : Meta n'a renvoyé aucune information sur les publicités (vérifiez la permission ads_read du token).");
   }
   return byId;
 }
@@ -308,22 +381,40 @@ function previousRange(since: string, until: string) {
   return { since: formatDay(start - days * DAY_MS), until: formatDay(start - DAY_MS) };
 }
 
-function trendGranularity(preset: MetaAdsPreset): TrendGranularity {
-  if (preset === "today" || preset === "yesterday") return "hour";
-  if (preset === "maximum") return "month";
+export type MetaAdsPeriod = { preset: MetaAdsPreset } | { since: string; until: string };
+
+export function isValidDay(day: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(parseDay(day)) && formatDay(parseDay(day)) === day;
+}
+
+function periodParams(period: MetaAdsPeriod): Record<string, string> {
+  return "preset" in period
+    ? { date_preset: period.preset }
+    : { time_range: JSON.stringify({ since: period.since, until: period.until }) };
+}
+
+function trendGranularity(period: MetaAdsPeriod): TrendGranularity {
+  if ("preset" in period) {
+    if (period.preset === "today" || period.preset === "yesterday") return "hour";
+    if (period.preset === "maximum") return "month";
+    return "day";
+  }
+  const days = Math.round((parseDay(period.until) - parseDay(period.since)) / DAY_MS) + 1;
+  if (days <= 1) return "hour";
+  if (days > 92) return "month";
   return "day";
 }
 
 async function fetchTrend(
   accountId: string,
-  preset: MetaAdsPreset,
+  period: MetaAdsPeriod,
   token: string
 ): Promise<{ granularity: TrendGranularity; points: TrendPoint[] }> {
-  const granularity = trendGranularity(preset);
+  const granularity = trendGranularity(period);
   const params: Record<string, string> = {
     level: "account",
     fields: INSIGHT_FIELDS,
-    date_preset: preset,
+    ...periodParams(period),
     limit: "200",
   };
   if (granularity === "hour") params.breakdowns = "hourly_stats_aggregated_by_advertiser_time_zone";
@@ -371,9 +462,11 @@ async function fetchPreviousTotals(accountId: string, range: { since: string; un
   }
 }
 
-export async function fetchMetaAdsReport(preset: MetaAdsPreset): Promise<MetaAdsReport> {
+export async function fetchMetaAdsReport(period: MetaAdsPeriod): Promise<MetaAdsReport> {
   const { token, accountId, configured } = getMetaAdsConfig();
   if (!configured) throw new Error("Meta Ads n'est pas configuré.");
+  const dateParams = periodParams(period);
+  const preset = "preset" in period ? period.preset : "custom";
 
   const [account, accountInsights, campaignList, campaignInsights, adInsights, trend] = await Promise.all([
     graphGet<{ id: string; name?: string; currency?: string; timezone_name?: string }>(
@@ -383,7 +476,7 @@ export async function fetchMetaAdsReport(preset: MetaAdsPreset): Promise<MetaAds
     ),
     graphGetAll<InsightRow>(
       `${accountId}/insights`,
-      { level: "account", fields: INSIGHT_FIELDS, date_preset: preset },
+      { level: "account", fields: INSIGHT_FIELDS, ...dateParams },
       token
     ),
     graphGetAll<{ id: string; name: string; effective_status?: string; objective?: string }>(
@@ -393,7 +486,7 @@ export async function fetchMetaAdsReport(preset: MetaAdsPreset): Promise<MetaAds
     ),
     graphGetAll<InsightRow>(
       `${accountId}/insights`,
-      { level: "campaign", fields: `campaign_id,campaign_name,${INSIGHT_FIELDS}`, date_preset: preset, limit: "200" },
+      { level: "campaign", fields: `campaign_id,campaign_name,${INSIGHT_FIELDS}`, ...dateParams, limit: "200" },
       token
     ),
     graphGetAll<InsightRow>(
@@ -401,17 +494,21 @@ export async function fetchMetaAdsReport(preset: MetaAdsPreset): Promise<MetaAds
       {
         level: "ad",
         fields: `ad_id,ad_name,campaign_id,campaign_name,adset_name,${INSIGHT_FIELDS}`,
-        date_preset: preset,
+        ...dateParams,
         limit: "300",
       },
       token
     ),
-    fetchTrend(accountId, preset, token),
+    fetchTrend(accountId, period, token),
   ]);
 
   const totalsRow = accountInsights[0];
   const range =
-    totalsRow?.date_start && totalsRow?.date_stop ? { since: totalsRow.date_start, until: totalsRow.date_stop } : null;
+    "since" in period
+      ? { since: period.since, until: period.until }
+      : totalsRow?.date_start && totalsRow?.date_stop
+        ? { since: totalsRow.date_start, until: totalsRow.date_stop }
+        : null;
   const prevRange = range && preset !== "maximum" ? previousRange(range.since, range.until) : null;
 
   const insightByCampaign = new Map(campaignInsights.map((row) => [row.campaign_id ?? "", row]));
@@ -427,10 +524,13 @@ export async function fetchMetaAdsReport(preset: MetaAdsPreset): Promise<MetaAds
     .sort((a, b) => b.spend - a.spend);
 
   const adsWithSpend = adInsights.filter((row) => row.ad_id && num(row.spend) > 0);
+  const warnings: string[] = [];
   const [creativeInfo, previousTotals] = await Promise.all([
     fetchAdCreatives(
+      accountId,
       adsWithSpend.map((row) => row.ad_id!),
-      token
+      token,
+      warnings
     ),
     prevRange ? fetchPreviousTotals(accountId, prevRange, token) : Promise.resolve(null),
   ]);
@@ -476,6 +576,7 @@ export async function fetchMetaAdsReport(preset: MetaAdsPreset): Promise<MetaAds
     trend,
     campaigns,
     creatives,
+    warnings,
     fetchedAt: new Date().toISOString(),
   };
 }

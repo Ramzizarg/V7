@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
   CalendarDays,
+  CalendarRange,
   ChevronRight,
   ExternalLink,
   Eye,
@@ -75,7 +76,7 @@ const CREATIVE_SORTS: { value: CreativeSort; label: string }[] = [
 type CampaignSortKey = "spend" | "purchases" | "costPerPurchase" | "roas" | "ctr" | "cpc" | "addToCart";
 type CampaignStatusFilter = "all" | "active" | "paused";
 
-const CREATIVES_PREVIEW = 9;
+const CREATIVES_PREVIEW = 12;
 
 function compareNullable(a: number | null, b: number | null, dir: 1 | -1) {
   if (a == null && b == null) return 0;
@@ -213,8 +214,21 @@ const INSIGHT_TONES: Record<Insight["tone"], string> = {
   info: "bg-blue-50 text-blue-700",
 };
 
+function localDay(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+type Period = MetaAdsPreset | "custom";
+
 export default function DashboardPublicitesPage() {
-  const [preset, setPreset] = useState<MetaAdsPreset>("last_7d");
+  const [period, setPeriod] = useState<Period>("today");
+  const [query, setQuery] = useState("preset=today");
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customSince, setCustomSince] = useState("");
+  const [customUntil, setCustomUntil] = useState("");
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -231,9 +245,9 @@ export default function DashboardPublicitesPage() {
   const requestId = useRef(0);
   const creativesRef = useRef<HTMLDivElement>(null);
 
-  const fetchReport = useCallback((p: MetaAdsPreset) => {
+  const fetchReport = useCallback((q: string) => {
     const id = ++requestId.current;
-    return fetch(`/api/backoffice/meta-ads?preset=${p}`, { cache: "no-store" })
+    return fetch(`/api/backoffice/meta-ads?${q}`, { cache: "no-store" })
       .then(async (res) => {
         const json = (await res.json().catch(() => null)) as (ApiResponse & { error?: string }) | null;
         if (!json) throw new Error(`Erreur (${res.status})`);
@@ -251,15 +265,38 @@ export default function DashboardPublicitesPage() {
       });
   }, []);
 
-  const load = (p: MetaAdsPreset) => {
-    setPreset(p);
+  const run = (q: string) => {
+    setQuery(q);
     setLoading(true);
     setShowAllCreatives(false);
-    void fetchReport(p);
+    void fetchReport(q);
+  };
+
+  const selectPreset = (p: MetaAdsPreset) => {
+    setPeriod(p);
+    setCustomOpen(false);
+    run(`preset=${p}`);
+  };
+
+  const openCustom = () => {
+    if (!customSince || !customUntil) {
+      setCustomSince(report?.range?.since ?? localDay(-6));
+      setCustomUntil(report?.range?.until ?? localDay());
+    }
+    setCustomOpen((v) => !v);
+  };
+
+  const customValid = !!customSince && !!customUntil && customSince <= customUntil;
+
+  const applyCustom = () => {
+    if (!customValid) return;
+    setPeriod("custom");
+    setCustomOpen(false);
+    run(`since=${customSince}&until=${customUntil}`);
   };
 
   useEffect(() => {
-    void fetchReport("last_7d");
+    void fetchReport("preset=today");
   }, [fetchReport]);
 
   const report = data && data.configured ? data.report : undefined;
@@ -332,7 +369,7 @@ export default function DashboardPublicitesPage() {
           ) : null}
           <button
             type="button"
-            onClick={() => load(preset)}
+            onClick={() => run(query)}
             disabled={loading}
             aria-label="Actualiser"
             className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-black transition hover:bg-zinc-50 disabled:opacity-50"
@@ -342,10 +379,57 @@ export default function DashboardPublicitesPage() {
         </div>
       </div>
 
-      <div className="mb-6 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-        <Pills options={PRESETS} value={preset} onChange={load} />
+      <div className="mb-6">
+        <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap">
+          {PRESETS.map((p) => (
+            <PeriodButton key={p.value} active={period === p.value} onClick={() => selectPreset(p.value)}>
+              {p.label}
+            </PeriodButton>
+          ))}
+          <PeriodButton active={period === "custom" || customOpen} onClick={openCustom}>
+            <CalendarRange className="h-3.5 w-3.5 shrink-0" />
+            Personnalisé
+          </PeriodButton>
+        </div>
+
+        {customOpen ? (
+          <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3 sm:inline-flex sm:items-end sm:gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3">
+              <label className="block min-w-0">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Du</span>
+                <input
+                  type="date"
+                  value={customSince}
+                  max={customUntil || localDay()}
+                  onChange={(e) => setCustomSince(e.target.value)}
+                  className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-2.5 text-sm text-black focus:border-black focus:outline-none"
+                />
+              </label>
+              <label className="block min-w-0">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Au</span>
+                <input
+                  type="date"
+                  value={customUntil}
+                  min={customSince || undefined}
+                  max={localDay()}
+                  onChange={(e) => setCustomUntil(e.target.value)}
+                  className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-2.5 text-sm text-black focus:border-black focus:outline-none"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={applyCustom}
+              disabled={!customValid}
+              className="mt-2 h-10 w-full rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-40 sm:mt-0 sm:w-auto"
+            >
+              Appliquer
+            </button>
+          </div>
+        ) : null}
+
         {report?.range ? (
-          <p className="flex items-center gap-1.5 text-xs text-zinc-500">
+          <p className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-zinc-500">
             <CalendarDays className="h-3.5 w-3.5 shrink-0" />
             <span className="font-medium capitalize text-zinc-700">{formatRange(report.range)}</span>
             {report.previousRange ? <span className="text-zinc-400">· vs {formatRange(report.previousRange)}</span> : null}
@@ -495,6 +579,17 @@ export default function DashboardPublicitesPage() {
               }
             />
 
+            {report.warnings?.length ? (
+              <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
+                <div>
+                  {report.warnings.map((w) => (
+                    <p key={w}>{w}</p>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {creativeCampaign !== "all" ? (
               <button
                 type="button"
@@ -510,7 +605,7 @@ export default function DashboardPublicitesPage() {
               {sortedCreatives.length === 0 ? (
                 <Card className="px-4 py-14 text-center text-sm text-zinc-500">Aucune publicité diffusée sur cette période.</Card>
               ) : creativeView === "grid" ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
                   {visibleCreatives.map((c, i) => (
                     <CreativeCard
                       key={c.id}
@@ -601,6 +696,29 @@ export default function DashboardPublicitesPage() {
   );
 }
 
+function PeriodButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex h-9 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 text-xs font-semibold transition sm:rounded-full sm:px-3.5 ${
+        active ? "bg-black text-white" : "border border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-black"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function CreativeCard({
   creative: c,
   rank,
@@ -635,37 +753,45 @@ function CreativeCard({
           alt={c.name}
           className="transition duration-500 group-hover:scale-[1.04]"
         />
-        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
-          <span className={`rounded-full px-2.5 py-1 text-xs font-bold shadow-sm ${rankBadgeClass(rank)}`}>#{rank}</span>
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-2 sm:p-3">
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-bold shadow-sm sm:px-2.5 sm:py-1 sm:text-xs ${rankBadgeClass(rank)}`}
+          >
+            #{rank}
+          </span>
           {c.isVideo ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur">
+            <span className="inline-flex items-center gap-1 rounded-full bg-black/60 p-1 text-[10px] font-semibold text-white backdrop-blur sm:px-2">
               <PlayCircle className="h-3 w-3" />
-              Vidéo
+              <span className="hidden sm:inline">Vidéo</span>
             </span>
           ) : null}
         </div>
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-3 pt-12">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-white">
-            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-            {status.label}
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-1 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2 pt-10 sm:gap-2 sm:p-3 sm:pt-12">
+          <span className="inline-flex min-w-0 items-center gap-1.5 text-[10px] font-medium text-white sm:text-[11px]">
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.dot}`} />
+            <span className="truncate">{status.label}</span>
           </span>
           {noSale ? (
-            <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white">Sans achat</span>
+            <span className="shrink-0 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-semibold text-white sm:px-2 sm:text-[10px]">
+              Sans achat
+            </span>
           ) : null}
         </div>
       </div>
-      <div className="p-4">
-        <h3 className="truncate text-sm font-semibold text-black">{c.name}</h3>
-        <p className="truncate text-[11px] text-zinc-500">{c.campaignName}</p>
-        <div className="mt-3 flex items-baseline justify-between gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{primary.label}</span>
-          <span className={`text-xl font-bold tabular-nums ${primary.className}`}>{primary.value}</span>
+      <div className="p-2.5 sm:p-4">
+        <h3 className="truncate text-xs font-semibold text-black sm:text-sm">{c.name}</h3>
+        <p className="truncate text-[10px] text-zinc-500 sm:text-[11px]">{c.campaignName}</p>
+        <div className="mt-2 flex items-baseline justify-between gap-1 sm:mt-3 sm:gap-2">
+          <span className="truncate text-[9px] font-semibold uppercase tracking-wider text-zinc-500 sm:text-[11px]">
+            {primary.label}
+          </span>
+          <span className={`truncate text-base font-bold tabular-nums sm:text-xl ${primary.className}`}>{primary.value}</span>
         </div>
-        <dl className="mt-3 grid grid-cols-3 gap-1.5 text-center">
-          {secondary.map((m) => (
-            <div key={m.label} className="rounded-lg bg-zinc-50 px-1.5 py-2">
-              <dt className="truncate text-[9px] font-semibold uppercase tracking-wider text-zinc-500">{m.label}</dt>
-              <dd className={`mt-0.5 truncate text-xs font-semibold tabular-nums ${m.className}`}>{m.value}</dd>
+        <dl className="mt-2 grid grid-cols-2 gap-1 text-center sm:mt-3 sm:grid-cols-3 sm:gap-1.5">
+          {secondary.map((m, i) => (
+            <div key={m.label} className={`rounded-lg bg-zinc-50 px-1 py-1.5 sm:px-1.5 sm:py-2 ${i === 2 ? "hidden sm:block" : ""}`}>
+              <dt className="truncate text-[8px] font-semibold uppercase tracking-wider text-zinc-500 sm:text-[9px]">{m.label}</dt>
+              <dd className={`mt-0.5 truncate text-[11px] font-semibold tabular-nums sm:text-xs ${m.className}`}>{m.value}</dd>
             </div>
           ))}
         </dl>
@@ -1031,8 +1157,8 @@ function LoadingSkeleton() {
         <Skeleton className="h-80 lg:col-span-2" />
         <Skeleton className="h-80" />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+        {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="aspect-[4/5]" />
         ))}
       </div>

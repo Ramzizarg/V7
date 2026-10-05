@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireBackofficeSession } from "@/lib/requireBackofficeSession";
-import { fetchMetaAdsReport, getMetaAdsConfig, META_ADS_PRESETS, type MetaAdsPreset } from "@/lib/metaAds";
+import {
+  fetchMetaAdsReport,
+  getMetaAdsConfig,
+  isValidDay,
+  META_ADS_PRESETS,
+  type MetaAdsPeriod,
+  type MetaAdsPreset,
+} from "@/lib/metaAds";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,13 +21,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ configured: false });
   }
 
-  const requested = req.nextUrl.searchParams.get("preset") ?? "last_7d";
-  const preset: MetaAdsPreset = (META_ADS_PRESETS as readonly string[]).includes(requested)
-    ? (requested as MetaAdsPreset)
-    : "last_7d";
+  const params = req.nextUrl.searchParams;
+  const since = params.get("since");
+  const until = params.get("until");
+
+  let period: MetaAdsPeriod;
+  if (since || until) {
+    if (!since || !until || !isValidDay(since) || !isValidDay(until) || since > until) {
+      return NextResponse.json({ configured: true, error: "Période invalide." }, { status: 400 });
+    }
+    period = { since, until };
+  } else {
+    const requested = params.get("preset") ?? "today";
+    period = {
+      preset: (META_ADS_PRESETS as readonly string[]).includes(requested) ? (requested as MetaAdsPreset) : "today",
+    };
+  }
 
   try {
-    const report = await fetchMetaAdsReport(preset);
+    const report = await fetchMetaAdsReport(period);
     return NextResponse.json({ configured: true, report });
   } catch (err) {
     console.error("[api/backoffice/meta-ads]", err);
