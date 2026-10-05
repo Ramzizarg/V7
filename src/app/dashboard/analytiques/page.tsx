@@ -6,8 +6,6 @@ import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import {
   ShoppingCart,
   PiggyBank,
-  Clock,
-  CheckCircle,
   Truck,
   TrendingUp,
   Loader2,
@@ -17,7 +15,6 @@ import {
   Filter,
   X,
   Plus,
-  BadgeCheck,
   Trash2,
   ExternalLink,
   RefreshCw,
@@ -50,7 +47,8 @@ type OrderRow = {
   calirex_shipped_at?: string | null;
 };
 
-type StatusFilter = "all" | "pending" | "confirmed" | "rejected" | "delivered" | "out_for_delivery";
+/** "all", a manual status (orders not shipped yet), or `calirex:<state>` (shipped orders). */
+type StatusFilter = string;
 
 type PhoneFilter = "all" | "yes" | "no";
 
@@ -120,6 +118,90 @@ const STATUS_OPTIONS = [
 ] as const;
 
 type EditableStatus = (typeof STATUS_OPTIONS)[number]["value"];
+
+/** Statuses set by hand before an order is shipped; after shipping Calirex decides. */
+const MANUAL_STATUSES: EditableStatus[] = ["pending", "confirmed", "rejected"];
+
+const CALIREX_PREFIX = "calirex:";
+
+/** Pipeline order for Calirex states (normalized keys); unknown states sort after these. */
+const CALIREX_STATE_ORDER = [
+  "en attente",
+  "a enlever",
+  "colis enleve",
+  "colis au depot",
+  "en cours de livraison",
+  "probleme trouve",
+  "livres payes",
+  "colis livre",
+  "retour expediteur",
+  "retour recu",
+  "retour paye",
+];
+
+function normalizeCalirexEtat(etat: string) {
+  return etat
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function calirexEtatStyle(etat: string) {
+  const e = normalizeCalirexEtat(etat);
+  if (e.includes("retour") || e.includes("annul") || e.includes("cloture") || e.includes("reclamation")) {
+    return "bg-red-100 text-red-800";
+  }
+  if (e.includes("livre")) return "bg-emerald-100 text-emerald-800";
+  if (e.includes("probleme")) return "bg-amber-100 text-amber-800";
+  return "bg-blue-100 text-blue-800";
+}
+
+function orderCalirexEtat(order: Pick<OrderRow, "calirex_etat">) {
+  return order.calirex_etat?.trim() || "en attente";
+}
+
+/** Shipped orders are grouped by their exact Calirex state, others by their manual status. */
+function orderStageKey(order: Pick<OrderRow, "status" | "calirex_code_colis" | "calirex_etat">) {
+  if (order.calirex_code_colis) return `${CALIREX_PREFIX}${normalizeCalirexEtat(orderCalirexEtat(order))}`;
+  return normalizeStatus(order.status);
+}
+
+function orderStageLabel(order: Pick<OrderRow, "status" | "calirex_code_colis" | "calirex_etat">) {
+  if (order.calirex_code_colis) return orderCalirexEtat(order);
+  const s = normalizeStatus(order.status);
+  const label = STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;
+  return MANUAL_STATUSES.includes(s) ? label : `${label} (manuel)`;
+}
+
+type StageCount = { key: string; label: string; count: number };
+
+/** Manual statuses are always listed (even at 0); Calirex states only when present. */
+function countStages(list: Pick<OrderRow, "status" | "calirex_code_colis" | "calirex_etat">[]): StageCount[] {
+  const byKey = new Map<string, StageCount>(
+    MANUAL_STATUSES.map((s) => [s, { key: s, label: STATUS_OPTIONS.find((o) => o.value === s)!.label, count: 0 }])
+  );
+  for (const order of list) {
+    const key = orderStageKey(order);
+    const entry = byKey.get(key);
+    if (entry) entry.count += 1;
+    else byKey.set(key, { key, label: orderStageLabel(order), count: 1 });
+  }
+  return [...byKey.values()].sort((a, b) => compareStageKeys(a.key, b.key));
+}
+
+function compareStageKeys(a: string, b: string) {
+  const rank = (key: string) => {
+    if (!key.startsWith(CALIREX_PREFIX)) {
+      const i = STATUS_OPTIONS.findIndex((o) => o.value === key);
+      return i === -1 ? 50 : i;
+    }
+    const i = CALIREX_STATE_ORDER.indexOf(key.slice(CALIREX_PREFIX.length));
+    return 100 + (i === -1 ? 50 : i);
+  };
+  return rank(a) - rank(b) || a.localeCompare(b, "fr");
+}
 
 type OrderItemRow = {
   product_id: number;
@@ -601,20 +683,18 @@ export default function DashboardAnalytiquesPage() {
   const renderStatusSelect = (order: OrderRow, compact = false) => {
     const current = normalizeStatus(order.status);
     const saving = savingStatusId === order.id;
-    const calirexShipped = Boolean(order.calirex_code_colis);
-    const calirexLabel = order.calirex_etat?.trim() || null;
 
-    // After Calirex ship: show live Calirex etat as the commande status
-    if (calirexShipped) {
+    if (order.calirex_code_colis) {
+      const etat = orderCalirexEtat(order);
       return (
         <div className={`flex flex-col gap-1 ${compact ? "items-end" : "items-start"}`}>
           <span
-            className={`inline-flex max-w-[11rem] truncate rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusStyle(
-              current
+            className={`inline-flex max-w-[11rem] truncate rounded-full px-2.5 py-1 text-xs font-semibold ${calirexEtatStyle(
+              etat
             )} ${compact ? "text-[10px] px-2 py-0.5 max-w-[9rem]" : ""}`}
-            title={calirexLabel || STATUS_OPTIONS.find((o) => o.value === current)?.label}
+            title={`Calirex : ${etat}`}
           >
-            {calirexLabel || STATUS_OPTIONS.find((o) => o.value === current)?.label || current}
+            {etat}
           </span>
           {!compact ? (
             <button
@@ -641,7 +721,7 @@ export default function DashboardAnalytiquesPage() {
         )} ${compact ? "text-[10px] py-0.5" : ""}`}
         aria-label={`Statut commande #${order.id}`}
       >
-        {STATUS_OPTIONS.map((opt) => (
+        {STATUS_OPTIONS.filter((opt) => MANUAL_STATUSES.includes(opt.value) || opt.value === current).map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>
@@ -782,28 +862,22 @@ export default function DashboardAnalytiquesPage() {
 
   const totalOrders = orders.length;
   const totalRevenue = sumNetOrderRevenue(orders);
-  const pending = orders.filter((o) => normalizeStatus(o.status) === "pending").length;
-  const confirmed = orders.filter((o) => normalizeStatus(o.status) === "confirmed").length;
-  const rejected = orders.filter((o) => normalizeStatus(o.status) === "rejected").length;
-  const delivered = orders.filter((o) => normalizeStatus(o.status) === "delivered").length;
-  const outForDelivery = orders.filter((o) => normalizeStatus(o.status) === "out_for_delivery").length;
-
   const ordersThisWeek = orders.filter((o) => new Date(o.created_at) >= startOfWeek);
   const revenueThisWeek = sumNetOrderRevenue(ordersThisWeek);
   const ordersThisMonth = orders.filter((o) => new Date(o.created_at) >= startOfMonth);
   const revenueThisMonth = sumNetOrderRevenue(ordersThisMonth);
 
-  const dateStatusFiltered = useMemo(() => {
-    let list = orders;
-    if (dateFrom || dateTo) {
-      list = list.filter((o) => orderMatchesDateRange(o.created_at, dateFrom, dateTo));
-    }
-    if (statusFilter === "all") return list;
-    if (statusFilter === "delivered") return list.filter((o) => normalizeStatus(o.status) === "delivered");
-    if (statusFilter === "out_for_delivery") return list.filter((o) => normalizeStatus(o.status) === "out_for_delivery");
-    if (statusFilter === "confirmed") return list.filter((o) => normalizeStatus(o.status) === "confirmed");
-    return list.filter((o) => normalizeStatus(o.status) === statusFilter);
-  }, [orders, statusFilter, dateFrom, dateTo]);
+  const dateFiltered = useMemo(
+    () => (dateFrom || dateTo ? orders.filter((o) => orderMatchesDateRange(o.created_at, dateFrom, dateTo)) : orders),
+    [orders, dateFrom, dateTo]
+  );
+
+  const stageTabs = useMemo(() => countStages(dateFiltered), [dateFiltered]);
+
+  const dateStatusFiltered = useMemo(
+    () => (statusFilter === "all" ? dateFiltered : dateFiltered.filter((o) => orderStageKey(o) === statusFilter)),
+    [dateFiltered, statusFilter]
+  );
 
   const phoneYesCount = useMemo(
     () => dateStatusFiltered.filter((o) => Boolean(o.confirmed_by_phone)).length,
@@ -858,11 +932,6 @@ export default function DashboardAnalytiquesPage() {
       border: "border-black",
       text: "text-white",
     },
-    { label: "Pending", value: pending, icon: Clock, bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-800" },
-    { label: "Confirmed", value: confirmed, icon: BadgeCheck, bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-800" },
-    { label: "Rejected", value: rejected, icon: X, bg: "bg-red-50", border: "border-red-200", text: "text-red-800" },
-    { label: "Delivered", value: delivered, icon: CheckCircle, bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-800" },
-    { label: "Out for delivery", value: outForDelivery, icon: Truck, bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800" },
   ];
 
   const style = { fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" };
@@ -877,15 +946,6 @@ export default function DashboardAnalytiquesPage() {
       </div>
     );
   }
-
-  const filterLabels: Record<StatusFilter, string> = {
-    all: "All",
-    pending: "Pending",
-    confirmed: "Confirmed",
-    rejected: "Rejected",
-    delivered: "Delivered",
-    out_for_delivery: "Shipped",
-  };
 
   const datePresetLabels: Record<Exclude<DatePreset, "custom">, string> = {
     all: "All dates",
@@ -1069,7 +1129,7 @@ export default function DashboardAnalytiquesPage() {
       )}
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
         {stats.map((s) => (
           <div
             key={s.label}
@@ -1210,21 +1270,32 @@ export default function DashboardAnalytiquesPage() {
               </div>
               <div className="flex items-center gap-2 min-w-0 flex-wrap">
                 <Filter className="h-4 w-4 text-zinc-500 shrink-0" />
-                <div className="flex flex-wrap gap-1 rounded-lg border border-zinc-200 p-0.5 bg-zinc-50">
-                  {(["all", "pending", "confirmed", "rejected", "delivered", "out_for_delivery"] as const).map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setStatusFilter(f)}
-                      className={`px-2.5 py-1.5 text-xs font-medium uppercase rounded-md transition-colors whitespace-nowrap shrink-0 ${
-                        statusFilter === f
-                          ? "bg-white text-black shadow-sm border border-zinc-200"
-                          : "text-zinc-500 hover:text-zinc-700"
-                      }`}
-                    >
-                      {filterLabels[f]}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap gap-1.5">
+                  {[{ key: "all", label: "All", count: dateFiltered.length }, ...stageTabs].map((f) => {
+                    const active = statusFilter === f.key;
+                    const tone =
+                      f.key === "all"
+                        ? "border border-zinc-300 bg-white text-black"
+                        : f.key.startsWith(CALIREX_PREFIX)
+                          ? calirexEtatStyle(f.label)
+                          : getStatusStyle(f.key);
+                    return (
+                      <button
+                        key={f.key}
+                        type="button"
+                        onClick={() => setStatusFilter(f.key)}
+                        aria-pressed={active}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap shrink-0 transition ${tone} ${
+                          f.key.startsWith(CALIREX_PREFIX) ? "" : "uppercase"
+                        } ${active ? "ring-2 ring-black/70" : "opacity-60 hover:opacity-100"}`}
+                      >
+                        {f.label}
+                        <span className="rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums">
+                          {f.count}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="flex items-center gap-2 min-w-0 flex-wrap">

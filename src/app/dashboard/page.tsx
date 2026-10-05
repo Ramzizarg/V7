@@ -22,8 +22,10 @@ async function getDashboardData() {
       status: string;
       created_at: string;
       confirmed_by_phone: boolean | null;
+      calirex_code_colis: string | null;
+      calirex_etat: string | null;
     }>(
-      "SELECT id, full_name, city, governorate, phone_number, email, total_price, status, created_at, confirmed_by_phone FROM orders ORDER BY created_at DESC"
+      "SELECT id, full_name, city, governorate, phone_number, email, total_price, status, created_at, confirmed_by_phone, calirex_code_colis, calirex_etat FROM orders ORDER BY created_at DESC"
     );
     const productsRes = await neonQuery<{ total: string; in_stock: string }>(
       `SELECT

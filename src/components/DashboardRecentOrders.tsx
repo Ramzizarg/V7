@@ -9,7 +9,19 @@ type OrderRow = {
   status: string;
   created_at: string;
   sizes_label?: string;
+  calirex_code_colis?: string | null;
+  calirex_etat?: string | null;
 };
+
+function calirexEtatClass(etat: string) {
+  const e = etat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (e.includes("retour") || e.includes("annul") || e.includes("cloture") || e.includes("reclamation")) {
+    return "bg-red-100 text-red-800";
+  }
+  if (e.includes("livre")) return "bg-emerald-100 text-emerald-800";
+  if (e.includes("probleme")) return "bg-amber-100 text-amber-800";
+  return "bg-blue-100 text-blue-800";
+}
 
 function formatPrice(n: number) {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "TND", minimumFractionDigits: 2 }).format(n);
@@ -62,9 +74,19 @@ export function DashboardRecentOrders({ orders }: { orders: OrderRow[] }) {
                 <td className="px-4 py-3 font-medium text-zinc-700">{o.sizes_label ?? "—"}</td>
                 <td className="px-4 py-3 text-right font-semibold">{formatPrice(Number(o.total_price))}</td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(o.status)}`}>
-                    {statusLabel(o.status)}
-                  </span>
+                  {o.calirex_code_colis ? (
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${calirexEtatClass(
+                        o.calirex_etat?.trim() || "en attente"
+                      )}`}
+                    >
+                      {o.calirex_etat?.trim() || "en attente"}
+                    </span>
+                  ) : (
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(o.status)}`}>
+                      {statusLabel(o.status)}
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
