@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowDown,
@@ -13,19 +13,24 @@ import {
   LayoutGrid,
   List,
   Megaphone,
-  MousePointerClick,
   PlayCircle,
   RefreshCw,
-  Repeat,
   ShoppingBag,
-  ShoppingCart,
-  Sparkles,
   Target,
   TrendingUp,
   Trophy,
   Wallet,
   X,
 } from "lucide-react";
+import {
+  analyzeCreative,
+  buildActionPlan,
+  buildContext,
+  periodDays,
+  type CreativeAnalysis,
+  type Verdict,
+} from "./recommendations";
+import { ActionPlan, VerdictBoard, VerdictChip, VerdictDetail } from "./recommendationsUi";
 import type { CampaignRow, CreativeRow, MetaAdsPreset, MetaAdsReport } from "@/lib/metaAds";
 import {
   Card,
@@ -50,7 +55,6 @@ import {
 } from "./adsUi";
 
 type ApiResponse = { configured: false } | { configured: true; report?: MetaAdsReport; error?: string };
-type IconType = ComponentType<{ className?: string }>;
 
 const PRESETS: { value: MetaAdsPreset; label: string }[] = [
   { value: "today", label: "Aujourd'hui" },
@@ -130,89 +134,16 @@ function creativeMetric(c: CreativeRow, key: CreativeSort, fmt: Fmt, avgCpa: num
 
 const SECONDARY_ORDER: CreativeSort[] = ["purchases", "cpa", "spend", "ctr", "roas"];
 
-type Insight = { tone: "good" | "warn" | "info"; icon: IconType; title: string; text: string };
+const TARGET_CPA_STORAGE_KEY = "vero7.ads.targetCpa";
 
-function buildInsights(report: MetaAdsReport, fmt: Fmt): Insight[] {
-  const { totals, creatives, campaigns } = report;
-  const out: Insight[] = [];
-
-  const best = sortCreatives(
-    creatives.filter((c) => c.purchases > 0),
-    "purchases"
-  )[0];
-  if (best) {
-    out.push({
-      tone: "good",
-      icon: Trophy,
-      title: "Meilleure créa",
-      text: `« ${best.name} » : ${fmt.int(best.purchases)} achat${best.purchases > 1 ? "s" : ""} à ${fmt.money(best.costPerPurchase)} l'achat.`,
-    });
+function readStoredTargetCpa() {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(TARGET_CPA_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
   }
-
-  if (totals.costPerPurchase != null) {
-    const wasted = creatives.filter((c) => c.purchases === 0 && c.spend >= totals.costPerPurchase!);
-    if (wasted.length) {
-      const sum = wasted.reduce((s, c) => s + c.spend, 0);
-      const worst = [...wasted].sort((a, b) => b.spend - a.spend)[0];
-      out.push({
-        tone: "warn",
-        icon: AlertTriangle,
-        title: `${wasted.length} pub${wasted.length > 1 ? "s" : ""} sans achat`,
-        text: `${fmt.money(sum)} dépensés sans vente (plus qu'un coût/achat moyen). La plus coûteuse : « ${worst.name} ».`,
-      });
-    }
-  }
-
-  const converting = campaigns.filter((c) => c.purchases > 0);
-  if (converting.length > 1) {
-    const top = sortCampaigns(converting, "costPerPurchase", 1)[0];
-    out.push({
-      tone: "info",
-      icon: Target,
-      title: "Campagne la plus rentable",
-      text: `« ${top.name} » : ${fmt.money(top.costPerPurchase)} par achat${top.roas != null ? ` · ROAS ${fmt.roas(top.roas)}` : ""}.`,
-    });
-  }
-
-  const hook = [...creatives].filter((c) => c.impressions >= 500).sort((a, b) => b.ctr - a.ctr)[0];
-  if (hook && hook.id !== best?.id) {
-    out.push({
-      tone: "info",
-      icon: MousePointerClick,
-      title: "Accroche la plus forte",
-      text: `« ${hook.name} » : CTR de ${fmt.pct(hook.ctr)}. Bonne base pour décliner de nouvelles créas.`,
-    });
-  }
-
-  if (totals.frequency != null && totals.frequency >= 3) {
-    out.push({
-      tone: "warn",
-      icon: Repeat,
-      title: "Fréquence élevée",
-      text: `Chaque personne a vu vos pubs ${fmt.dec(totals.frequency, 1)} fois en moyenne. Pensez à renouveler les créas.`,
-    });
-  }
-
-  if (totals.linkClicks >= 100) {
-    const atcRate = (totals.addToCart / totals.linkClicks) * 100;
-    if (atcRate < 3) {
-      out.push({
-        tone: "warn",
-        icon: ShoppingCart,
-        title: "Peu d'ajouts panier",
-        text: `Seulement ${fmt.pct(atcRate, 1)} des clics ajoutent au panier. Vérifiez la page produit (prix, photos, tailles).`,
-      });
-    }
-  }
-
-  return out.slice(0, 4);
 }
-
-const INSIGHT_TONES: Record<Insight["tone"], string> = {
-  good: "bg-emerald-50 text-emerald-700",
-  warn: "bg-amber-50 text-amber-700",
-  info: "bg-blue-50 text-blue-700",
-};
 
 function localDay(offsetDays = 0) {
   const d = new Date();
@@ -242,8 +173,12 @@ export default function DashboardPublicitesPage() {
   const [campaignSort, setCampaignSort] = useState<{ key: CampaignSortKey; dir: 1 | -1 }>({ key: "spend", dir: -1 });
   const [campaignStatus, setCampaignStatus] = useState<CampaignStatusFilter>("all");
 
+  const [verdictTab, setVerdictTab] = useState<Verdict>("winner");
+  const [targetCpaInput, setTargetCpaInput] = useState(readStoredTargetCpa);
+
   const requestId = useRef(0);
   const creativesRef = useRef<HTMLDivElement>(null);
+  const verdictRef = useRef<HTMLDivElement>(null);
 
   const fetchReport = useCallback((q: string) => {
     const id = ++requestId.current;
@@ -305,7 +240,40 @@ export default function DashboardPublicitesPage() {
   const prev = report?.previousTotals ?? null;
   const avgCpa = totals?.costPerPurchase ?? null;
 
-  const insights = useMemo(() => (report ? buildInsights(report, fmt) : []), [report, fmt]);
+  const parsedTarget = Number(targetCpaInput.replace(",", "."));
+  const targetCpa = targetCpaInput && Number.isFinite(parsedTarget) && parsedTarget > 0 ? parsedTarget : avgCpa;
+
+  const updateTargetCpa = (value: string) => {
+    setTargetCpaInput(value);
+    try {
+      if (value) window.localStorage.setItem(TARGET_CPA_STORAGE_KEY, value);
+      else window.localStorage.removeItem(TARGET_CPA_STORAGE_KEY);
+    } catch {
+      // storage unavailable (private mode)
+    }
+  };
+
+  const analysisContext = useMemo(() => (report ? buildContext(report, targetCpa) : null), [report, targetCpa]);
+
+  const analyses = useMemo(() => {
+    const map = new Map<string, CreativeAnalysis>();
+    if (report && analysisContext) {
+      for (const c of report.creatives) map.set(c.id, analyzeCreative(c, analysisContext, fmt));
+    }
+    return map;
+  }, [report, analysisContext, fmt]);
+
+  const actionPlan = useMemo(
+    () => (report && analysisContext ? buildActionPlan(report, analyses, analysisContext, fmt) : []),
+    [report, analyses, analysisContext, fmt]
+  );
+
+  const shortPeriod = report ? (periodDays(report) ?? 0) < 3 : false;
+
+  const jumpToVerdict = (v: Verdict) => {
+    setVerdictTab(v);
+    verdictRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const creativeCampaignOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -322,7 +290,7 @@ export default function DashboardPublicitesPage() {
 
   const visibleCreatives = showAllCreatives ? sortedCreatives : sortedCreatives.slice(0, CREATIVES_PREVIEW);
   const selectedIndex = sortedCreatives.findIndex((c) => c.id === selectedCreativeId);
-  const selectedCreative = selectedIndex >= 0 ? sortedCreatives[selectedIndex] : null;
+  const selectedCreative = report?.creatives.find((c) => c.id === selectedCreativeId) ?? null;
 
   const filteredCampaigns = useMemo(() => {
     const list = (report?.campaigns ?? []).filter((c) =>
@@ -504,31 +472,28 @@ export default function DashboardPublicitesPage() {
             />
           </div>
 
+          <ActionPlan items={actionPlan} shortPeriod={shortPeriod} onJump={jumpToVerdict} />
+
+          <div ref={verdictRef} className="scroll-mt-36">
+            <VerdictBoard
+              creatives={report.creatives}
+              analyses={analyses}
+              fmt={fmt}
+              tab={verdictTab}
+              onTab={setVerdictTab}
+              targetCpaInput={targetCpaInput}
+              onTargetCpaInput={updateTargetCpa}
+              defaultCpa={avgCpa}
+              onOpen={(id) => setSelectedCreativeId(id)}
+            />
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <TrendChart points={report.trend.points} granularity={report.trend.granularity} fmt={fmt} />
             </div>
             <Funnel totals={totals} fmt={fmt} />
           </div>
-
-          {insights.length ? (
-            <div>
-              <SectionTitle icon={Sparkles} title="À retenir" subtitle="Analyse automatique de la période" />
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {insights.map((ins) => (
-                  <Card key={ins.title} className="flex gap-3 p-4">
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${INSIGHT_TONES[ins.tone]}`}>
-                      <ins.icon className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-black">{ins.title}</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-zinc-600">{ins.text}</p>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           <div ref={creativesRef} className="scroll-mt-36">
             <SectionTitle
@@ -613,7 +578,8 @@ export default function DashboardPublicitesPage() {
                       rank={i + 1}
                       sort={creativeSort}
                       fmt={fmt}
-                      avgCpa={avgCpa}
+                      avgCpa={targetCpa}
+                      verdict={analyses.get(c.id)?.verdict ?? null}
                       onOpen={() => setSelectedCreativeId(c.id)}
                     />
                   ))}
@@ -622,7 +588,8 @@ export default function DashboardPublicitesPage() {
                 <CreativeList
                   creatives={visibleCreatives}
                   fmt={fmt}
-                  avgCpa={avgCpa}
+                  avgCpa={targetCpa}
+                  analyses={analyses}
                   onOpen={(id) => setSelectedCreativeId(id)}
                 />
               )}
@@ -665,7 +632,7 @@ export default function DashboardPublicitesPage() {
               campaigns={filteredCampaigns}
               totalSpend={totals.spend}
               fmt={fmt}
-              avgCpa={avgCpa}
+              avgCpa={targetCpa}
               sort={campaignSort}
               onSort={toggleCampaignSort}
               onOpen={focusCampaign}
@@ -683,12 +650,13 @@ export default function DashboardPublicitesPage() {
         {selectedCreative && totals ? (
           <CreativeDetail
             creative={selectedCreative}
-            rank={selectedIndex + 1}
+            rank={selectedIndex >= 0 ? selectedIndex + 1 : null}
             sortLabel={CREATIVE_SORTS.find((s) => s.value === creativeSort)?.label ?? ""}
             totalSpend={totals.spend}
-            avgCpa={avgCpa}
+            avgCpa={targetCpa}
             fmt={fmt}
             accountNumber={accountNumber}
+            analysis={analyses.get(selectedCreative.id) ?? null}
           />
         ) : null}
       </Modal>
@@ -725,6 +693,7 @@ function CreativeCard({
   sort,
   fmt,
   avgCpa,
+  verdict,
   onOpen,
 }: {
   creative: CreativeRow;
@@ -732,6 +701,7 @@ function CreativeCard({
   sort: CreativeSort;
   fmt: Fmt;
   avgCpa: number | null;
+  verdict: Verdict | null;
   onOpen: () => void;
 }) {
   const status = statusInfo(c.status);
@@ -739,7 +709,6 @@ function CreativeCard({
   const secondary = SECONDARY_ORDER.filter((k) => k !== sort)
     .slice(0, 3)
     .map((k) => creativeMetric(c, k, fmt, avgCpa));
-  const noSale = avgCpa != null && c.purchases === 0 && c.spend >= avgCpa;
 
   return (
     <button
@@ -771,11 +740,7 @@ function CreativeCard({
             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.dot}`} />
             <span className="truncate">{status.label}</span>
           </span>
-          {noSale ? (
-            <span className="shrink-0 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-semibold text-white sm:px-2 sm:text-[10px]">
-              Sans achat
-            </span>
-          ) : null}
+          {verdict ? <VerdictChip verdict={verdict} size="xs" /> : null}
         </div>
       </div>
       <div className="p-2.5 sm:p-4">
@@ -804,11 +769,13 @@ function CreativeList({
   creatives,
   fmt,
   avgCpa,
+  analyses,
   onOpen,
 }: {
   creatives: CreativeRow[];
   fmt: Fmt;
   avgCpa: number | null;
+  analyses: Map<string, CreativeAnalysis>;
   onOpen: (id: string) => void;
 }) {
   return (
@@ -831,6 +798,7 @@ function CreativeList({
               <span className="flex items-center gap-1.5">
                 <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.dot}`} />
                 <span className="truncate text-sm font-semibold text-black">{c.name}</span>
+                {analyses.get(c.id) ? <VerdictChip verdict={analyses.get(c.id)!.verdict} size="xs" /> : null}
               </span>
               <span className="block truncate text-[11px] text-zinc-500">{c.campaignName}</span>
             </span>
@@ -1036,14 +1004,16 @@ function CreativeDetail({
   avgCpa,
   fmt,
   accountNumber,
+  analysis,
 }: {
   creative: CreativeRow;
-  rank: number;
+  rank: number | null;
   sortLabel: string;
   totalSpend: number;
   avgCpa: number | null;
   fmt: Fmt;
   accountNumber: string;
+  analysis: CreativeAnalysis | null;
 }) {
   const status = statusInfo(c.status);
   const rate = (a: number, b: number) => (b > 0 ? (a / b) * 100 : null);
@@ -1075,9 +1045,11 @@ function CreativeDetail({
       <div className="relative aspect-[4/5] bg-zinc-100 md:aspect-auto md:min-h-[560px]">
         <CreativeImage sources={[c.imageUrl, c.thumbnailUrl].filter((s): s is string => !!s)} alt={c.name} />
         <div className="absolute left-3 top-3 flex gap-2">
-          <span className={`rounded-full px-2.5 py-1 text-xs font-bold shadow-sm ${rankBadgeClass(rank)}`}>
-            #{rank} · {sortLabel}
-          </span>
+          {rank != null ? (
+            <span className={`rounded-full px-2.5 py-1 text-xs font-bold shadow-sm ${rankBadgeClass(rank)}`}>
+              #{rank} · {sortLabel}
+            </span>
+          ) : null}
           {c.isVideo ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur">
               <PlayCircle className="h-3 w-3" />
@@ -1096,6 +1068,8 @@ function CreativeDetail({
           {c.campaignName}
           {c.adsetName ? ` · ${c.adsetName}` : ""}
         </p>
+
+        {analysis ? <VerdictDetail analysis={analysis} fmt={fmt} /> : null}
 
         {c.title || c.body ? (
           <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 p-3">

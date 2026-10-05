@@ -168,25 +168,21 @@ function orderStageKey(order: Pick<OrderRow, "status" | "calirex_code_colis" | "
   return normalizeStatus(order.status);
 }
 
-function orderStageLabel(order: Pick<OrderRow, "status" | "calirex_code_colis" | "calirex_etat">) {
-  if (order.calirex_code_colis) return orderCalirexEtat(order);
-  const s = normalizeStatus(order.status);
-  const label = STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;
-  return MANUAL_STATUSES.includes(s) ? label : `${label} (manuel)`;
-}
-
 type StageCount = { key: string; label: string; count: number };
 
 /** Manual statuses are always listed (even at 0); Calirex states only when present. */
 function countStages(list: Pick<OrderRow, "status" | "calirex_code_colis" | "calirex_etat">[]): StageCount[] {
   const byKey = new Map<string, StageCount>(
-    MANUAL_STATUSES.map((s) => [s, { key: s, label: STATUS_OPTIONS.find((o) => o.value === s)!.label, count: 0 }])
+    MANUAL_STATUSES.filter((s) => s !== "confirmed").map((s) => [
+      s,
+      { key: s, label: STATUS_OPTIONS.find((o) => o.value === s)!.label, count: 0 },
+    ])
   );
   for (const order of list) {
     const key = orderStageKey(order);
     const entry = byKey.get(key);
     if (entry) entry.count += 1;
-    else byKey.set(key, { key, label: orderStageLabel(order), count: 1 });
+    else if (order.calirex_code_colis) byKey.set(key, { key, label: orderCalirexEtat(order), count: 1 });
   }
   return [...byKey.values()].sort((a, b) => compareStageKeys(a.key, b.key));
 }
@@ -279,7 +275,6 @@ export default function DashboardAnalytiquesPage() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [savingPhoneId, setSavingPhoneId] = useState<number | null>(null);
-  const [savingStatusId, setSavingStatusId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [shippingId, setShippingId] = useState<number | null>(null);
   const [trackingId, setTrackingId] = useState<number | null>(null);
@@ -355,30 +350,6 @@ export default function DashboardAnalytiquesPage() {
       setError(err instanceof Error ? err.message : "Impossible de modifier la confirmation téléphone.");
     } finally {
       setSavingPhoneId(null);
-    }
-  };
-
-  const handleStatusChange = async (order: OrderRow, nextStatus: EditableStatus, e: React.SyntheticEvent) => {
-    e.stopPropagation();
-    if (normalizeStatus(order.status) === nextStatus || savingStatusId === order.id) return;
-
-    setSavingStatusId(order.id);
-    setError(null);
-    const previous = order.status;
-    patchOrder(order.id, { status: nextStatus });
-
-    try {
-      const supabase = supabaseBrowserClient();
-      const { error: updateErr } = await supabase
-        .from("orders")
-        .update({ status: nextStatus })
-        .eq("id", order.id);
-      if (updateErr) throw updateErr;
-    } catch (err) {
-      patchOrder(order.id, { status: previous });
-      setError(err instanceof Error ? err.message : "Impossible de changer le statut.");
-    } finally {
-      setSavingStatusId(null);
     }
   };
 
@@ -682,7 +653,6 @@ export default function DashboardAnalytiquesPage() {
 
   const renderStatusSelect = (order: OrderRow, compact = false) => {
     const current = normalizeStatus(order.status);
-    const saving = savingStatusId === order.id;
 
     if (order.calirex_code_colis) {
       const etat = orderCalirexEtat(order);
@@ -711,22 +681,15 @@ export default function DashboardAnalytiquesPage() {
     }
 
     return (
-      <select
-        value={current}
-        disabled={saving}
-        onClick={(e) => e.stopPropagation()}
-        onChange={(e) => handleStatusChange(order, e.target.value as EditableStatus, e)}
-        className={`rounded-full border-0 py-1 pl-2.5 pr-7 text-xs font-semibold uppercase cursor-pointer focus:outline-none focus:ring-2 focus:ring-black/20 disabled:opacity-60 ${getStatusStyle(
-          current
-        )} ${compact ? "text-[10px] py-0.5" : ""}`}
+      <span
+        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase ${getStatusStyle(current)} ${
+          compact ? "text-[10px] px-2 py-0.5" : ""
+        }`}
+        title="Le statut change uniquement via « Expédier via Calirex »"
         aria-label={`Statut commande #${order.id}`}
       >
-        {STATUS_OPTIONS.filter((opt) => MANUAL_STATUSES.includes(opt.value) || opt.value === current).map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        {STATUS_OPTIONS.find((opt) => opt.value === current)?.label ?? current}
+      </span>
     );
   };
 

@@ -62,6 +62,7 @@ export type CreativeRow = AdsMetrics & {
   campaignName: string;
   adsetName: string;
   status: string | null;
+  createdTime: string | null;
   thumbnailUrl: string | null;
   imageUrl: string | null;
   title: string | null;
@@ -216,6 +217,7 @@ type CreativeDetails = {
 type AdCreativeInfo = {
   id: string;
   effective_status?: string;
+  created_time?: string;
   creative?: CreativeDetails;
 };
 
@@ -225,7 +227,12 @@ const CREATIVE_FIELDS_FULL =
   "asset_feed_spec{images{url},videos{thumbnail_url,video_id}}";
 const CREATIVE_FIELDS_BASIC = "thumbnail_url,image_url,title,body,object_type,video_id";
 
-type RawAd = { id: string; effective_status?: string; creative?: CreativeDetails & { id?: string } };
+type RawAd = {
+  id: string;
+  effective_status?: string;
+  created_time?: string;
+  creative?: CreativeDetails & { id?: string };
+};
 
 const ALL_AD_STATUSES = [
   "ACTIVE",
@@ -252,7 +259,7 @@ async function listAccountAds(accountId: string, creativeFields: string, token: 
   return graphGetAll<RawAd>(
     `${accountId}/ads`,
     {
-      fields: `id,effective_status,creative{id,${creativeFields}}`,
+      fields: `id,effective_status,created_time,creative{id,${creativeFields}}`,
       effective_status: JSON.stringify(ALL_AD_STATUSES),
       limit: "100",
     },
@@ -268,7 +275,7 @@ async function lookupAdsOneByOne(adIds: string[], token: string) {
   for (let i = 0; i < ids.length; i += 10) {
     const results = await Promise.allSettled(
       ids.slice(i, i + 10).map((id) =>
-        graphGet<RawAd>(id, { fields: `id,effective_status,creative{id,${CREATIVE_FIELDS_BASIC}}` }, token)
+        graphGet<RawAd>(id, { fields: `id,effective_status,created_time,creative{id,${CREATIVE_FIELDS_BASIC}}` }, token)
       )
     );
     for (const r of results) if (r.status === "fulfilled" && r.value?.id) out.set(r.value.id, r.value);
@@ -331,7 +338,7 @@ async function fetchAdCreatives(accountId: string, adIds: string[], token: strin
     const creative = ad.creative
       ? { ...ad.creative, thumbnail_url: (ad.creative.id && large.get(ad.creative.id)) || ad.creative.thumbnail_url }
       : undefined;
-    byId.set(id, { id, effective_status: ad.effective_status, creative });
+    byId.set(id, { id, effective_status: ad.effective_status, created_time: ad.created_time, creative });
   }
   if (adIds.length && byId.size === 0 && !warnings.length) {
     warnings.push("Créas : Meta n'a renvoyé aucune information sur les publicités (vérifiez la permission ads_read du token).");
@@ -546,6 +553,7 @@ export async function fetchMetaAdsReport(period: MetaAdsPeriod): Promise<MetaAds
         campaignName: row.campaign_name ?? "",
         adsetName: row.adset_name ?? "",
         status: info?.effective_status ?? null,
+        createdTime: info?.created_time ?? null,
         thumbnailUrl: creative?.thumbnail_url ?? null,
         imageUrl: creativeImage(creative),
         title: creative?.title ?? null,
