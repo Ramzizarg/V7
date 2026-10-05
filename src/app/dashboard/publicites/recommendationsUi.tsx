@@ -155,7 +155,7 @@ export function VerdictBoard({
         title="Verdict des créas"
         subtitle="Gagnantes, perdantes et créas pas encore assez testées"
         right={
-          <div className="flex flex-col items-start gap-1 sm:items-end">
+          <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:items-end">
             <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white py-1 pl-3 pr-1">
               <label htmlFor="target-cpa" className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 CPA cible
@@ -169,7 +169,7 @@ export function VerdictBoard({
                 value={targetCpaInput}
                 placeholder={defaultCpa != null ? defaultCpa.toFixed(2) : "—"}
                 onChange={(e) => onTargetCpaInput(e.target.value)}
-                className="w-20 bg-transparent text-sm font-semibold tabular-nums text-black placeholder:text-zinc-400 focus:outline-none"
+                className="h-7 min-w-0 flex-1 bg-transparent text-sm font-semibold tabular-nums text-black placeholder:text-zinc-400 focus:outline-none sm:w-20 sm:flex-none"
               />
               {targetCpaInput ? (
                 <button
@@ -184,13 +184,15 @@ export function VerdictBoard({
                 <span className="pr-2 text-[10px] font-medium text-zinc-400">moyenne</span>
               )}
             </div>
-            <p className="text-[10px] text-zinc-400">Mettez votre coût max par commande (marge) pour un verdict plus juste.</p>
+            <p className="px-1 text-[10px] leading-snug text-zinc-400">
+              Mettez votre coût max par commande (marge) pour un verdict plus juste.
+            </p>
           </div>
         }
       />
 
-      <div className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:grid sm:grid-cols-5 sm:overflow-visible">
-        {groups.map(({ verdict, list }) => {
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {groups.map(({ verdict, list }, i) => {
           const meta = VERDICTS[verdict];
           const active = tab === verdict;
           return (
@@ -202,20 +204,26 @@ export function VerdictBoard({
                 setShowAll(false);
               }}
               aria-pressed={active}
-              className={`min-w-[138px] shrink-0 rounded-2xl border p-3 text-left transition sm:min-w-0 ${
-                active ? `${meta.soft} ring-2 ring-black/80` : "border-zinc-200 bg-white hover:border-zinc-300"
-              }`}
+              className={`min-w-0 rounded-2xl border px-3 py-2.5 text-left transition sm:p-3 ${
+                i === groups.length - 1 ? "col-span-2 sm:col-span-1" : ""
+              } ${active ? `${meta.soft} ring-2 ring-black/80` : "border-zinc-200 bg-white hover:border-zinc-300"}`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className={`h-2 w-2 rounded-full ${meta.bar}`} />
-                <span className="text-2xl font-bold tabular-nums text-black">{list.length}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${meta.bar}`} />
+                  <span className="truncate text-xs font-semibold text-black sm:hidden">{meta.label}</span>
+                </span>
+                <span className="text-xl font-bold tabular-nums text-black sm:text-2xl">{list.length}</span>
               </div>
-              <p className="mt-1 text-xs font-semibold text-black">{meta.label}</p>
-              <p className="text-[10px] leading-snug text-zinc-500">{meta.description}</p>
+              <p className="mt-1 hidden text-xs font-semibold text-black sm:block">{meta.label}</p>
+              <p className="hidden text-[10px] leading-snug text-zinc-500 sm:block">{meta.description}</p>
             </button>
           );
         })}
       </div>
+      <p className="mt-2 px-1 text-[11px] text-zinc-500 sm:hidden">
+        <b className="font-semibold text-black">{VERDICTS[tab].label} :</b> {VERDICTS[tab].description}
+      </p>
 
       <Card className="mt-3 overflow-hidden">
         {current.length === 0 ? (
@@ -225,45 +233,54 @@ export function VerdictBoard({
             {visible.map((c) => {
               const a = analyses.get(c.id)!;
               const status = statusInfo(c.status);
+              const details = (
+                <>
+                  {a.test ? <TestProgress test={a.test} verdict={a.verdict} fmt={fmt} /> : null}
+                  <span className="mt-1 block text-xs leading-snug text-zinc-700">→ {a.actions[0]}</span>
+                  {a.reasons[0] ? (
+                    <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500">{a.reasons[0]}</span>
+                  ) : null}
+                </>
+              );
               return (
                 <li key={c.id}>
                   <button
                     type="button"
                     onClick={() => onOpen(c.id)}
-                    className="flex w-full gap-3 px-3 py-3 text-left transition hover:bg-zinc-50 sm:px-4 sm:py-4"
+                    className="block w-full px-3 py-3 text-left transition hover:bg-zinc-50 active:bg-zinc-50 sm:flex sm:gap-4 sm:px-4 sm:py-4"
                   >
-                    <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 sm:h-20 sm:w-20">
-                      <CreativeImage sources={[c.imageUrl, c.thumbnailUrl].filter((s): s is string => !!s)} alt={c.name} />
-                      {c.isVideo ? <PlayCircle className="absolute bottom-1 right-1 h-3.5 w-3.5 text-white drop-shadow" /> : null}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span className="truncate text-sm font-semibold text-black">{c.name}</span>
-                        {a.cutTooEarly ? (
-                          <span className="shrink-0 rounded-full bg-zinc-900 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                            Coupée trop tôt
-                          </span>
-                        ) : null}
+                    <span className="flex min-w-0 flex-1 gap-3">
+                      <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-100 sm:h-20 sm:w-20">
+                        <CreativeImage sources={[c.imageUrl, c.thumbnailUrl].filter((s): s is string => !!s)} alt={c.name} />
+                        {c.isVideo ? <PlayCircle className="absolute bottom-1 right-1 h-3.5 w-3.5 text-white drop-shadow" /> : null}
                       </span>
-                      <span className="block truncate text-[11px] text-zinc-500">
-                        <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle ${status.dot}`} />
-                        {status.label} · {c.campaignName}
-                        {a.daysLive != null ? ` · en ligne depuis ${a.daysLive} j` : ""}
-                      </span>
-                      <span className="mt-1 block text-xs font-semibold text-zinc-900">{a.headline}</span>
-                      {a.test ? <TestProgress test={a.test} verdict={a.verdict} fmt={fmt} /> : null}
-                      <span className="mt-1 block text-xs text-zinc-700">→ {a.actions[0]}</span>
-                      {a.reasons[0] ? <span className="mt-0.5 block text-[11px] text-zinc-500">{a.reasons[0]}</span> : null}
-                      <span className="mt-1.5 block text-[11px] tabular-nums text-zinc-500 sm:hidden">
-                        {fmt.money(c.spend)} · {fmt.int(c.purchases)} achat{c.purchases !== 1 ? "s" : ""} · {fmt.money(c.costPerPurchase)}/achat · CTR{" "}
-                        {fmt.pct(c.ctr, 1)}
+                      <span className="min-w-0 flex-1">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate text-sm font-semibold text-black">{c.name}</span>
+                          {a.cutTooEarly ? (
+                            <span className="shrink-0 rounded-full bg-zinc-900 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                              Coupée trop tôt
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1 text-[11px] text-zinc-500">
+                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.dot}`} />
+                          <span className="shrink-0">{status.label}</span>
+                          {a.daysLive != null ? <span className="shrink-0">· {a.daysLive} j</span> : null}
+                          <span className="truncate">· {c.campaignName}</span>
+                        </span>
+                        <span className="mt-1 line-clamp-2 text-xs font-semibold leading-snug text-zinc-900">{a.headline}</span>
+                        <span className="hidden sm:block">{details}</span>
                       </span>
                     </span>
-                    <span className="hidden shrink-0 grid-cols-4 gap-5 self-center text-right text-xs tabular-nums sm:grid">
+
+                    <span className="mt-2 block sm:hidden">{details}</span>
+
+                    <span className="mt-2 grid grid-cols-4 gap-1.5 text-center text-xs tabular-nums sm:mt-0 sm:flex sm:shrink-0 sm:gap-5 sm:self-center sm:text-right">
                       <Stat label="Dépenses" value={fmt.money(c.spend)} />
                       <Stat label="Achats" value={fmt.int(c.purchases)} />
                       <Stat label="Coût/achat" value={fmt.money(c.costPerPurchase)} />
-                      <Stat label="CTR" value={fmt.pct(c.ctr)} />
+                      <Stat label="CTR" value={fmt.pct(c.ctr, 1)} />
                     </span>
                   </button>
                 </li>
@@ -289,9 +306,9 @@ export function VerdictBoard({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <span className="block">
-      <span className="block text-[9px] font-semibold uppercase tracking-wider text-zinc-400">{label}</span>
-      <span className="block font-semibold text-zinc-900">{value}</span>
+    <span className="block min-w-0 rounded-lg bg-zinc-50 px-1 py-1.5 sm:w-[76px] sm:bg-transparent sm:p-0">
+      <span className="block truncate text-[9px] font-semibold uppercase tracking-wider text-zinc-400">{label}</span>
+      <span className="block truncate text-[11px] font-semibold text-zinc-900 sm:text-xs">{value}</span>
     </span>
   );
 }
@@ -299,17 +316,17 @@ function Stat({ label, value }: { label: string; value: string }) {
 export function VerdictDetail({ analysis: a, fmt }: { analysis: CreativeAnalysis; fmt: Fmt }) {
   const meta = VERDICTS[a.verdict];
   return (
-    <div className={`mt-4 rounded-xl border p-3 ${meta.soft}`}>
-      <div className="flex flex-wrap items-center gap-2">
+    <div className={`mt-3 rounded-xl border px-3 py-2.5 ${meta.soft}`}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <VerdictChip verdict={a.verdict} />
         {a.cutTooEarly ? (
           <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold text-white">Coupée trop tôt</span>
         ) : null}
-        {a.daysLive != null ? <span className="text-[11px] opacity-80">En ligne depuis {a.daysLive} j</span> : null}
+        <span className="text-[13px] font-semibold">{a.headline}</span>
+        {a.daysLive != null ? <span className="text-[11px] opacity-70">· en ligne depuis {a.daysLive} j</span> : null}
       </div>
-      <p className="mt-2 text-sm font-semibold">{a.headline}</p>
       {a.test ? <TestProgress test={a.test} verdict={a.verdict} fmt={fmt} /> : null}
-      <ul className="mt-2 space-y-1 text-xs">
+      <ul className="mt-1.5 space-y-0.5 text-[11px] leading-snug">
         {a.actions.map((action) => (
           <li key={action} className="flex gap-1.5">
             <span>→</span>
@@ -318,7 +335,7 @@ export function VerdictDetail({ analysis: a, fmt }: { analysis: CreativeAnalysis
         ))}
       </ul>
       {a.reasons.length ? (
-        <ul className="mt-2 space-y-0.5 border-t border-current/10 pt-2 text-[11px] opacity-80">
+        <ul className="mt-1.5 space-y-0.5 border-t border-current/10 pt-1.5 text-[10.5px] leading-snug opacity-80">
           {a.reasons.map((r) => (
             <li key={r}>• {r}</li>
           ))}

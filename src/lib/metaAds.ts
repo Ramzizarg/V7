@@ -234,10 +234,10 @@ type RawAd = {
   creative?: CreativeDetails & { id?: string };
 };
 
-const ALL_AD_STATUSES = [
+/** DELETED is rejected by the ads edge filter ("Invalid parameter"); deleted ads are looked up one by one. */
+const LISTABLE_AD_STATUSES = [
   "ACTIVE",
   "PAUSED",
-  "DELETED",
   "ARCHIVED",
   "PENDING_REVIEW",
   "DISAPPROVED",
@@ -249,23 +249,28 @@ const ALL_AD_STATUSES = [
   "WITH_ISSUES",
 ];
 
-const MAX_SINGLE_AD_LOOKUPS = 40;
+const MAX_SINGLE_AD_LOOKUPS = 120;
+const THUMBNAIL_SIZE = "1080";
 
 function errorMessage(err: unknown) {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function listAccountAds(accountId: string, creativeFields: string, token: string) {
-  return graphGetAll<RawAd>(
-    `${accountId}/ads`,
-    {
-      fields: `id,effective_status,created_time,creative{id,${creativeFields}}`,
-      effective_status: JSON.stringify(ALL_AD_STATUSES),
-      limit: "100",
-    },
-    token,
-    20
-  );
+async function listAccountAds(accountId: string, creativeFields: string, token: string, withStatuses: boolean) {
+  const params: Record<string, string> = {
+    fields: `id,effective_status,created_time,creative{id,${creativeFields}}`,
+    limit: "100",
+  };
+  if (withStatuses) params.effective_status = JSON.stringify(LISTABLE_AD_STATUSES);
+  return graphGetAll<RawAd>(`${accountId}/ads`, params, token, 20);
+}
+
+async function lookupAd(id: string, token: string) {
+  try {
+    return await graphGet<RawAd>(id, { fields: `id,effective_status,created_time,creative{id,${CREATIVE_FIELDS_FULL}}` }, token);
+  } catch {
+    return graphGet<RawAd>(id, { fields: `id,effective_status,created_time,creative{id,${CREATIVE_FIELDS_BASIC}}` }, token);
+  }
 }
 
 /** Reads each ad on its own so one deleted/inaccessible ad can't fail the whole batch. */
@@ -273,34 +278,36 @@ async function lookupAdsOneByOne(adIds: string[], token: string) {
   const out = new Map<string, RawAd>();
   const ids = adIds.slice(0, MAX_SINGLE_AD_LOOKUPS);
   for (let i = 0; i < ids.length; i += 10) {
-    const results = await Promise.allSettled(
-      ids.slice(i, i + 10).map((id) =>
-        graphGet<RawAd>(id, { fields: `id,effective_status,created_time,creative{id,${CREATIVE_FIELDS_BASIC}}` }, token)
-      )
-    );
+    const results = await Promise.allSettled(ids.slice(i, i + 10).map((id) => lookupAd(id, token)));
     for (const r of results) if (r.status === "fulfilled" && r.value?.id) out.set(r.value.id, r.value);
   }
   return out;
 }
 
-/** Asks Meta for 480px thumbnails (the nested default is tiny). Best effort. */
+/** Asks Meta for large thumbnails (the nested default is ~64px and looks blurry). Best effort. */
 async function fetchLargeThumbnails(creativeIds: string[], token: string) {
   const out = new Map<string, string>();
+  const size = { thumbnail_width: THUMBNAIL_SIZE, thumbnail_height: THUMBNAIL_SIZE };
   for (let i = 0; i < creativeIds.length; i += 50) {
+    const chunk = creativeIds.slice(i, i + 50);
     try {
       const res = await graphGet<Record<string, { thumbnail_url?: string }>>(
         "",
-        {
-          ids: creativeIds.slice(i, i + 50).join(","),
-          fields: "thumbnail_url",
-          thumbnail_width: "480",
-          thumbnail_height: "480",
-        },
+        { ids: chunk.join(","), fields: "thumbnail_url", ...size },
         token
       );
       for (const [id, v] of Object.entries(res)) if (v?.thumbnail_url) out.set(id, v.thumbnail_url);
     } catch {
-      // keep the default thumbnails for this chunk
+      for (let j = 0; j < chunk.length; j += 10) {
+        const results = await Promise.allSettled(
+          chunk
+            .slice(j, j + 10)
+            .map((id) => graphGet<{ id: string; thumbnail_url?: string }>(id, { fields: "id,thumbnail_url", ...size }, token))
+        );
+        for (const r of results) {
+          if (r.status === "fulfilled" && r.value?.thumbnail_url) out.set(r.value.id, r.value.thumbnail_url);
+        }
+      }
     }
   }
   return out;
@@ -310,24 +317,36 @@ async function fetchAdCreatives(accountId: string, adIds: string[], token: strin
   const wanted = new Set(adIds);
   const found = new Map<string, RawAd>();
 
-  let listed: RawAd[] = [];
-  try {
-    listed = await listAccountAds(accountId, CREATIVE_FIELDS_FULL, token);
-  } catch (err) {
-    console.warn("[metaAds] ads list (full fields) failed, retrying basic:", err);
+  const attempts: { fields: string; withStatuses: boolean }[] = [
+    { fields: CREATIVE_FIELDS_FULL, withStatuses: true },
+    { fields: CREATIVE_FIELDS_BASIC, withStatuses: true },
+    { fields: CREATIVE_FIELDS_BASIC, withStatuses: false },
+  ];
+  let listError: unknown = null;
+  for (const attempt of attempts) {
     try {
-      listed = await listAccountAds(accountId, CREATIVE_FIELDS_BASIC, token);
-    } catch (err2) {
-      console.error("[metaAds] ads list failed:", err2);
-      warnings.push(`Créas : ${errorMessage(err2)}`);
+      const listed = await listAccountAds(accountId, attempt.fields, token, attempt.withStatuses);
+      for (const ad of listed) if (wanted.has(ad.id)) found.set(ad.id, ad);
+      listError = null;
+      break;
+    } catch (err) {
+      listError = err;
+      console.warn("[metaAds] ads list attempt failed:", err);
     }
   }
-  for (const ad of listed) if (wanted.has(ad.id)) found.set(ad.id, ad);
 
   const missing = adIds.filter((id) => !found.has(id));
   if (missing.length) {
     const single = await lookupAdsOneByOne(missing, token);
     for (const [id, ad] of single) found.set(id, ad);
+  }
+
+  const unresolved = adIds.length - found.size;
+  if (unresolved > 0) {
+    warnings.push(
+      `Créas : ${unresolved} pub${unresolved > 1 ? "s" : ""} sans image ni statut` +
+        (listError ? ` (${errorMessage(listError)})` : "")
+    );
   }
 
   const creativeIds = [...new Set([...found.values()].map((a) => a.creative?.id).filter((id): id is string => !!id))];
@@ -340,9 +359,6 @@ async function fetchAdCreatives(accountId: string, adIds: string[], token: strin
       : undefined;
     byId.set(id, { id, effective_status: ad.effective_status, created_time: ad.created_time, creative });
   }
-  if (adIds.length && byId.size === 0 && !warnings.length) {
-    warnings.push("Créas : Meta n'a renvoyé aucune information sur les publicités (vérifiez la permission ads_read du token).");
-  }
   return byId;
 }
 
@@ -353,7 +369,6 @@ function creativeImage(creative: CreativeDetails | undefined) {
     creative.object_story_spec?.link_data?.picture ||
     creative.object_story_spec?.video_data?.image_url ||
     creative.asset_feed_spec?.images?.find((img) => img.url)?.url ||
-    creative.asset_feed_spec?.videos?.find((v) => v.thumbnail_url)?.thumbnail_url ||
     null
   );
 }

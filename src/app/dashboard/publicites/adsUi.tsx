@@ -469,7 +469,7 @@ export function Modal({ open, onClose, children }: { open: boolean; onClose: () 
       aria-modal="true"
     >
       <div
-        className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:max-w-4xl sm:rounded-3xl"
+        className="relative max-h-[92vh] w-full overflow-y-auto overflow-x-hidden rounded-t-3xl bg-white shadow-2xl [scrollbar-width:thin] sm:max-w-5xl sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button

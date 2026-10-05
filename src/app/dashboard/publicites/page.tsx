@@ -1041,9 +1041,11 @@ function CreativeDetail({
   ];
 
   return (
-    <div className="grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <div className="relative aspect-[4/5] bg-zinc-100 md:aspect-auto md:min-h-[560px]">
-        <CreativeImage sources={[c.imageUrl, c.thumbnailUrl].filter((s): s is string => !!s)} alt={c.name} />
+    <div className="grid md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+      <div className="relative aspect-[4/5] bg-zinc-100 md:aspect-auto">
+        <div className="absolute inset-0">
+          <CreativeImage sources={[c.imageUrl, c.thumbnailUrl].filter((s): s is string => !!s)} alt={c.name} />
+        </div>
         <div className="absolute left-3 top-3 flex gap-2">
           {rank != null ? (
             <span className={`rounded-full px-2.5 py-1 text-xs font-bold shadow-sm ${rankBadgeClass(rank)}`}>
@@ -1058,13 +1060,26 @@ function CreativeDetail({
           ) : null}
         </div>
       </div>
-      <div className="p-5 sm:p-7">
-        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.chip}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-          {status.label}
-        </span>
-        <h3 className="mt-2 pr-10 text-xl font-bold tracking-tight text-black">{c.name}</h3>
-        <p className="mt-1 text-xs text-zinc-500">
+      <div className="p-4 sm:p-5">
+        <div className="flex flex-wrap items-center gap-2 pr-10">
+          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.chip}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+            {status.label}
+          </span>
+          {accountNumber ? (
+            <a
+              href={`https://adsmanager.facebook.com/adsmanager/manage/ads?act=${accountNumber}&selected_ad_ids=${c.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-full bg-black px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-zinc-800"
+            >
+              Ads Manager
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          ) : null}
+        </div>
+        <h3 className="mt-1.5 pr-10 text-lg font-bold leading-tight tracking-tight text-black">{c.name}</h3>
+        <p className="mt-0.5 truncate text-xs text-zinc-500">
           {c.campaignName}
           {c.adsetName ? ` · ${c.adsetName}` : ""}
         </p>
@@ -1072,43 +1087,29 @@ function CreativeDetail({
         {analysis ? <VerdictDetail analysis={analysis} fmt={fmt} /> : null}
 
         {c.title || c.body ? (
-          <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 p-3">
-            {c.title ? <p className="text-sm font-semibold text-black">{c.title}</p> : null}
-            {c.body ? (
-              <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-line text-xs leading-relaxed text-zinc-600">{c.body}</p>
-            ) : null}
-          </div>
+          <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-zinc-600" title={[c.title, c.body].filter(Boolean).join("\n")}>
+            {c.title ? <b className="font-semibold text-black">{c.title} </b> : null}
+            {c.body}
+          </p>
         ) : null}
 
-        <dl className="mt-5 grid grid-cols-3 gap-2">
+        <dl className="mt-3 grid grid-cols-3 gap-1.5 sm:grid-cols-5">
           {metrics.map((m) => (
-            <div key={m.label} className="rounded-xl bg-zinc-50 px-2.5 py-2">
+            <div key={m.label} className="rounded-lg bg-zinc-50 px-2 py-1.5">
               <dt className="truncate text-[9px] font-semibold uppercase tracking-wider text-zinc-500">{m.label}</dt>
-              <dd className={`mt-0.5 truncate text-sm font-bold tabular-nums ${m.className ?? "text-black"}`}>{m.value}</dd>
+              <dd className={`truncate text-[13px] font-bold tabular-nums ${m.className ?? "text-black"}`}>{m.value}</dd>
             </div>
           ))}
         </dl>
 
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="mt-1.5 grid grid-cols-3 gap-1.5">
           {steps.map((s) => (
-            <div key={s.label} className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-2.5 py-2">
+            <div key={s.label} className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-2 py-1.5">
               <p className="truncate text-[9px] font-semibold uppercase tracking-wider text-emerald-700">{s.label}</p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums text-emerald-800">{fmt.pct(s.value, 1)}</p>
+              <p className="text-[13px] font-bold tabular-nums text-emerald-800">{fmt.pct(s.value, 1)}</p>
             </div>
           ))}
         </div>
-
-        {accountNumber ? (
-          <a
-            href={`https://adsmanager.facebook.com/adsmanager/manage/ads?act=${accountNumber}&selected_ad_ids=${c.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-          >
-            Ouvrir dans Ads Manager
-            <ExternalLink className="h-4 w-4" />
-          </a>
-        ) : null}
       </div>
     </div>
   );
