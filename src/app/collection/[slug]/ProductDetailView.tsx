@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ZoomIn } from "lucide-react";
+import { Ruler, ZoomIn } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ProductImageLightbox } from "@/components/ProductImageLightbox";
+import SizeFinderModal from "@/components/SizeFinderModal";
 import SiteFooter from "@/components/SiteFooter";
 import SiteHeader from "@/components/SiteHeader";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
@@ -374,6 +375,11 @@ export default function ProductDetailView({ product }: Props) {
   const sizeOptions = useMemo(() => getSizeOptionsForProduct(product), [product]);
   const outOfStock = !sizeOptions.some((o) => o.available);
   const inactiveListing = !isProductListedForSale(product);
+  const sizeFinderGender = useMemo(() => {
+    const text = normalizeForMatch(`${product.category_name ?? ""} ${product.name}`);
+    return /\b(femme|femmes|women|woman|fille|filles|lady)\b/.test(text) ? ("femme" as const) : undefined;
+  }, [product.category_name, product.name]);
+  const closeSizeGuide = useCallback(() => setSizeGuideOpen(false), []);
 
   const displayPrice =
     product.discount_price != null && product.discount_price < product.price
@@ -647,15 +653,6 @@ export default function ProductDetailView({ product }: Props) {
       audio.pause();
     }
   }, []);
-
-  useEffect(() => {
-    if (!sizeGuideOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSizeGuideOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [sizeGuideOpen]);
 
   useEffect(() => {
     if (!quickAddOpen) return;
@@ -1180,15 +1177,13 @@ export default function ProductDetailView({ product }: Props) {
                 <>
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="text-sm font-semibold text-black">{t("product.sizes")}</p>
-                    {product.size_guide_image ? (
-                      <button
-                        type="button"
-                        onClick={() => setSizeGuideOpen(true)}
-                        className="text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
-                      >
-                        {t("product.sizeGuide")}
-                      </button>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setSizeGuideOpen(true)}
+                      className="text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
+                    >
+                      {t("product.sizeGuide")}
+                    </button>
                   </div>
                   {sizeOptions.length > 0 ? (
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -1240,31 +1235,28 @@ export default function ProductDetailView({ product }: Props) {
                     <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-600" aria-hidden />
                     {t("product.outOfStockNoOrder")}
                   </p>
-                  {product.size_guide_image ? (
-                    <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSizeGuideOpen(true)}
-                        className="text-sm font-semibold text-zinc-700 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
-                      >
-                        {t("product.sizeGuide")}
-                      </button>
-                    </div>
-                  ) : null}
+                  <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSizeGuideOpen(true)}
+                      className="text-sm font-semibold text-zinc-700 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
+                    >
+                      {t("product.sizeGuide")}
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <p className="text-sm font-semibold text-black">{t("common.size")}</p>
-                    {product.size_guide_image ? (
-                      <button
-                        type="button"
-                        onClick={() => setSizeGuideOpen(true)}
-                        className="text-xs font-medium text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition hover:text-black"
-                      >
-                        {t("product.sizeGuide")}
-                      </button>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setSizeGuideOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-black/15 px-3 py-1 text-xs font-semibold text-black transition hover:border-black hover:bg-black hover:text-white"
+                    >
+                      <Ruler className="h-3.5 w-3.5" />
+                      {t("product.sizeGuide")}
+                    </button>
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
                     {sizeOptions.map(({ label, available }) => {
@@ -1694,45 +1686,14 @@ export default function ProductDetailView({ product }: Props) {
         />
       ) : null}
 
-      {sizeGuideOpen && product.size_guide_image ? (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 sm:p-8"
-          role="presentation"
-          onClick={() => setSizeGuideOpen(false)}
-        >
-          <div
-            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
-            role="dialog"
-            aria-label={t("product.sizeGuide")}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-black/10 px-4 py-3">
-              <p className="text-sm font-semibold">{t("product.sizeGuide")}</p>
-              <button
-                type="button"
-                onClick={() => setSizeGuideOpen(false)}
-                className="rounded-full p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-black"
-                aria-label={t("common.close")}
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-            <div className="relative min-h-[200px] flex-1 overflow-y-auto bg-zinc-50 p-4">
-              <div className="relative mx-auto max-w-full">
-                <Image
-                  src={product.size_guide_image}
-                  alt={t("product.sizeGuide")}
-                  width={1200}
-                  height={1600}
-                  className="h-auto w-full object-contain"
-                  unoptimized={shouldBypassImageOptimization(product.size_guide_image)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+      {sizeGuideOpen ? (
+        <SizeFinderModal
+          onClose={closeSizeGuide}
+          sizeOptions={sizeOptions}
+          onSelectSize={outOfStock || inactiveListing ? undefined : setSelectedSize}
+          sizeGuideImage={product.size_guide_image}
+          defaultGender={sizeFinderGender}
+        />
       ) : null}
 
       {favToast ? (
