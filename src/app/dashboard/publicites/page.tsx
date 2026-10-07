@@ -27,6 +27,8 @@ import {
   buildActionPlan,
   buildContext,
   periodDays,
+  VERDICT_ORDER,
+  VERDICTS,
   type CreativeAnalysis,
   type Verdict,
 } from "./recommendations";
@@ -89,8 +91,12 @@ function compareNullable(a: number | null, b: number | null, dir: 1 | -1) {
   return (a - b) * dir;
 }
 
+/** Active ads always come first, whatever the selected metric. */
 function sortCreatives(list: CreativeRow[], sort: CreativeSort) {
+  const activeRank = (c: CreativeRow) => (isActiveStatus(c.status) ? 0 : 1);
   return [...list].sort((a, b) => {
+    const byStatus = activeRank(a) - activeRank(b);
+    if (byStatus !== 0) return byStatus;
     switch (sort) {
       case "cpa":
         return compareNullable(a.costPerPurchase, b.costPerPurchase, 1) || b.purchases - a.purchases;
@@ -166,6 +172,7 @@ export default function DashboardPublicitesPage() {
 
   const [creativeSort, setCreativeSort] = useState<CreativeSort>("purchases");
   const [creativeCampaign, setCreativeCampaign] = useState<string>("all");
+  const [creativeVerdict, setCreativeVerdict] = useState<Verdict | "all">("all");
   const [creativeView, setCreativeView] = useState<"grid" | "list">("grid");
   const [showAllCreatives, setShowAllCreatives] = useState(false);
   const [selectedCreativeId, setSelectedCreativeId] = useState<string | null>(null);
@@ -281,12 +288,29 @@ export default function DashboardPublicitesPage() {
     return [...map.entries()].map(([value, label]) => ({ value, label }));
   }, [report]);
 
+  const campaignCreatives = useMemo(
+    () => (report?.creatives ?? []).filter((c) => creativeCampaign === "all" || c.campaignId === creativeCampaign),
+    [report, creativeCampaign]
+  );
+
+  const verdictCounts = useMemo(() => {
+    const counts = Object.fromEntries(VERDICT_ORDER.map((v) => [v, 0])) as Record<Verdict, number>;
+    for (const c of campaignCreatives) {
+      const v = analyses.get(c.id)?.verdict;
+      if (v) counts[v] += 1;
+    }
+    return counts;
+  }, [campaignCreatives, analyses]);
+
   const sortedCreatives = useMemo(() => {
-    const list = (report?.creatives ?? []).filter(
-      (c) => creativeCampaign === "all" || c.campaignId === creativeCampaign
-    );
+    const list =
+      creativeVerdict === "all"
+        ? campaignCreatives
+        : campaignCreatives.filter((c) => analyses.get(c.id)?.verdict === creativeVerdict);
     return sortCreatives(list, creativeSort);
-  }, [report, creativeCampaign, creativeSort]);
+  }, [campaignCreatives, analyses, creativeVerdict, creativeSort]);
+
+  const activeCreativesCount = sortedCreatives.filter((c) => isActiveStatus(c.status)).length;
 
   const visibleCreatives = showAllCreatives ? sortedCreatives : sortedCreatives.slice(0, CREATIVES_PREVIEW);
   const selectedIndex = sortedCreatives.findIndex((c) => c.id === selectedCreativeId);
@@ -499,7 +523,7 @@ export default function DashboardPublicitesPage() {
             <SectionTitle
               icon={Trophy}
               title="Créas"
-              subtitle={`${sortedCreatives.length} publicité${sortedCreatives.length !== 1 ? "s" : ""} diffusée${sortedCreatives.length !== 1 ? "s" : ""} · cliquez pour le détail`}
+              subtitle={`${sortedCreatives.length} publicité${sortedCreatives.length !== 1 ? "s" : ""} · ${activeCreativesCount} active${activeCreativesCount !== 1 ? "s" : ""} en premier · cliquez pour le détail`}
               right={
                 <div className="flex flex-wrap items-center gap-2">
                   <Pills options={CREATIVE_SORTS} value={creativeSort} onChange={setCreativeSort} size="xs" />
@@ -555,6 +579,50 @@ export default function DashboardPublicitesPage() {
               </div>
             ) : null}
 
+            <div
+              className="-mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]"
+              role="group"
+              aria-label="Filtrer par verdict"
+            >
+              {(["all", ...VERDICT_ORDER] as const).map((v) => {
+                const active = creativeVerdict === v;
+                const count = v === "all" ? campaignCreatives.length : verdictCounts[v];
+                const meta = v === "all" ? null : VERDICTS[v];
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => {
+                      setCreativeVerdict(v);
+                      setShowAllCreatives(false);
+                    }}
+                    disabled={v !== "all" && count === 0}
+                    aria-pressed={active}
+                    title={meta?.description}
+                    className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                      active
+                        ? meta
+                          ? `${meta.chip} border-transparent`
+                          : "border-black bg-black text-white"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400"
+                    }`}
+                  >
+                    {meta ? (
+                      <span className={`h-2 w-2 rounded-full ${active ? "bg-white" : meta.bar}`} aria-hidden />
+                    ) : null}
+                    {meta ? meta.label : "Toutes"}
+                    <span
+                      className={`rounded-full px-1.5 text-[10px] tabular-nums ${
+                        active ? "bg-white/25" : "bg-zinc-100 text-zinc-500"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
             {creativeCampaign !== "all" ? (
               <button
                 type="button"
@@ -568,7 +636,22 @@ export default function DashboardPublicitesPage() {
 
             <div className="mt-4">
               {sortedCreatives.length === 0 ? (
-                <Card className="px-4 py-14 text-center text-sm text-zinc-500">Aucune publicité diffusée sur cette période.</Card>
+                <Card className="px-4 py-14 text-center text-sm text-zinc-500">
+                  {creativeVerdict !== "all" ? (
+                    <>
+                      Aucune créa « {VERDICTS[creativeVerdict].label} » pour ce filtre.{" "}
+                      <button
+                        type="button"
+                        onClick={() => setCreativeVerdict("all")}
+                        className="font-semibold text-black underline underline-offset-2"
+                      >
+                        Voir toutes
+                      </button>
+                    </>
+                  ) : (
+                    "Aucune publicité diffusée sur cette période."
+                  )}
+                </Card>
               ) : creativeView === "grid" ? (
                 <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
                   {visibleCreatives.map((c, i) => (
