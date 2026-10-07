@@ -18,14 +18,9 @@ import {
 } from "@/lib/phoneValidation";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { parseSizeStocks } from "@/lib/productSizeStock";
+import { TUNISIA_GOVERNORATES } from "@/lib/tunisiaGovernorates";
 
 const SIZE_ORDER = ["S", "M", "L", "XL", "XXL", "3XL", "STANDARD"] as const;
-const TUNISIA_GOVERNORATES = [
-  "Ariana", "Beja", "Ben Arous", "Bizerte", "Gabes", "Gafsa", "Jendouba",
-  "Kairouan", "Kasserine", "Kebili", "Le Kef", "Mahdia", "Manouba", "Medenine",
-  "Monastir", "Nabeul", "Sfax", "Sidi Bouzid", "Siliana", "Sousse", "Tataouine",
-  "Tozeur", "Tunis", "Zaghouan",
-];
 
 function useStorageTick() {
   const [n, setN] = useState(0);

@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { Ruler, ZoomIn } from "lucide-react";
@@ -24,6 +25,9 @@ import { getSizeOptionsForProduct, isProductOutOfStock, remainingStockForSelecte
 import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
+
+/** Client-only: the form pre-fills saved customer details from localStorage. */
+const ProductQuickOrder = dynamic(() => import("@/components/ProductQuickOrder"), { ssr: false });
 
 const PLACEHOLDER = "/V7/1.webp";
 
@@ -280,7 +284,7 @@ export default function ProductDetailView({ product }: Props) {
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [quickAddProductId, setQuickAddProductId] = useState<number | null>(null);
   const [showStickyCart, setShowStickyCart] = useState(false);
-  const [openInfoPanel, setOpenInfoPanel] = useState<"description" | "shipping" | null>("description");
+  const [openInfoPanel, setOpenInfoPanel] = useState<"description" | "shipping" | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddSize, setQuickAddSize] = useState<string | null>(null);
   const [imageZoomOpen, setImageZoomOpen] = useState(false);
@@ -425,6 +429,7 @@ export default function ProductDetailView({ product }: Props) {
     setActive(0);
     setAddQty(1);
     setSelectedSize(null);
+    setOpenInfoPanel(null);
     setImageZoomOpen(false);
     setLightboxIndex(0);
     magTargetRef.current = null;
@@ -1291,6 +1296,16 @@ export default function ProductDetailView({ product }: Props) {
               )}
             </div>
 
+            {!inactiveListing && !outOfStock ? (
+              <ProductQuickOrder
+                product={product}
+                size={resolveAddToCartSize()}
+                quantity={Math.min(Math.max(1, addQty), Math.max(1, stockQty))}
+                color={colorForCart}
+                onMissingSize={() => sizeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+              />
+            ) : null}
+
             {inactiveListing ? (
               <div className="mt-10 flex flex-col gap-3 sm:flex-row">
                 <button
@@ -1325,7 +1340,7 @@ export default function ProductDetailView({ product }: Props) {
                   if (!size) return;
                   addToCartWithFeedback(mainAddBtnRef.current, size);
                 }}
-                className="mt-10 flex w-full max-w-sm items-center justify-between bg-black px-4 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 lg:max-w-none"
+                className="mt-4 flex w-full max-w-sm items-center justify-between bg-black px-4 py-3.5 text-xs font-bold uppercase tracking-[0.12em] text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500 lg:max-w-none"
               >
                 <span>{t("product.addToCartUpper")}</span>
                 <span>{formatMoney(displayPrice)}</span>
