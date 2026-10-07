@@ -66,7 +66,10 @@ function advancedMatchingParams(userData?: MetaUserData) {
   const ln = userData.lastName ?? splitLn;
   const params: Record<string, string> = {};
   if (userData.email?.trim()) params.em = userData.email.trim().toLowerCase();
-  if (userData.phone?.trim()) params.ph = userData.phone.trim();
+  if (userData.phone?.trim()) {
+    params.ph = userData.phone.trim();
+    params.external_id = userData.phone.replace(/\D/g, "");
+  }
   if (fn) params.fn = fn;
   if (ln) params.ln = ln;
   if (userData.city?.trim()) params.ct = userData.city.trim();
@@ -227,20 +230,31 @@ export function trackMetaAddToWishlist(product: { id: number; name: string; pric
   });
 }
 
-export function trackMetaInitiateCheckout(items: CartItem[], value: number, userData?: MetaUserData) {
+/** Where the checkout happened; sent as a custom property to split results in Events Manager. */
+export type MetaOrderSource = "cart" | "product_page";
+
+function checkoutData(items: CartItem[], value: number, source: MetaOrderSource) {
+  return {
+    content_ids: items.map((item) => String(item.productId)),
+    content_name: items.map((item) => item.name).join(", "),
+    content_type: "product",
+    contents: cartContents(items),
+    num_items: items.reduce((sum, item) => sum + item.quantity, 0),
+    value,
+    currency: META_PIXEL_CURRENCY,
+    order_source: source,
+  };
+}
+
+export function trackMetaInitiateCheckout(
+  items: CartItem[],
+  value: number,
+  userData?: MetaUserData,
+  source: MetaOrderSource = "cart",
+) {
   if (items.length === 0) return;
 
-  trackDual(
-    "InitiateCheckout",
-    {
-      content_ids: items.map((item) => String(item.productId)),
-      contents: cartContents(items),
-      num_items: items.reduce((sum, item) => sum + item.quantity, 0),
-      value,
-      currency: META_PIXEL_CURRENCY,
-    },
-    { userData },
-  );
+  trackDual("InitiateCheckout", checkoutData(items, value, source), { userData });
 }
 
 export function trackMetaPurchase(
@@ -248,18 +262,13 @@ export function trackMetaPurchase(
   items: CartItem[],
   value: number,
   userData?: MetaUserData,
+  source: MetaOrderSource = "cart",
 ) {
   if (items.length === 0) return;
 
   trackDual(
     "Purchase",
-    {
-      content_ids: items.map((item) => String(item.productId)),
-      contents: cartContents(items),
-      num_items: items.reduce((sum, item) => sum + item.quantity, 0),
-      value,
-      currency: META_PIXEL_CURRENCY,
-    },
+    { ...checkoutData(items, value, source), order_id: String(orderId) },
     { eventId: `order-${orderId}`, userData },
   );
 }

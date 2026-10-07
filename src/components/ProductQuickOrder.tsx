@@ -81,7 +81,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
   const trackCheckoutOnce = () => {
     if (checkoutTracked.current) return;
     checkoutTracked.current = true;
-    trackMetaInitiateCheckout([cartItem()], total, { country: "tn" });
+    trackMetaInitiateCheckout([cartItem()], total, { country: "tn" }, "product_page");
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -143,7 +143,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
 
       const userData = { phone, fullName, city, state: governorate, country: "tn" };
       setMetaAdvancedMatching(userData);
-      trackMetaPurchase(data.orderId, [item], total, userData);
+      trackMetaPurchase(data.orderId, [item], total, userData, "product_page");
 
       try {
         window.localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify({ fullName, phone, governorate, city, address }));

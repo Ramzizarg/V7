@@ -19,6 +19,13 @@ export function hashMetaPhone(phone: string) {
   return sha256(digits);
 }
 
+/** Must hash the same raw value the browser pixel receives as `external_id` (phone digits). */
+export function hashMetaExternalId(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return null;
+  return sha256(digits);
+}
+
 export function hashMetaName(value: string) {
   const normalized = value
     .trim()

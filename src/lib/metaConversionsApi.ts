@@ -2,6 +2,7 @@ import {
   hashMetaCity,
   hashMetaCountry,
   hashMetaEmail,
+  hashMetaExternalId,
   hashMetaName,
   hashMetaPhone,
   hashMetaState,
@@ -34,6 +35,8 @@ export type MetaCustomData = {
   contents?: Array<{ id: string; quantity: number; item_price?: number }>;
   num_items?: number;
   search_string?: string;
+  order_id?: string;
+  order_source?: string;
 };
 
 export type MetaServerEvent = {
@@ -52,6 +55,7 @@ type MetaCapiUserData = {
   ct?: string[];
   st?: string[];
   country?: string[];
+  external_id?: string[];
   fbp?: string;
   fbc?: string;
   client_ip_address?: string;
@@ -81,6 +85,8 @@ function buildUserData(input?: MetaUserDataInput): MetaCapiUserData | undefined 
   if (ct) userData.ct = [ct];
   if (st) userData.st = [st];
   if (country) userData.country = [country];
+  const externalId = input.phone ? hashMetaExternalId(input.phone) : null;
+  if (externalId) userData.external_id = [externalId];
   if (input.fbp) userData.fbp = input.fbp;
   if (input.fbc) userData.fbc = input.fbc;
   if (input.clientIpAddress) userData.client_ip_address = input.clientIpAddress;
