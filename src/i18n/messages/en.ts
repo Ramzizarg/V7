@@ -521,7 +521,7 @@ export const en = {
     freeShipping: "Free",
     submit: "Confirm order · {total}",
     placing: "Sending your order…",
-    successTitle: "Order #{id} confirmed!",
+    successTitle: "Order confirmed!",
     totalToPay: "Total to pay on delivery: {total}",
     orderAgain: "Order again",
   },

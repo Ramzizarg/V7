@@ -163,7 +163,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
       <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center" role="status">
         <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
         <p className="mt-3 text-base font-bold text-black">
-          {t("quickOrder.successTitle", { id: placedOrder.id })}
+          {t("quickOrder.successTitle")}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-zinc-700">{t("checkout.orderProcessDesc")}</p>
         <p className="mt-3 text-sm font-semibold text-black">

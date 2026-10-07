@@ -526,7 +526,7 @@ export const fr = {
     freeShipping: "Offerte",
     submit: "Confirmer la commande · {total}",
     placing: "Envoi de la commande…",
-    successTitle: "Commande #{id} confirmée !",
+    successTitle: "Commande confirmée !",
     totalToPay: "Total à payer à la livraison : {total}",
     orderAgain: "Commander à nouveau",
   },
