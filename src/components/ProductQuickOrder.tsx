@@ -78,20 +78,11 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
     setError(null);
   };
 
-  const trackCheckoutOnce = (userData?: {
-    phone?: string;
-    fullName?: string;
-    city?: string;
-    state?: string;
-  }) => {
+  /** Funnel only — when the customer starts filling the form (not on the Purchase button). */
+  const trackCheckoutOnce = () => {
     if (checkoutTracked.current) return;
     checkoutTracked.current = true;
-    trackMetaInitiateCheckout(
-      [cartItem()],
-      total,
-      { country: "tn", ...userData },
-      "product_page"
-    );
+    trackMetaInitiateCheckout([cartItem()], total, { country: "tn" }, "product_page");
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -118,9 +109,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
       return;
     }
 
-    // Red button = InitiateCheckout (with customer data for better matching)
-    trackCheckoutOnce({ phone, fullName, city, state: governorate });
-
+    // Valid fields + this button → Purchase only after the order is saved
     const item = cartItem();
     setPlacing(true);
     try {
@@ -204,8 +193,8 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
   return (
     <form
       onSubmit={submit}
+      onFocus={trackCheckoutOnce}
       noValidate
-      data-fb-pixel-event="Purchase"
       className="mt-6 rounded-2xl border-2 border-black p-3 sm:p-4"
       aria-labelledby="quick-order-title"
     >
@@ -325,9 +314,9 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
       <button
         type="submit"
         name="confirm_order"
-        value="InitiateCheckout"
+        value="Purchase"
         disabled={placing}
-        data-fb-pixel-event="InitiateCheckout"
+        data-fb-pixel-event="Purchase"
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3.5 text-sm font-bold uppercase tracking-[0.1em] text-white transition hover:bg-red-700 active:scale-[0.99] disabled:cursor-wait disabled:opacity-80"
       >
         {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

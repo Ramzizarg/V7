@@ -127,12 +127,9 @@ export default function PanierClient() {
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (items.length === 0) {
-      initiateCheckoutSent.current = false;
-      return;
-    }
-    if (initiateCheckoutSent.current) return;
+  /** InitiateCheckout when the customer starts filling checkout (not on page load / not on Purchase btn). */
+  const trackCheckoutOnce = () => {
+    if (items.length === 0 || initiateCheckoutSent.current) return;
     initiateCheckoutSent.current = true;
     trackMetaInitiateCheckout(items, total, {
       email: email.trim() || undefined,
@@ -141,8 +138,12 @@ export default function PanierClient() {
       city: city.trim() || undefined,
       state: governorate.trim() || undefined,
       country: "tn",
-    });
-  }, [items, total, email, phone, fullName, city, governorate]);
+    }, "cart");
+  };
+
+  useEffect(() => {
+    if (items.length === 0) initiateCheckoutSent.current = false;
+  }, [items.length]);
 
   useEffect(() => {
     const fn = fullName.trim();
@@ -277,14 +278,17 @@ export default function PanierClient() {
         );
       }
 
-      trackMetaPurchase(orderId, items, total, {
+      const userData = {
         email: em,
         phone: ph,
         fullName: fn,
         city: ct,
         state: gov,
         country: "tn",
-      });
+      };
+      setMetaAdvancedMatching(userData);
+      // Valid fields + PAYER EN ESPÈCES → Purchase (same as product-page confirm button)
+      trackMetaPurchase(orderId, items, total, userData, "cart");
 
       setCart([]);
       setOrderSuccess(true);
@@ -365,7 +369,7 @@ export default function PanierClient() {
         ) : (
           <div className="grid gap-6 sm:gap-10 lg:grid-cols-[1fr_420px] lg:gap-16 min-w-0">
             <section className="space-y-4 sm:space-y-6 bg-white min-w-0">
-              <form className="space-y-3 sm:space-y-4">
+              <form className="space-y-3 sm:space-y-4" onFocus={trackCheckoutOnce}>
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-black mb-1">{t("checkout.fullName")}</label>
                   <input
@@ -561,6 +565,9 @@ export default function PanierClient() {
                 {orderError ? <p className="text-sm text-red-600 mb-3">{orderError}</p> : null}
                 <button
                   type="button"
+                  name="confirm_order"
+                  value="Purchase"
+                  data-fb-pixel-event="Purchase"
                   onClick={handlePlaceOrder}
                   disabled={placingOrder}
                   className="relative w-full py-4 sm:py-3.5 bg-black text-white text-sm font-semibold uppercase tracking-wider rounded-lg hover:bg-zinc-800 transition-colors disabled:cursor-not-allowed overflow-hidden"
