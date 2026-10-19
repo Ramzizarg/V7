@@ -38,6 +38,9 @@ type PlaceOrderBody = {
   subtotal?: number;
   shipping?: number;
   items?: PlaceOrderItem[];
+  /** Meta click / browser cookies for CAPI Purchase + AppendClickAttribution */
+  fbc?: string;
+  fbp?: string;
 };
 
 type ProductStockRow = {
@@ -238,9 +241,11 @@ export async function POST(req: NextRequest) {
 
     const emailResult = await sendOrderEmails(emailPayload);
 
-    // Real Purchase for ads (CAPI). Same event_id as the browser pixel → Meta dedupes.
+    // Purchase (CAPI) + AppendClickAttribution when visitor came from a Meta ad click (_fbc).
     const referer = req.headers.get("referer") || undefined;
     const fromProductPage = Boolean(referer && /\/collection\//.test(referer));
+    const forwarded = req.headers.get("x-forwarded-for");
+    const clientIp = forwarded?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || undefined;
     void sendMetaOrderPurchase({
       orderId,
       total,
@@ -257,6 +262,10 @@ export async function POST(req: NextRequest) {
       })),
       orderSource: fromProductPage ? "product_page" : "cart",
       eventSourceUrl: referer,
+      fbc: typeof body.fbc === "string" ? body.fbc : undefined,
+      fbp: typeof body.fbp === "string" ? body.fbp : undefined,
+      clientIpAddress: clientIp,
+      clientUserAgent: req.headers.get("user-agent") ?? undefined,
     });
 
     return NextResponse.json({

@@ -39,12 +39,33 @@ export type MetaCustomData = {
   order_source?: string;
 };
 
+/** Links AppendClickAttribution / AppendAttribution back to the original Purchase. */
+export type MetaOriginalEventData = {
+  event_name: string;
+  event_time: number;
+  order_id?: string;
+  event_id?: string;
+};
+
+/** Custom attribution credit sent back to Meta (Payload Helper fields). */
+export type MetaAttributionData = {
+  attribution_share: number;
+  attribution_value?: number;
+  ad_id?: string | number;
+  touchpoint_ts?: number;
+  attr_window_days?: number;
+};
+
 export type MetaServerEvent = {
   eventName: string;
   eventId: string;
   eventSourceUrl?: string;
+  /** Unix seconds — required for Append* to match the original Purchase time. */
+  eventTime?: number;
   customData?: MetaCustomData;
   userData?: MetaUserDataInput;
+  originalEventData?: MetaOriginalEventData;
+  attributionData?: MetaAttributionData;
 };
 
 type MetaCapiUserData = {
@@ -109,20 +130,26 @@ export async function sendMetaServerEvents(events: MetaServerEvent[]) {
   const testEventCode = process.env.META_TEST_EVENT_CODE?.trim();
 
   const payload = {
-    data: events.map((event) => ({
-      event_name: event.eventName,
-      event_time: Math.floor(Date.now() / 1000),
-      event_id: event.eventId,
-      event_source_url: event.eventSourceUrl,
-      action_source: "website",
-      user_data: buildUserData(event.userData),
-      custom_data: event.customData
-        ? {
-            currency: event.customData.currency ?? META_PIXEL_CURRENCY,
-            ...event.customData,
-          }
-        : undefined,
-    })),
+    data: events.map((event) => {
+      const row: Record<string, unknown> = {
+        event_name: event.eventName,
+        event_time: event.eventTime ?? Math.floor(Date.now() / 1000),
+        event_id: event.eventId,
+        event_source_url: event.eventSourceUrl,
+        action_source: "website",
+        user_data: buildUserData(event.userData),
+      };
+      if (event.customData) {
+        row.custom_data = {
+          currency: event.customData.currency ?? META_PIXEL_CURRENCY,
+          ...event.customData,
+        };
+      }
+      // Meta Custom Attribution (Payload Helper: AppendClickAttribution / AppendAttribution)
+      if (event.originalEventData) row.original_event_data = event.originalEventData;
+      if (event.attributionData) row.attribution_data = event.attributionData;
+      return row;
+    }),
     ...(testEventCode ? { test_event_code: testEventCode } : {}),
   };
 

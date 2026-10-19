@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { CheckCircle2, ChevronDown, Loader2, Truck } from "lucide-react";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
-import { setMetaAdvancedMatching, trackMetaInitiateCheckout, trackMetaPurchase } from "@/lib/metaPixel";
+import {
+  getMetaClickCookies,
+  setMetaAdvancedMatching,
+  trackMetaInitiateCheckout,
+  trackMetaPurchase,
+} from "@/lib/metaPixel";
 import { isValidTunisiaPhone, normalizeTunisiaPhoneDigits, TUNISIA_PHONE_LENGTH } from "@/lib/phoneValidation";
 import { governorateLabel, TUNISIA_GOVERNORATES } from "@/lib/tunisiaGovernorates";
 import type { CartItem, Product } from "@/lib/types";
@@ -126,6 +131,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
           total,
           subtotal,
           shipping,
+          ...getMetaClickCookies(),
           items: [
             {
               productId: product.id,

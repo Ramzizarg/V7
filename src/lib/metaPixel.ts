@@ -52,6 +52,14 @@ function readCookie(name: string) {
   return match ? decodeURIComponent(match[1]!) : undefined;
 }
 
+/** Browser cookies for server CAPI Purchase + AppendClickAttribution. */
+export function getMetaClickCookies(): { fbc?: string; fbp?: string } {
+  return {
+    fbc: readCookie("_fbc"),
+    fbp: readCookie("_fbp"),
+  };
+}
+
 function splitFullName(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return { firstName: "", lastName: "" };

@@ -10,7 +10,12 @@ import { isProductListedForSale } from "@/lib/productListing";
 import { supabaseBrowserClient } from "@/lib/supabaseClient";
 import type { CartItem, Coupon, Product } from "@/lib/types";
 import { addToCart, getCart, removeFromCartLine, setCart, updateCartQuantity } from "@/lib/shopClientStorage";
-import { trackMetaInitiateCheckout, trackMetaPurchase, setMetaAdvancedMatching } from "@/lib/metaPixel";
+import {
+  getMetaClickCookies,
+  trackMetaInitiateCheckout,
+  trackMetaPurchase,
+  setMetaAdvancedMatching,
+} from "@/lib/metaPixel";
 import {
   isValidTunisiaPhone,
   normalizeTunisiaPhoneDigits,
@@ -230,6 +235,7 @@ export default function PanierClient() {
           total,
           subtotal,
           shipping,
+          ...getMetaClickCookies(),
           items: items.map((it) => ({
             productId: Number(it.productId),
             product_name: it.name,
