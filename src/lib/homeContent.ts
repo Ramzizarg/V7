@@ -53,6 +53,11 @@ export interface HomeContent {
   socialHandle: string;
   /** Phrases du bandeau (top announcement), une par élément */
   bannerPhrases: string[];
+  /**
+   * Couleur des icônes / logo / liens du header sur le hero de l'accueil.
+   * `black` = sombre (héros clair), `white` = clair (héros sombre).
+   */
+  headerColor: "black" | "white";
 }
 
 export const defaultHomeContent: HomeContent = {
@@ -91,6 +96,7 @@ export const defaultHomeContent: HomeContent = {
     "Nouvelle collection",
     "Streetwear & sport",
   ],
+  headerColor: "black",
 };
 
 const STORAGE_KEY = "blacktephra-home-content";
@@ -169,7 +175,16 @@ function mergeWithDefaults(partial: Partial<HomeContent> | null): HomeContent {
     Array.isArray(partial.heroImagePositionsDesktop) ? partial.heroImagePositionsDesktop : undefined,
     30
   );
+  merged.headerColor = partial.headerColor === "white" ? "white" : "black";
   return merged;
+}
+
+export const HOME_HEADER_COLOR_EVENT = "vero7-home-header-color";
+
+export function setHomeHeaderColorOnDocument(color: "black" | "white") {
+  if (typeof document === "undefined") return;
+  document.documentElement.dataset.homeHeaderColor = color;
+  window.dispatchEvent(new CustomEvent(HOME_HEADER_COLOR_EVENT, { detail: color }));
 }
 
 /** Load CMS home row from Neon (works on server — no relative /api fetch). */

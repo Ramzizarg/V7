@@ -20,6 +20,7 @@ import {
   defaultHomeContent,
   getCachedHomeContentSync,
   getHomeContent,
+  setHomeHeaderColorOnDocument,
 } from "@/lib/homeContent";
 import type { HomeContent } from "@/lib/homeContent";
 import { getCachedStorefrontSync, setCachedStorefront } from "@/lib/storefrontCache";
@@ -63,6 +64,10 @@ export default function HomePageClient({ initialHomeContent }: Props) {
   /** `undefined` = not loaded yet; then API products or empty. */
   const [collectionProducts, setCollectionProducts] = useState<Product[] | undefined>(undefined);
   const [comingSoonModalOpen, setComingSoonModalOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    setHomeHeaderColorOnDocument(homeContent.headerColor === "white" ? "white" : "black");
+  }, [homeContent.headerColor]);
 
   useLayoutEffect(() => {
     // Do not replace `initialHomeContent` (from DB on server) with localStorage — it can be stale (old "BUILT RAW" copy).

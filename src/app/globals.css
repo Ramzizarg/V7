@@ -784,6 +784,10 @@ html.vero7-splash-active #vero7-app-root {
   filter: brightness(0);
 }
 
+.site-header-logo__mark--light {
+  filter: brightness(0) invert(1);
+}
+
 @media (min-width: 640px) {
   .site-header-logo__mark {
     max-height: 3.375rem;

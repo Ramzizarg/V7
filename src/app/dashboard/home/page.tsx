@@ -396,6 +396,38 @@ export default function DashboardHomePage() {
               Section Hero
             </h2>
 
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-white">
+                Couleur du header (accueil)
+              </label>
+              <p className="text-[11px] text-zinc-400">
+                Noir pour un hero clair · Blanc pour un hero sombre (logo + icônes + menu).
+              </p>
+              <div className="inline-flex rounded-full bg-zinc-900 p-1 ring-1 ring-zinc-700">
+                {(
+                  [
+                    { value: "black" as const, label: "Noir" },
+                    { value: "white" as const, label: "Blanc" },
+                  ] as const
+                ).map((opt) => {
+                  const active = (content.headerColor ?? "black") === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setContent((prev) => ({ ...prev, headerColor: opt.value }))}
+                      aria-pressed={active}
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${
+                        active ? "bg-white text-black" : "text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold uppercase tracking-wider text-white">
                 Images Hero (carousel)

@@ -22,6 +22,7 @@ import { getCartItemCount, getWishlistCount } from "@/lib/shopClientStorage";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { requestSplashTransition } from "@/lib/splashTransition";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
+import { HOME_HEADER_COLOR_EVENT } from "@/lib/homeContent";
 import type { Product } from "@/lib/types";
 
 const NAV_LINKS = [
@@ -69,10 +70,13 @@ function PromoTikTokIcon({ className }: { className?: string }) {
 const desktopNavLinkClass =
   "relative whitespace-nowrap pb-0.5 text-sm font-medium transition after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:origin-left after:scale-x-0 after:transition-transform hover:after:scale-x-100";
 
-const headerIconButtonClass =
-  "rounded-full p-2 text-black transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30";
+function headerIconButtonClass(light: boolean) {
+  return light
+    ? "rounded-full p-2 text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+    : "rounded-full p-2 text-black transition hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30";
+}
 
-function HeaderLogo({ variant }: { variant: "mobile" | "desktop" }) {
+function HeaderLogo({ variant, light }: { variant: "mobile" | "desktop"; light?: boolean }) {
   const containerClass =
     variant === "mobile"
       ? "site-header-logo site-header-logo--mobile"
@@ -85,7 +89,9 @@ function HeaderLogo({ variant }: { variant: "mobile" | "desktop" }) {
         alt="V7"
         width={64}
         height={64}
-        className="site-header-logo__layer site-header-logo__mark site-header-logo__mark--dark site-header-logo__layer--active"
+        className={`site-header-logo__layer site-header-logo__mark site-header-logo__layer--active ${
+          light ? "site-header-logo__mark--light" : "site-header-logo__mark--dark"
+        }`}
         priority
         loading="eager"
       />
@@ -116,6 +122,7 @@ export default function SiteHeader() {
   const [promoIndex, setPromoIndex] = useState(0);
   const [promoPaused, setPromoPaused] = useState(false);
   const [headerHidden, setHeaderHidden] = useState(false);
+  const [homeHeaderColor, setHomeHeaderColor] = useState<"black" | "white">("black");
   const megaMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSearchTrackedRef = useRef("");
   const lastScrollYRef = useRef(0);
@@ -177,6 +184,17 @@ export default function SiteHeader() {
     return () => {
       if (megaMenuCloseTimerRef.current != null) clearTimeout(megaMenuCloseTimerRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    const fromDom = document.documentElement.dataset.homeHeaderColor;
+    if (fromDom === "white" || fromDom === "black") setHomeHeaderColor(fromDom);
+    const onColor = (e: Event) => {
+      const color = (e as CustomEvent<"black" | "white">).detail;
+      if (color === "white" || color === "black") setHomeHeaderColor(color);
+    };
+    window.addEventListener(HOME_HEADER_COLOR_EVENT, onColor);
+    return () => window.removeEventListener(HOME_HEADER_COLOR_EVENT, onColor);
   }, []);
 
   useEffect(() => {
@@ -381,8 +399,12 @@ export default function SiteHeader() {
   }, []);
 
   const isHome = pathname === "/";
-  const desktopNavLinkTone = "text-black after:bg-black";
-  const countBadgeClass = "ring-2 ring-white";
+  const headerLight = isHome && homeHeaderColor === "white";
+  const iconBtnClass = headerIconButtonClass(headerLight);
+  const desktopNavLinkTone = headerLight
+    ? "text-white after:bg-white"
+    : "text-black after:bg-black";
+  const countBadgeClass = headerLight ? "ring-2 ring-black/20" : "ring-2 ring-white";
 
   return (
     <>
@@ -457,13 +479,13 @@ export default function SiteHeader() {
       </div>
       {/* Mobile header */}
       <div className="relative mx-auto flex h-[3.75rem] w-full max-w-7xl items-center justify-between px-3 sm:px-5 lg:hidden">
-        <div className="flex items-center gap-0.5 text-black">
+        <div className={`flex items-center gap-0.5 ${headerLight ? "text-white" : "text-black"}`}>
           <button
             type="button"
             aria-label={t("nav.openMenu")}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className={headerIconButtonClass}
+            className={iconBtnClass}
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M4 9h16M4 15h16" strokeLinecap="round" />
@@ -473,7 +495,7 @@ export default function SiteHeader() {
             type="button"
             aria-label={t("nav.search")}
             onClick={openSearch}
-            className={headerIconButtonClass}
+            className={iconBtnClass}
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
               <circle cx="11" cy="11" r="7" />
@@ -494,13 +516,13 @@ export default function SiteHeader() {
             requestSplashTransition();
           }}
         >
-          <HeaderLogo variant="mobile" />
+          <HeaderLogo variant="mobile" light={headerLight} />
         </Link>
-        <div className="flex items-center gap-0.5 text-black">
+        <div className={`flex items-center gap-0.5 ${headerLight ? "text-white" : "text-black"}`}>
           <Link
             id="site-header-favoris"
             href="/favoris"
-            className={`relative isolate ${headerIconButtonClass} ${
+            className={`relative isolate ${iconBtnClass} ${
               favIconBump ? "favorite-pop" : ""
             }`}
             aria-label={
@@ -518,7 +540,9 @@ export default function SiteHeader() {
             </svg>
             {favCount > 0 ? (
               <span
-                className={`absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ${countBadgeClass}`}
+                className={`absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none ${countBadgeClass} ${
+                  headerLight ? "bg-white text-black" : "bg-black text-white"
+                }`}
               >
                 {favCount}
               </span>
@@ -526,7 +550,7 @@ export default function SiteHeader() {
           </Link>
           <button
             id="site-header-cart"
-            className={`relative isolate ${headerIconButtonClass} ${
+            className={`relative isolate ${iconBtnClass} ${
               cartIconBump ? "favorite-pop" : ""
             }`}
             aria-label={t("nav.cart")}
@@ -539,7 +563,9 @@ export default function SiteHeader() {
             </svg>
             {cartCount > 0 ? (
               <span
-                className={`absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ${countBadgeClass}`}
+                className={`absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none ${countBadgeClass} ${
+                  headerLight ? "bg-white text-black" : "bg-black text-white"
+                }`}
               >
                 {cartCount}
               </span>
@@ -593,11 +619,13 @@ export default function SiteHeader() {
               requestSplashTransition();
             }}
           >
-            <HeaderLogo variant="desktop" />
+            <HeaderLogo variant="desktop" light={headerLight} />
           </Link>
 
           <div
-            className="relative z-10 flex min-w-0 shrink-0 items-center justify-end gap-1 text-black"
+            className={`relative z-10 flex min-w-0 shrink-0 items-center justify-end gap-1 ${
+              headerLight ? "text-white" : "text-black"
+            }`}
             onMouseEnter={closeMegaMenu}
           >
             <div
@@ -611,15 +639,27 @@ export default function SiteHeader() {
                 aria-pressed={locale === "fr"}
                 aria-label="Français"
                 className={`relative px-1.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
-                  locale === "fr" ? "text-black" : "text-zinc-400 hover:text-zinc-600"
+                  locale === "fr"
+                    ? headerLight
+                      ? "text-white"
+                      : "text-black"
+                    : headerLight
+                      ? "text-white/50 hover:text-white/80"
+                      : "text-zinc-400 hover:text-zinc-600"
                 }`}
               >
                 FR
                 {locale === "fr" ? (
-                  <span className="absolute inset-x-1.5 -bottom-0.5 h-px bg-black" aria-hidden />
+                  <span
+                    className={`absolute inset-x-1.5 -bottom-0.5 h-px ${headerLight ? "bg-white" : "bg-black"}`}
+                    aria-hidden
+                  />
                 ) : null}
               </button>
-              <span className="select-none text-[10px] text-zinc-300" aria-hidden>
+              <span
+                className={`select-none text-[10px] ${headerLight ? "text-white/40" : "text-zinc-300"}`}
+                aria-hidden
+              >
                 /
               </span>
               <button
@@ -628,12 +668,21 @@ export default function SiteHeader() {
                 aria-pressed={locale === "en"}
                 aria-label="English"
                 className={`relative px-1.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] transition-colors ${
-                  locale === "en" ? "text-black" : "text-zinc-400 hover:text-zinc-600"
+                  locale === "en"
+                    ? headerLight
+                      ? "text-white"
+                      : "text-black"
+                    : headerLight
+                      ? "text-white/50 hover:text-white/80"
+                      : "text-zinc-400 hover:text-zinc-600"
                 }`}
               >
                 EN
                 {locale === "en" ? (
-                  <span className="absolute inset-x-1.5 -bottom-0.5 h-px bg-black" aria-hidden />
+                  <span
+                    className={`absolute inset-x-1.5 -bottom-0.5 h-px ${headerLight ? "bg-white" : "bg-black"}`}
+                    aria-hidden
+                  />
                 ) : null}
               </button>
             </div>
@@ -651,7 +700,7 @@ export default function SiteHeader() {
             <Link
               id="site-header-favoris-desktop"
               href="/favoris"
-              className={`relative isolate ${headerIconButtonClass} ${
+              className={`relative isolate ${iconBtnClass} ${
                 favIconBump ? "favorite-pop" : ""
               }`}
               aria-label={
@@ -669,7 +718,9 @@ export default function SiteHeader() {
             </svg>
               {favCount > 0 ? (
                 <span
-                  className={`absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ${countBadgeClass}`}
+                  className={`absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none ${countBadgeClass} ${
+                    headerLight ? "bg-white text-black" : "bg-black text-white"
+                  }`}
                 >
                   {favCount}
                 </span>
@@ -677,7 +728,7 @@ export default function SiteHeader() {
             </Link>
             <button
               id="site-header-cart-desktop"
-              className={`relative isolate ${headerIconButtonClass} ${
+              className={`relative isolate ${iconBtnClass} ${
                 cartIconBump ? "favorite-pop" : ""
               }`}
               aria-label={t("nav.cart")}
@@ -690,7 +741,9 @@ export default function SiteHeader() {
               </svg>
               {cartCount > 0 ? (
                 <span
-                  className={`absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-black px-1 text-[10px] font-semibold leading-none text-white ${countBadgeClass}`}
+                  className={`absolute -right-0.5 -top-0.5 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none ${countBadgeClass} ${
+                    headerLight ? "bg-white text-black" : "bg-black text-white"
+                  }`}
                 >
                   {cartCount}
                 </span>
