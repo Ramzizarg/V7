@@ -6,6 +6,7 @@ import {
   mapCalirexEtatToOrderStatus,
   pickCalirexEtat,
 } from "@/lib/calirex";
+import { maybeSendMetaOrderDelivered } from "@/lib/metaOrderDelivered";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -47,6 +48,7 @@ export async function POST() {
       if (!order) continue;
       const etat = pickCalirexEtat(detail);
       const mapped = mapCalirexEtatToOrderStatus(etat);
+      const previousStatus = order.status;
       const nextStatus = mapped ?? order.status;
 
       await neonQuery(
@@ -59,6 +61,9 @@ export async function POST() {
       );
       updated += 1;
       results.push({ orderId: order.id, code_colis: code, etat, status: nextStatus });
+
+      // COD: optimize ads on real deliveries, not order placement
+      void maybeSendMetaOrderDelivered(order.id, previousStatus, nextStatus);
     }
 
     return NextResponse.json({ success: true, updated, results });

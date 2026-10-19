@@ -273,6 +273,37 @@ export function trackMetaPurchase(
   );
 }
 
+/**
+ * Custom event for COD: real delivery (prefer this over Purchase in Ads Manager).
+ * Production path is server-side CAPI when Calirex marks the parcel delivered
+ * (`metaOrderDelivered.ts`). This helper is for Tests / rare browser cases.
+ */
+export function trackMetaOrderDelivered(
+  orderId: number | string,
+  items: CartItem[],
+  value: number,
+  userData?: MetaUserData,
+) {
+  if (items.length === 0) return;
+  const eventId = `order-delivered-${orderId}`;
+  const customData = {
+    ...checkoutData(items, value, "product_page"),
+    order_id: String(orderId),
+    order_source: "delivered",
+  };
+  if (typeof window !== "undefined" && typeof window.fbq === "function") {
+    // Custom events must use trackCustom (not the standard Purchase track).
+    (window.fbq as unknown as (
+      action: "trackCustom",
+      name: string,
+      params?: Record<string, unknown>,
+      options?: { eventID?: string }
+    ) => void)("trackCustom", "order_delivered", customData, { eventID: eventId });
+  }
+  relayToConversionsApi("order_delivered", eventId, customData, userData);
+  return eventId;
+}
+
 export function trackMetaLead(userData?: MetaUserData) {
   return trackDual("Lead", { currency: META_PIXEL_CURRENCY }, { userData });
 }

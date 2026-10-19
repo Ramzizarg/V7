@@ -6,6 +6,7 @@ import {
   mapCalirexEtatToOrderStatus,
   pickCalirexEtat,
 } from "@/lib/calirex";
+import { maybeSendMetaOrderDelivered } from "@/lib/metaOrderDelivered";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
     const detail = await calirexGetPosDetail(order.calirex_code_colis);
     const etat = pickCalirexEtat(detail);
     const mapped = mapCalirexEtatToOrderStatus(etat);
+    const previousStatus = order.status;
     const nextStatus = mapped ?? order.status;
 
     if (etat) {
@@ -42,6 +44,7 @@ export async function GET(req: NextRequest) {
         `UPDATE orders SET calirex_etat = $1, status = $2, calirex_last_sync_at = NOW() WHERE id = $3`,
         [etat, nextStatus, orderId]
       );
+      void maybeSendMetaOrderDelivered(orderId, previousStatus, nextStatus);
     }
 
     return NextResponse.json({
