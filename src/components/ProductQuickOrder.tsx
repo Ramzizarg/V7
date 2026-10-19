@@ -78,10 +78,20 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
     setError(null);
   };
 
-  const trackCheckoutOnce = () => {
+  const trackCheckoutOnce = (userData?: {
+    phone?: string;
+    fullName?: string;
+    city?: string;
+    state?: string;
+  }) => {
     if (checkoutTracked.current) return;
     checkoutTracked.current = true;
-    trackMetaInitiateCheckout([cartItem()], total, { country: "tn" }, "product_page");
+    trackMetaInitiateCheckout(
+      [cartItem()],
+      total,
+      { country: "tn", ...userData },
+      "product_page"
+    );
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -107,6 +117,9 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
       setError(t("checkout.phoneError"));
       return;
     }
+
+    // Red button = InitiateCheckout (with customer data for better matching)
+    trackCheckoutOnce({ phone, fullName, city, state: governorate });
 
     const item = cartItem();
     setPlacing(true);
@@ -191,8 +204,8 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
   return (
     <form
       onSubmit={submit}
-      onFocus={trackCheckoutOnce}
       noValidate
+      data-fb-pixel-event="Purchase"
       className="mt-6 rounded-2xl border-2 border-black p-3 sm:p-4"
       aria-labelledby="quick-order-title"
     >
@@ -212,6 +225,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
       <div className="mt-3 grid grid-cols-2 gap-2">
         <input
           type="text"
+          name="fullName"
           autoComplete="name"
           value={customer.fullName}
           onChange={(e) => update("fullName", e.target.value)}
@@ -222,6 +236,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
         />
         <input
           type="tel"
+          name="phone"
           inputMode="numeric"
           autoComplete="tel"
           maxLength={TUNISIA_PHONE_LENGTH}
@@ -234,6 +249,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
         />
         <span className="relative block min-w-0">
           <select
+            name="governorate"
             value={customer.governorate}
             onChange={(e) => update("governorate", e.target.value)}
             autoComplete="address-level1"
@@ -259,6 +275,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
         </span>
         <input
           type="text"
+          name="city"
           autoComplete="address-level2"
           value={customer.city}
           onChange={(e) => update("city", e.target.value)}
@@ -269,6 +286,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
         />
         <input
           type="text"
+          name="address"
           autoComplete="street-address"
           value={customer.address}
           onChange={(e) => update("address", e.target.value)}
@@ -306,7 +324,10 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
 
       <button
         type="submit"
+        name="confirm_order"
+        value="InitiateCheckout"
         disabled={placing}
+        data-fb-pixel-event="InitiateCheckout"
         className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3.5 text-sm font-bold uppercase tracking-[0.1em] text-white transition hover:bg-red-700 active:scale-[0.99] disabled:cursor-wait disabled:opacity-80"
       >
         {placing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

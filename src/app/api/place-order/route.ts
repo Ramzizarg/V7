@@ -9,6 +9,7 @@ import {
   type SizeStock,
 } from "@/lib/productSizeStock";
 import { sendOrderEmails, type OrderEmailPayload } from "@/lib/sendOrderEmails";
+import { sendMetaOrderPurchase } from "@/lib/metaOrderPurchase";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -236,6 +237,27 @@ export async function POST(req: NextRequest) {
     };
 
     const emailResult = await sendOrderEmails(emailPayload);
+
+    // Real Purchase for ads (CAPI). Same event_id as the browser pixel → Meta dedupes.
+    const referer = req.headers.get("referer") || undefined;
+    const fromProductPage = Boolean(referer && /\/collection\//.test(referer));
+    void sendMetaOrderPurchase({
+      orderId,
+      total,
+      email: email || undefined,
+      phone,
+      fullName,
+      city,
+      governorate,
+      items: items.map((it) => ({
+        productId: Number(it.productId),
+        product_name: it.product_name,
+        quantity: Math.floor(Number(it.quantity) || 0),
+        price: Number(it.price),
+      })),
+      orderSource: fromProductPage ? "product_page" : "cart",
+      eventSourceUrl: referer,
+    });
 
     return NextResponse.json({
       success: true,
