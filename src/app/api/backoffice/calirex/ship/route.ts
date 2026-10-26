@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
       poids: 1,
       echange: "non",
       fragile: "non",
-      ouvcolis: 0,
+      ouvcolis: 1,
     });
 
     let blUrl: string | null = null;

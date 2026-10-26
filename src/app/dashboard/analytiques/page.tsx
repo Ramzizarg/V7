@@ -459,7 +459,7 @@ export default function DashboardAnalytiquesPage() {
       order,
       title: "Expédier avec Calirex",
       description: `Commande #${order.id} · ${order.full_name}`,
-      detail: `Prix COD envoyé à Calirex : ${rounded} DT · Statut → Out for delivery`,
+      detail: `Prix COD envoyé à Calirex : ${rounded} DT · Ouverture colis autorisée · Statut → Out for delivery`,
     });
   };
 

@@ -213,7 +213,7 @@ export async function calirexCreateColis(input: CalirexCreateColisInput): Promis
     if (input.date_livraison) params.set("date_livraison", input.date_livraison);
     if (input.horaire_livraison) params.set("horaire_livraison", input.horaire_livraison);
     if (input.codeClient) params.set("codeClient", input.codeClient);
-    if (input.ouvcolis != null) params.set("ouvcolis", String(input.ouvcolis));
+    params.set("ouvcolis", String(input.ouvcolis ?? 1));
 
     const res = await fetch(`${baseUrl}/createcolis.php`, {
       method: "POST",
