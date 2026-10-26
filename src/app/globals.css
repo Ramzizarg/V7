@@ -1023,3 +1023,56 @@ html.vero7-splash-active #vero7-app-root {
     animation: none;
   }
 }
+
+@keyframes offer-colon-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0.18;
+  }
+}
+
+@keyframes offer-second-tick {
+  0% {
+    transform: scale(1);
+  }
+  18% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes offer-urgent-glow {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(220, 38, 38, 0);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.85);
+  }
+}
+
+.offer-colon-blink {
+  animation: offer-colon-blink 1s steps(1, end) infinite;
+}
+
+.offer-second-tick {
+  animation: offer-second-tick 1s ease-out infinite;
+}
+
+.offer-urgent-glow {
+  animation: offer-urgent-glow 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offer-colon-blink,
+  .offer-second-tick,
+  .offer-urgent-glow {
+    animation: none;
+  }
+}
