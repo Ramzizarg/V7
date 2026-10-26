@@ -8,6 +8,7 @@ import { ShoppingBag, Sparkles, Trash2 } from "lucide-react";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { getCart, removeFromCartLine, updateCartQuantity } from "@/lib/shopClientStorage";
 import type { CartItem } from "@/lib/types";
+import { shippingForOrder } from "@/lib/specialOffers";
 
 type Props = {
   open: boolean;
@@ -86,7 +87,10 @@ export function CartSidebar({ open, onClose }: Props) {
 
   const itemCount = useMemo(() => items.reduce((a, b) => a + b.quantity, 0), [items]);
   const subtotal = useMemo(() => items.reduce((a, b) => a + lineUnit(b) * b.quantity, 0), [items]);
-  const shipping = subtotal >= 200 ? 0 : subtotal > 0 ? 8 : 0;
+  const shipping = shippingForOrder(
+    subtotal,
+    items.map((i) => i.productId)
+  );
   const total = subtotal + shipping;
   const isEmpty = items.length === 0;
 
@@ -319,7 +323,9 @@ export function CartSidebar({ open, onClose }: Props) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-black">{t("cart.shipping")}</span>
-                  <span className="font-medium text-black">{formatMoney(shipping)}</span>
+                  <span className={shipping === 0 ? "font-medium text-emerald-700" : "font-medium text-black"}>
+                    {shipping === 0 ? t("flashSale.freeShipping") : formatMoney(shipping)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between pt-1 font-semibold">
                   <span className="text-black">{t("cart.total")}</span>

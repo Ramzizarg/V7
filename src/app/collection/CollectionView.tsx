@@ -20,6 +20,8 @@ import { isProductAvailableForPurchase, isProductListedForSale } from "@/lib/pro
 import { productPathSlug } from "@/lib/productUrl";
 import type { Product, SizeStock, StorefrontCategory } from "@/lib/types";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
+import { FlashSaleBadge } from "@/components/ChampionsJerseyOffer";
+import { isChampionsJerseyFlashSaleActive, isChampionsJerseyProduct } from "@/lib/specialOffers";
 
 const PLACEHOLDER_IMAGE = "/V7/1.webp";
 
@@ -447,6 +449,11 @@ export default function CollectionView() {
                       )}
                       <span className="ml-auto shrink-0 font-semibold text-black">{formatMoney(sale)}</span>
                     </p>
+                    {isChampionsJerseyProduct(product.id) && isChampionsJerseyFlashSaleActive() ? (
+                      <p className="pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                        {t("flashSale.freeShipping")}
+                      </p>
+                    ) : null}
                     {cardOos ? (
                       <p className="pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-600">
                         {t("collection.outOfStock")}
@@ -497,6 +504,11 @@ export default function CollectionView() {
                           className="object-cover object-center transition duration-500 group-hover:scale-[1.02]"
                         />
                       </div>
+                      {isChampionsJerseyProduct(product.id) && isChampionsJerseyFlashSaleActive() ? (
+                        <div className="pointer-events-none absolute left-1.5 top-1.5 z-20 sm:left-2 sm:top-2">
+                          <FlashSaleBadge />
+                        </div>
+                      ) : null}
                       {cardOos ? (
                         <div
                           className="pointer-events-none absolute right-1.5 top-1.5 z-20 sm:right-2 sm:top-2"

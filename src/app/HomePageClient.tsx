@@ -26,6 +26,8 @@ import type { HomeContent } from "@/lib/homeContent";
 import { getCachedStorefrontSync, setCachedStorefront } from "@/lib/storefrontCache";
 import type { Product, StorefrontCategory } from "@/lib/types";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
+import { FlashSaleBadge } from "@/components/ChampionsJerseyOffer";
+import { isChampionsJerseyFlashSaleActive, isChampionsJerseyProduct } from "@/lib/specialOffers";
 
 type Props = {
   /** From server — correct hero/copy on first paint (no reload flash). */
@@ -110,6 +112,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
       }
       return {
         key: `db-${p.id}`,
+        productId: p.id,
         href: `/collection/${encodeURIComponent(productPathSlug(p))}` as const,
         src: p.images[0] || "/V7/1.webp",
         alt: p.name,
@@ -120,6 +123,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
         colors,
         oos: isProductOutOfStock({ sizes: p.sizes, stock: p.stock }),
         comingSoon: !isProductListedForSale(p),
+        flashSale: isChampionsJerseyProduct(p.id) && isChampionsJerseyFlashSaleActive(),
       };
     };
     // Evite le "double rendu" au reload:
@@ -138,6 +142,11 @@ export default function HomePageClient({ initialHomeContent }: Props) {
       };
       const withIdx = collectionProducts.map((p, idx) => ({ p, idx }));
       withIdx.sort((a, b) => {
+        if (isChampionsJerseyFlashSaleActive()) {
+          const aFlash = isChampionsJerseyProduct(a.p.id) ? 0 : 1;
+          const bFlash = isChampionsJerseyProduct(b.p.id) ? 0 : 1;
+          if (aFlash !== bFlash) return aFlash - bFlash;
+        }
         const ra = availabilityRank(a.p);
         const rb = availabilityRank(b.p);
         if (ra !== rb) return ra - rb;
@@ -160,6 +169,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
       const price = onSale ? 89 - (i % 3) : 72 + (i * 4) % 28;
       return {
         key: item.id,
+        productId: 0,
         href: "/collection" as const,
         src: item.src,
         alt: item.alt,
@@ -171,6 +181,7 @@ export default function HomePageClient({ initialHomeContent }: Props) {
         colors: fallbackColors[i] ?? [{ label: "—", hex: null }],
         oos: false,
         comingSoon: false,
+        flashSale: false,
       };
     });
   }, [collectionProducts]);
@@ -558,6 +569,11 @@ export default function HomePageClient({ initialHomeContent }: Props) {
                           sizes="(max-width: 640px) 200px, 240px"
                           className="object-cover object-center transition duration-300 group-hover:scale-[1.03]"
                         />
+                        {item.flashSale ? (
+                          <div className="pointer-events-none absolute left-1.5 top-1.5 z-10 sm:left-2 sm:top-2">
+                            <FlashSaleBadge />
+                          </div>
+                        ) : null}
                         {item.oos ? (
                           <div
                             className="pointer-events-none absolute right-1.5 top-1.5 z-10 sm:right-2 sm:top-2"

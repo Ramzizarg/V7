@@ -24,6 +24,7 @@ import { requestSplashTransition } from "@/lib/splashTransition";
 import { shouldBypassImageOptimization } from "@/lib/imageOptimize";
 import { HOME_HEADER_COLOR_EVENT } from "@/lib/homeContent";
 import type { Product } from "@/lib/types";
+import { isChampionsJerseyFlashSaleActive } from "@/lib/specialOffers";
 
 const NAV_LINKS = [
   { href: "/collection", labelKey: "nav.homme", mega: "hommes" as const },
@@ -130,6 +131,7 @@ export default function SiteHeader() {
 
   const promoMessages = useMemo(
     () => [
+      ...(isChampionsJerseyFlashSaleActive() ? [t("flashSale.promoBar")] : []),
       t("promo.freeShipping"),
       t("promo.freeReturns"),
       t("promo.newSeason"),

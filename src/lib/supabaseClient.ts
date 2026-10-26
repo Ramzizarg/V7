@@ -13,8 +13,9 @@ async function callNeon<T = any>(payload: Record<string, unknown>): Promise<ApiR
     const lower = String(message).toLowerCase();
     const isMissingHomeContent =
       lower.includes("home_content") && (lower.includes("42p01") || lower.includes("does not exist"));
+    const isMissingDatabaseUrl = lower.includes("database_url");
     if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-      if (!isMissingHomeContent) console.error("[api/neon/table]", message);
+      if (!isMissingHomeContent && !isMissingDatabaseUrl) console.error("[api/neon/table]", message);
     }
     return { data: null as any, error: { message }, count: null };
   }

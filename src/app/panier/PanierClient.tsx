@@ -24,6 +24,7 @@ import {
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { parseSizeStocks } from "@/lib/productSizeStock";
 import { TUNISIA_GOVERNORATES } from "@/lib/tunisiaGovernorates";
+import { shippingForOrder } from "@/lib/specialOffers";
 
 const SIZE_ORDER = ["S", "M", "L", "XL", "XXL", "3XL", "STANDARD"] as const;
 
@@ -97,7 +98,10 @@ export default function PanierClient() {
     const c = items.reduce((a, b) => a + b.quantity, 0);
     return { subtotal: s, count: c };
   }, [items]);
-  const shipping = subtotal >= 200 ? 0 : 8;
+  const shipping = shippingForOrder(
+    subtotal,
+    items.map((i) => i.productId)
+  );
   const discountAmount = useMemo(() => {
     if (!appliedCoupon) return 0;
     const now = new Date().toISOString();
@@ -559,7 +563,12 @@ export default function PanierClient() {
 
                 <div className="space-y-2 text-sm mb-4">
                   <div className="flex justify-between"><span className="text-zinc-600">{t("cart.subtotal")}</span><span className="text-black">{formatMoney(subtotal)}</span></div>
-                  <div className="flex justify-between"><span className="text-zinc-600">{t("cart.shipping")}</span><span className="text-black">{formatMoney(shipping)}</span></div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-600">{t("cart.shipping")}</span>
+                    <span className={shipping === 0 ? "font-medium text-emerald-700" : "text-black"}>
+                      {shipping === 0 ? t("flashSale.freeShipping") : formatMoney(shipping)}
+                    </span>
+                  </div>
                   {discountAmount > 0 ? (
                     <div className="flex justify-between text-green-600"><span>{t("checkout.discount")}</span><span>−{formatMoney(discountAmount)}</span></div>
                   ) : null}

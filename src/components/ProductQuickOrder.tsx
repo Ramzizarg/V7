@@ -13,9 +13,7 @@ import {
 import { isValidTunisiaPhone, normalizeTunisiaPhoneDigits, TUNISIA_PHONE_LENGTH } from "@/lib/phoneValidation";
 import { governorateLabel, TUNISIA_GOVERNORATES } from "@/lib/tunisiaGovernorates";
 import type { CartItem, Product } from "@/lib/types";
-
-const FREE_SHIPPING_FROM = 200;
-const SHIPPING_FEE = 8;
+import { shippingForOrder } from "@/lib/specialOffers";
 const CUSTOMER_STORAGE_KEY = "vero7:quick-order-customer:v1";
 
 type Customer = { fullName: string; phone: string; governorate: string; city: string; address: string };
@@ -64,7 +62,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
     product.discount_price != null && product.discount_price < product.price ? product.discount_price : product.price;
   const qty = Math.max(1, quantity);
   const subtotal = unitPrice * qty;
-  const shipping = subtotal >= FREE_SHIPPING_FROM ? 0 : SHIPPING_FEE;
+  const shipping = shippingForOrder(subtotal, [product.id]);
   const total = subtotal + shipping;
 
   const cartItem = (): CartItem => ({

@@ -167,7 +167,16 @@ async function neonQueryWithHomeContentRecovery<T extends QueryResultRow = Query
 
 export async function POST(req: Request) {
   try {
+    const body = (await req.json().catch(() => null)) as any;
+    const table = String(body?.table || "");
+    const action = String(body?.action || "select");
+
     if (!resolveDatabaseUrl()) {
+      // Local dev without Neon: selects return empty so the storefront uses defaults
+      // instead of 503 + console.error. Mutations stay unavailable until DATABASE_URL is set.
+      if (action === "select") {
+        return NextResponse.json({ data: body?.head ? null : [], error: null, count: 0 });
+      }
       return NextResponse.json(
         {
           data: null,
@@ -177,10 +186,6 @@ export async function POST(req: Request) {
         { status: 503 }
       );
     }
-
-    const body = (await req.json()) as any;
-    const table = String(body.table || "");
-    const action = String(body.action || "select");
 
     if (!ALLOWED_TABLES.has(table)) {
       return NextResponse.json({ data: null, error: `Table not allowed: ${table}` }, { status: 400 });

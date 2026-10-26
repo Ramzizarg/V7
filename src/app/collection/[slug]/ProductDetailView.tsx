@@ -25,6 +25,7 @@ import { getSizeOptionsForProduct, isProductOutOfStock, remainingStockForSelecte
 import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
+import { ChampionsJerseyOfferCard, useChampionsJerseyFlashSale } from "@/components/ChampionsJerseyOffer";
 
 /** Client-only: the form pre-fills saved customer details from localStorage. */
 const ProductQuickOrder = dynamic(() => import("@/components/ProductQuickOrder"), { ssr: false });
@@ -385,6 +386,7 @@ export default function ProductDetailView({ product }: Props) {
   }, [product.category_name, product.name]);
   const closeSizeGuide = useCallback(() => setSizeGuideOpen(false), []);
 
+  const { active: jerseyFlashSale } = useChampionsJerseyFlashSale(product.id);
   const displayPrice =
     product.discount_price != null && product.discount_price < product.price
       ? product.discount_price
@@ -1102,7 +1104,9 @@ export default function ProductDetailView({ product }: Props) {
               <h1 className="max-w-[90%] text-xl font-bold uppercase leading-[1.15] tracking-tight sm:text-2xl lg:text-[1.65rem] lg:leading-tight">
                 {titleUpper}
               </h1>
-              {discountPercent != null ? (
+              {jerseyFlashSale ? (
+                <span />
+              ) : discountPercent != null ? (
                 <span className="shrink-0 rounded bg-red-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
                   {t("product.saleBadge", { percent: discountPercent })}
                 </span>
@@ -1115,16 +1119,20 @@ export default function ProductDetailView({ product }: Props) {
               )}
             </div>
 
-            <div className="mt-6 flex items-baseline justify-between gap-3 text-lg tabular-nums sm:text-xl">
-              <span className="font-semibold text-black">{formatMoney(displayPrice)}</span>
-              {compareAt != null ? (
-                <span className="text-base font-normal text-zinc-400 line-through">
-                  {formatMoney(compareAt)}
-                </span>
-              ) : (
-                <span />
-              )}
-            </div>
+            {jerseyFlashSale ? (
+              <ChampionsJerseyOfferCard compareAt={compareAt ?? product.price} />
+            ) : (
+              <div className="mt-6 flex items-baseline justify-between gap-3 text-lg tabular-nums sm:text-xl">
+                <span className="font-semibold text-black">{formatMoney(displayPrice)}</span>
+                {compareAt != null ? (
+                  <span className="text-base font-normal text-zinc-400 line-through">
+                    {formatMoney(compareAt)}
+                  </span>
+                ) : (
+                  <span />
+                )}
+              </div>
+            )}
 
             <div className="mt-10">
               <div
@@ -1397,8 +1405,8 @@ export default function ProductDetailView({ product }: Props) {
               >
                 <div className="overflow-hidden">
                   <ul className="space-y-2 text-sm leading-relaxed text-zinc-700">
-                    <li>{t("product.shippingDelivery")}</li>
-                    <li>{t("product.shippingFreeOver")}</li>
+                    {jerseyFlashSale ? <li>{t("flashSale.shippingDuringSale")}</li> : <li>{t("product.shippingDelivery")}</li>}
+                    {jerseyFlashSale ? null : <li>{t("product.shippingFreeOver")}</li>}
                     <li>{t("product.shippingReturns")}</li>
                   </ul>
                 </div>

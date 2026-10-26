@@ -32,7 +32,7 @@ function noStoreJson(data: unknown, status = 200) {
 export async function POST(req: NextRequest) {
   try {
     const ok = await ensurePresenceTable();
-    if (!ok) return noStoreJson({ ok: false, online: 0 }, 503);
+    if (!ok) return noStoreJson({ ok: false, skipped: true, online: 0 });
 
     const ua = req.headers.get("user-agent") ?? "";
     if (isBot(ua)) return noStoreJson({ ok: true, skipped: true, online: await countOnlineVisitors() });
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   try {
     const ok = await ensurePresenceTable();
-    if (!ok) return noStoreJson({ online: 0, pages: [] }, 503);
+    if (!ok) return noStoreJson({ online: 0, pages: [] });
 
     // Always clean visitors inactive > 30 min on dashboard polls
     await pruneStalePresence();
