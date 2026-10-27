@@ -24,7 +24,7 @@ function splitRemaining(ms: number) {
 
 function formatDt(amount: number) {
   const rounded = Number.isInteger(amount) ? String(amount) : amount.toFixed(2).replace(".", ",");
-  return `${rounded} د.ت`;
+  return `${rounded} دينار`;
 }
 
 export function useChampionsJerseyFlashSale(productId?: number) {
