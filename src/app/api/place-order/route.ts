@@ -58,7 +58,11 @@ export async function POST(req: NextRequest) {
 
     const body = (await req.json()) as PlaceOrderBody;
     const fullName = body.fullName?.trim() ?? "";
-    const email = body.email?.trim() ?? "";
+    const emailRaw = body.email?.trim().toLowerCase() ?? "";
+    if (emailRaw && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
+      return NextResponse.json({ error: "Adresse email invalide." }, { status: 400 });
+    }
+    const email = emailRaw;
     const phone = normalizeTunisiaPhoneDigits(body.phone ?? "");
     const phone2Raw = normalizeTunisiaPhoneDigits(body.phone2 ?? "");
     const phone2 = phone2Raw.length > 0 ? phone2Raw : "";

@@ -4,8 +4,18 @@ function sha256(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/**
+ * Normalize an email for Meta Advanced Matching / CAPI `em`.
+ * Returns null when empty or not a plausible address (do not hash junk).
+ */
+export function normalizeMetaEmail(email: string | null | undefined): string | null {
+  const normalized = (email ?? "").trim().toLowerCase();
+  if (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+  return normalized;
+}
+
 export function hashMetaEmail(email: string) {
-  const normalized = email.trim().toLowerCase();
+  const normalized = normalizeMetaEmail(email);
   if (!normalized) return null;
   return sha256(normalized);
 }

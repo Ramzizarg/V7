@@ -73,7 +73,8 @@ function advancedMatchingParams(userData?: MetaUserData) {
   const fn = userData.firstName ?? splitFn;
   const ln = userData.lastName ?? splitLn;
   const params: Record<string, string> = {};
-  if (userData.email?.trim()) params.em = userData.email.trim().toLowerCase();
+  const em = userData.email?.trim().toLowerCase() ?? "";
+  if (em && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) params.em = em;
   if (userData.phone?.trim()) {
     params.ph = userData.phone.trim();
     params.external_id = userData.phone.replace(/\D/g, "");

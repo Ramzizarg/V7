@@ -201,7 +201,12 @@ export default function PanierClient() {
     setOrderError(null);
     setOrderEmailWarning(null);
     const fn = fullName.trim();
-    const em = email.trim();
+    const emRaw = email.trim().toLowerCase();
+    if (emRaw && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emRaw)) {
+      setOrderError(t("checkout.emailInvalid"));
+      return;
+    }
+    const em = emRaw;
     const ph = normalizeTunisiaPhoneDigits(phone);
     const gov = governorate.trim();
     const ct = city.trim();

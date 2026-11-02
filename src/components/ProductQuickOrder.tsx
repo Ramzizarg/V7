@@ -14,20 +14,37 @@ import { isValidTunisiaPhone, normalizeTunisiaPhoneDigits, TUNISIA_PHONE_LENGTH 
 import { governorateLabel, TUNISIA_GOVERNORATES } from "@/lib/tunisiaGovernorates";
 import type { CartItem, Product } from "@/lib/types";
 import { shippingForOrder } from "@/lib/specialOffers";
-const CUSTOMER_STORAGE_KEY = "vero7:quick-order-customer:v1";
+const CUSTOMER_STORAGE_KEY = "vero7:quick-order-customer:v2";
 
-type Customer = { fullName: string; phone: string; governorate: string; city: string; address: string };
+type Customer = {
+  fullName: string;
+  email: string;
+  phone: string;
+  governorate: string;
+  city: string;
+  address: string;
+};
 
-const EMPTY_CUSTOMER: Customer = { fullName: "", phone: "", governorate: "", city: "", address: "" };
+const EMPTY_CUSTOMER: Customer = {
+  fullName: "",
+  email: "",
+  phone: "",
+  governorate: "",
+  city: "",
+  address: "",
+};
 
 function loadCustomer(): Customer {
   if (typeof window === "undefined") return EMPTY_CUSTOMER;
   try {
-    const raw = window.localStorage.getItem(CUSTOMER_STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(CUSTOMER_STORAGE_KEY) ||
+      window.localStorage.getItem("vero7:quick-order-customer:v1");
     if (!raw) return EMPTY_CUSTOMER;
     const saved = JSON.parse(raw) as Partial<Customer>;
     return {
       fullName: typeof saved.fullName === "string" ? saved.fullName : "",
+      email: typeof saved.email === "string" ? saved.email : "",
       phone: typeof saved.phone === "string" ? normalizeTunisiaPhoneDigits(saved.phone) : "",
       governorate: TUNISIA_GOVERNORATES.includes(saved.governorate ?? "") ? saved.governorate! : "",
       city: typeof saved.city === "string" ? saved.city : "",
@@ -36,6 +53,13 @@ function loadCustomer(): Customer {
   } catch {
     return EMPTY_CUSTOMER;
   }
+}
+
+function normalizeOptionalEmail(value: string) {
+  const email = value.trim().toLowerCase();
+  if (!email) return "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  return email;
 }
 
 type Props = {
@@ -85,7 +109,20 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
   const trackCheckoutOnce = () => {
     if (checkoutTracked.current) return;
     checkoutTracked.current = true;
-    trackMetaInitiateCheckout([cartItem()], total, { country: "tn" }, "product_page");
+    const email = normalizeOptionalEmail(customer.email) || undefined;
+    trackMetaInitiateCheckout(
+      [cartItem()],
+      total,
+      {
+        email: email || undefined,
+        phone: customer.phone.trim() || undefined,
+        fullName: customer.fullName.trim() || undefined,
+        city: customer.city.trim() || undefined,
+        state: customer.governorate.trim() || undefined,
+        country: "tn",
+      },
+      "product_page"
+    );
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -99,6 +136,12 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
       return;
     }
     const fullName = customer.fullName.trim();
+    const emailNormalized = normalizeOptionalEmail(customer.email);
+    if (emailNormalized === null) {
+      setError(t("checkout.emailInvalid"));
+      return;
+    }
+    const email = emailNormalized;
     const phone = normalizeTunisiaPhoneDigits(customer.phone);
     const governorate = customer.governorate.trim();
     const city = customer.city.trim();
@@ -121,6 +164,7 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName,
+          email: email || undefined,
           phone,
           address,
           city,
@@ -147,12 +191,22 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
       if (!res.ok) throw new Error(data?.error || t("checkout.orderError"));
       if (!data?.orderId) throw new Error(t("checkout.orderNotCreated"));
 
-      const userData = { phone, fullName, city, state: governorate, country: "tn" };
+      const userData = {
+        email: email || undefined,
+        phone,
+        fullName,
+        city,
+        state: governorate,
+        country: "tn",
+      };
       setMetaAdvancedMatching(userData);
       trackMetaPurchase(data.orderId, [item], total, userData, "product_page");
 
       try {
-        window.localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify({ fullName, phone, governorate, city, address }));
+        window.localStorage.setItem(
+          CUSTOMER_STORAGE_KEY,
+          JSON.stringify({ fullName, email, phone, governorate, city, address })
+        );
       } catch {
         /* storage unavailable */
       }
@@ -239,6 +293,17 @@ export default function ProductQuickOrder({ product, size, quantity, color, onMi
           aria-label={t("checkout.phone")}
           required
           className={inputClass}
+        />
+        <input
+          type="email"
+          name="email"
+          autoComplete="email"
+          inputMode="email"
+          value={customer.email}
+          onChange={(e) => update("email", e.target.value)}
+          placeholder={t("quickOrder.email")}
+          aria-label={t("checkout.email")}
+          className={`${inputClass} col-span-2`}
         />
         <span className="relative block min-w-0">
           <select
