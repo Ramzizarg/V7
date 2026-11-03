@@ -275,6 +275,7 @@ export default function DashboardAnalytiquesPage() {
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [savingPhoneId, setSavingPhoneId] = useState<number | null>(null);
+  const [savingStatusId, setSavingStatusId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [shippingId, setShippingId] = useState<number | null>(null);
   const [trackingId, setTrackingId] = useState<number | null>(null);
@@ -350,6 +351,34 @@ export default function DashboardAnalytiquesPage() {
       setError(err instanceof Error ? err.message : "Impossible de modifier la confirmation téléphone.");
     } finally {
       setSavingPhoneId(null);
+    }
+  };
+
+  const handleStatusChange = async (order: OrderRow, nextStatus: EditableStatus, e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    if (order.calirex_code_colis) return;
+    if (!MANUAL_STATUSES.includes(nextStatus)) return;
+    if (normalizeStatus(order.status) === nextStatus || savingStatusId === order.id) return;
+
+    setSavingStatusId(order.id);
+    setError(null);
+    const previous = order.status;
+    patchOrder(order.id, { status: nextStatus });
+
+    try {
+      const res = await fetch("/api/backoffice/update-order-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, status: nextStatus }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string; status?: string } | null;
+      if (!res.ok) throw new Error(data?.error || "Impossible de changer le statut.");
+      if (data?.status) patchOrder(order.id, { status: data.status });
+    } catch (err) {
+      patchOrder(order.id, { status: previous });
+      setError(err instanceof Error ? err.message : "Impossible de changer le statut.");
+    } finally {
+      setSavingStatusId(null);
     }
   };
 
@@ -653,6 +682,7 @@ export default function DashboardAnalytiquesPage() {
 
   const renderStatusSelect = (order: OrderRow, compact = false) => {
     const current = normalizeStatus(order.status);
+    const saving = savingStatusId === order.id;
 
     if (order.calirex_code_colis) {
       const etat = orderCalirexEtat(order);
@@ -681,15 +711,23 @@ export default function DashboardAnalytiquesPage() {
     }
 
     return (
-      <span
-        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase ${getStatusStyle(current)} ${
-          compact ? "text-[10px] px-2 py-0.5" : ""
-        }`}
-        title="Le statut change uniquement via « Expédier via Calirex »"
+      <select
+        value={MANUAL_STATUSES.includes(current) ? current : "pending"}
+        disabled={saving}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => handleStatusChange(order, e.target.value as EditableStatus, e)}
+        className={`rounded-full border-0 py-1 pl-2.5 pr-7 text-xs font-semibold uppercase cursor-pointer focus:outline-none focus:ring-2 focus:ring-black/20 disabled:opacity-60 ${getStatusStyle(
+          current
+        )} ${compact ? "text-[10px] py-0.5" : ""}`}
         aria-label={`Statut commande #${order.id}`}
+        title="Changer le statut (Pending / Confirmed / Rejected)"
       >
-        {STATUS_OPTIONS.find((opt) => opt.value === current)?.label ?? current}
-      </span>
+        {MANUAL_STATUSES.map((value) => (
+          <option key={value} value={value}>
+            {STATUS_OPTIONS.find((opt) => opt.value === value)?.label ?? value}
+          </option>
+        ))}
+      </select>
     );
   };
 
