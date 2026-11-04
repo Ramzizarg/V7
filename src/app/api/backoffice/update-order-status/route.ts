@@ -12,7 +12,7 @@ import {
 
 export const runtime = "nodejs";
 
-const MANUAL_STATUSES = new Set(["pending", "confirmed", "rejected"]);
+const MANUAL_STATUSES = new Set(["pending", "occuper", "rejected"]);
 
 type OrderRow = {
   id: number;
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
     if (!MANUAL_STATUSES.has(nextStatus)) {
       return NextResponse.json(
-        { error: "Statut manuel invalide. Utilisez pending, confirmed ou rejected." },
+        { error: "Statut manuel invalide. Utilisez pending, occuper ou rejected." },
         { status: 400 }
       );
     }

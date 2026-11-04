@@ -111,7 +111,7 @@ function detectDatePreset(from: string, to: string, now = new Date()): DatePrese
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
-  { value: "confirmed", label: "Confirmed" },
+  { value: "occuper", label: "Occupé" },
   { value: "rejected", label: "Rejected" },
   { value: "out_for_delivery", label: "Out for delivery" },
   { value: "delivered", label: "Delivered" },
@@ -120,7 +120,7 @@ const STATUS_OPTIONS = [
 type EditableStatus = (typeof STATUS_OPTIONS)[number]["value"];
 
 /** Statuses set by hand before an order is shipped; after shipping Calirex decides. */
-const MANUAL_STATUSES: EditableStatus[] = ["pending", "confirmed", "rejected"];
+const MANUAL_STATUSES: EditableStatus[] = ["pending", "occuper", "rejected"];
 
 const CALIREX_PREFIX = "calirex:";
 
@@ -173,7 +173,7 @@ type StageCount = { key: string; label: string; count: number };
 /** Manual statuses are always listed (even at 0); Calirex states only when present. */
 function countStages(list: Pick<OrderRow, "status" | "calirex_code_colis" | "calirex_etat">[]): StageCount[] {
   const byKey = new Map<string, StageCount>(
-    MANUAL_STATUSES.filter((s) => s !== "confirmed").map((s) => [
+    MANUAL_STATUSES.map((s) => [
       s,
       { key: s, label: STATUS_OPTIONS.find((o) => o.value === s)!.label, count: 0 },
     ])
@@ -263,9 +263,10 @@ function orderTelHref(phone: string | null | undefined): string | null {
 function normalizeStatus(status: string): EditableStatus {
   const s = status?.toLowerCase();
   if (s === "delivered") return "delivered";
-  if (s === "confirmed") return "confirmed";
+  if (s === "occuper" || s === "occupe" || s === "occupé") return "occuper";
   if (s === "shipped" || s === "out_for_delivery") return "out_for_delivery";
   if (s === "rejected") return "rejected";
+  // Legacy "confirmed" → pending (removed from manual statuses)
   return "pending";
 }
 
@@ -320,7 +321,7 @@ export default function DashboardAnalytiquesPage() {
     const s = normalizeStatus(status);
     if (s === "rejected") return "bg-red-100 text-red-800";
     if (s === "delivered") return "bg-emerald-100 text-emerald-800";
-    if (s === "confirmed") return "bg-violet-100 text-violet-800";
+    if (s === "occuper") return "bg-orange-100 text-orange-800";
     if (s === "pending") return "bg-amber-100 text-amber-800";
     if (s === "out_for_delivery") return "bg-blue-100 text-blue-800";
     return "bg-zinc-100 text-zinc-700";
@@ -720,7 +721,7 @@ export default function DashboardAnalytiquesPage() {
           current
         )} ${compact ? "text-[10px] py-0.5" : ""}`}
         aria-label={`Statut commande #${order.id}`}
-        title="Changer le statut (Pending / Confirmed / Rejected)"
+        title="Changer le statut (Pending / Occupé / Rejected)"
       >
         {MANUAL_STATUSES.map((value) => (
           <option key={value} value={value}>

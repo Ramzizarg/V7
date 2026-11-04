@@ -30,7 +30,7 @@ function formatPrice(n: number) {
 function statusLabel(status: string) {
   const s = String(status ?? "").toLowerCase();
   if (s === "pending") return "Pending";
-  if (s === "confirmed") return "Confirmed";
+  if (s === "occuper" || s === "occupe" || s === "occupé") return "Occupé";
   if (s === "rejected") return "Rejected";
   if (s === "out_for_delivery" || s === "shipped") return "Out for delivery";
   if (s === "delivered") return "Delivered";
@@ -40,7 +40,7 @@ function statusLabel(status: string) {
 function statusClass(status: string) {
   const s = String(status ?? "").toLowerCase();
   if (s === "pending") return "bg-amber-100 text-amber-800";
-  if (s === "confirmed") return "bg-violet-100 text-violet-800";
+  if (s === "occuper" || s === "occupe" || s === "occupé") return "bg-orange-100 text-orange-800";
   if (s === "rejected") return "bg-red-100 text-red-800";
   if (s === "out_for_delivery" || s === "shipped") return "bg-blue-100 text-blue-800";
   if (s === "delivered") return "bg-emerald-100 text-emerald-800";
