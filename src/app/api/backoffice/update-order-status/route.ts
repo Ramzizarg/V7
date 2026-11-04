@@ -177,8 +177,16 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("[update-order-status]", err);
+    const message = err instanceof Error ? err.message : "Impossible de changer le statut.";
+    const isCheck =
+      /orders_status_check|check constraint|violates check/i.test(message) ||
+      (typeof (err as { code?: string })?.code === "string" && (err as { code: string }).code === "23514");
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Impossible de changer le statut." },
+      {
+        error: isCheck
+          ? "Statut non autorisé en base. Autorisez « occuper » dans orders_status_check (voir neon/orders-status-occuper.sql)."
+          : message,
+      },
       { status: 500 }
     );
   }

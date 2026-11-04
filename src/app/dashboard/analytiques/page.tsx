@@ -321,7 +321,7 @@ export default function DashboardAnalytiquesPage() {
     const s = normalizeStatus(status);
     if (s === "rejected") return "bg-red-100 text-red-800";
     if (s === "delivered") return "bg-emerald-100 text-emerald-800";
-    if (s === "occuper") return "bg-orange-100 text-orange-800";
+    if (s === "occuper") return "bg-orange-500 text-white";
     if (s === "pending") return "bg-amber-100 text-amber-800";
     if (s === "out_for_delivery") return "bg-blue-100 text-blue-800";
     return "bg-zinc-100 text-zinc-700";
