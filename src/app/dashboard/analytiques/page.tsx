@@ -817,7 +817,14 @@ export default function DashboardAnalytiquesPage() {
   }, []);
 
   useEffect(() => {
-    void loadOrders();
+    void (async () => {
+      try {
+        await fetch("/api/backoffice/purge-old-orders", { method: "POST" });
+      } catch {
+        /* purge is best-effort */
+      }
+      await loadOrders();
+    })();
   }, [loadOrders]);
 
   // Auto-sync Calirex statuses when the page has shipped orders

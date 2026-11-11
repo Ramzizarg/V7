@@ -3,6 +3,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { DashboardOnlineVisitors } from "@/components/DashboardOnlineVisitors";
 import { DashboardRecentOrders } from "@/components/DashboardRecentOrders";
 import { neonQuery } from "@/lib/neon-db";
+import { purgeOldOrders } from "@/lib/purgeOldOrders";
 import { BarChart3, Package2, PiggyBank, ShoppingCart } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,13 @@ export const revalidate = 0;
 async function getDashboardData() {
   noStore();
   try {
+    // Keep current Tunis calendar month only.
+    try {
+      await purgeOldOrders();
+    } catch (err) {
+      console.error("[dashboard] purge-old-orders", err);
+    }
+
     const ordersRes = await neonQuery<{
       id: number;
       full_name: string;
