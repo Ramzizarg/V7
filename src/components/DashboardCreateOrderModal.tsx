@@ -13,33 +13,7 @@ import {
 import { getSizeOptionsForProduct } from "@/lib/productSizesDisplay";
 import { stockForSize, parseSizeStocks } from "@/lib/productSizeStock";
 import type { Product } from "@/lib/types";
-
-const TUNISIA_GOVERNORATES = [
-  "Ariana",
-  "Beja",
-  "Ben Arous",
-  "Bizerte",
-  "Gabes",
-  "Gafsa",
-  "Jendouba",
-  "Kairouan",
-  "Kasserine",
-  "Kebili",
-  "Le Kef",
-  "Mahdia",
-  "Manouba",
-  "Medenine",
-  "Monastir",
-  "Nabeul",
-  "Sfax",
-  "Sidi Bouzid",
-  "Siliana",
-  "Sousse",
-  "Tataouine",
-  "Tozeur",
-  "Tunis",
-  "Zaghouan",
-] as const;
+import { governorateLabel, TUNISIA_GOVERNORATES, toCalirexGovernorate } from "@/lib/tunisiaGovernorates";
 
 type DraftLine = {
   key: string;
@@ -175,7 +149,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
       setPhone2(normalizeTunisiaPhoneDigits(editOrder.phone_number_2 || ""));
       setAddress(editOrder.address || "");
       setCity(editOrder.city || "");
-      setGovernorate(editOrder.governorate || "");
+      setGovernorate(toCalirexGovernorate(editOrder.governorate) || editOrder.governorate || "");
       setPickProductId("");
       setPickSize("");
       setPickQty("1");
@@ -345,7 +319,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
     const ph2 = ph2Raw.length > 0 ? ph2Raw : "";
     const addr = address.trim();
     const ct = city.trim();
-    const gov = governorate.trim();
+    const gov = toCalirexGovernorate(governorate);
     if (!fn || !ph || !addr || !ct || !gov) {
       setFormError("Remplissez tous les champs client (email optionnel).");
       return;
@@ -556,7 +530,7 @@ export default function DashboardCreateOrderModal({ open, onClose, onCreated, ed
                     <option value="">Sélectionner</option>
                     {TUNISIA_GOVERNORATES.map((g) => (
                       <option key={g} value={g}>
-                        {g}
+                        {governorateLabel(g)}
                       </option>
                     ))}
                   </select>

@@ -3,6 +3,7 @@ import { requireBackofficeSession } from "@/lib/requireBackofficeSession";
 import { neonQuery, resolveDatabaseUrl } from "@/lib/neon-db";
 import { calirexCreateColis, calirexGetBonLivraison, isCalirexConfigured } from "@/lib/calirex";
 import { normalizeTunisiaPhoneDigits } from "@/lib/phoneValidation";
+import { resolveCalirexDelegation, toCalirexGovernorate } from "@/lib/tunisiaGovernorates";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -45,8 +46,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = (await req.json()) as { orderId?: number | string };
+    const body = (await req.json()) as { orderId?: number | string; resend?: boolean };
     const orderId = Number(body.orderId);
+    const resend = body.resend === true;
     if (!Number.isFinite(orderId) || orderId < 1) {
       return NextResponse.json({ error: "Commande invalide." }, { status: 400 });
     }
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Commande introuvable." }, { status: 404 });
     }
 
-    if (order.calirex_code_colis) {
+    if (order.calirex_code_colis && !resend) {
       return NextResponse.json({
         success: true,
         alreadyShipped: true,
@@ -98,9 +100,20 @@ export async function POST(req: NextRequest) {
     const phone2Raw = normalizeTunisiaPhoneDigits(order.phone_number_2 ?? "");
     const phone2 = phone2Raw.length === 8 ? phone2Raw : undefined;
 
-    const address = [order.address, order.city].filter(Boolean).join(", ").trim();
-    if (!address || !order.governorate?.trim() || !order.full_name?.trim()) {
-      return NextResponse.json({ error: "Adresse / client incomplets." }, { status: 400 });
+    const address = (order.address || "").trim();
+    const gouvernorat = toCalirexGovernorate(order.governorate);
+    const delegation = resolveCalirexDelegation(gouvernorat, order.city, order.address);
+    if (!address || !gouvernorat || !delegation || !order.full_name?.trim()) {
+      return NextResponse.json(
+        {
+          error: !gouvernorat
+            ? `Gouvernorat invalide pour Calirex: "${order.governorate?.trim() || ""}". Choisissez un gouvernorat de la liste.`
+            : !delegation
+              ? `Délégation introuvable pour "${order.city || ""}" / ${gouvernorat}.`
+              : "Adresse / client incomplets.",
+        },
+        { status: 400 }
+      );
     }
 
     const codeColis = await calirexCreateColis({
@@ -108,13 +121,13 @@ export async function POST(req: NextRequest) {
       tel_client: phone,
       tel2_client: phone2,
       adresse_client: address,
-      gouvernorat_client: order.governorate.trim(),
-      delegation_client: order.city?.trim() || undefined,
-      localite_client: order.city?.trim() || undefined,
+      gouvernorat_client: gouvernorat,
+      delegation_client: delegation,
+      localite_client: delegation,
       prix: Math.round(Number(order.total_price) || 0),
       nb_pieces: nbPieces,
       designation,
-      codeClient: `VERO7-${orderId}`,
+      codeClient: resend ? `VERO7-${orderId}-R${Date.now()}` : `VERO7-${orderId}`,
       poids: 1,
       echange: "non",
       fragile: "non",
@@ -132,8 +145,8 @@ export async function POST(req: NextRequest) {
     await neonQuery(
       `UPDATE orders SET
          calirex_code_colis = $1,
-         calirex_etat = COALESCE(calirex_etat, 'en attente'),
-         calirex_bl_url = COALESCE($2, calirex_bl_url),
+         calirex_etat = 'en attente',
+         calirex_bl_url = $2,
          calirex_shipped_at = NOW(),
          calirex_last_sync_at = NOW(),
          status = 'out_for_delivery'
@@ -147,6 +160,8 @@ export async function POST(req: NextRequest) {
       code_colis: codeColis,
       bl_url: blUrl,
       status: "out_for_delivery",
+      resent: resend,
+      previous_code_colis: resend ? order.calirex_code_colis : null,
     });
   } catch (err) {
     console.error("[calirex/ship]", err);

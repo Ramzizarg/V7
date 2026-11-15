@@ -11,7 +11,7 @@ import {
   trackMetaPurchase,
 } from "@/lib/metaPixel";
 import { isValidTunisiaPhone, normalizeTunisiaPhoneDigits, TUNISIA_PHONE_LENGTH } from "@/lib/phoneValidation";
-import { governorateLabel, TUNISIA_GOVERNORATES } from "@/lib/tunisiaGovernorates";
+import { governorateLabel, isTunisiaGovernorate, toCalirexGovernorate, TUNISIA_GOVERNORATES } from "@/lib/tunisiaGovernorates";
 import type { CartItem, Product } from "@/lib/types";
 import { shippingForOrder } from "@/lib/specialOffers";
 const CUSTOMER_STORAGE_KEY = "vero7:quick-order-customer:v2";
@@ -46,7 +46,9 @@ function loadCustomer(): Customer {
       fullName: typeof saved.fullName === "string" ? saved.fullName : "",
       email: typeof saved.email === "string" ? saved.email : "",
       phone: typeof saved.phone === "string" ? normalizeTunisiaPhoneDigits(saved.phone) : "",
-      governorate: TUNISIA_GOVERNORATES.includes(saved.governorate ?? "") ? saved.governorate! : "",
+      governorate: isTunisiaGovernorate(saved.governorate)
+        ? toCalirexGovernorate(saved.governorate)!
+        : "",
       city: typeof saved.city === "string" ? saved.city : "",
       address: typeof saved.address === "string" ? saved.address : "",
     };

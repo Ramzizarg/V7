@@ -23,6 +23,7 @@ import {
   Phone,
   Search,
   AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import { sumNetOrderRevenue } from "@/lib/orderRevenue";
 import DashboardCreateOrderModal from "@/components/DashboardCreateOrderModal";
@@ -301,6 +302,7 @@ export default function DashboardAnalytiquesPage() {
     title: string;
     description: string;
     detail?: string;
+    resend?: boolean;
   }>(null);
 
   const datePreset = useMemo(() => detectDatePreset(dateFrom, dateTo), [dateFrom, dateTo]);
@@ -424,7 +426,7 @@ export default function DashboardAnalytiquesPage() {
     });
   };
 
-  const executeShipCalirex = async (order: OrderRow) => {
+  const executeShipCalirex = async (order: OrderRow, resend = false) => {
     if (shippingId === order.id) return;
     setShippingId(order.id);
     setError(null);
@@ -432,7 +434,7 @@ export default function DashboardAnalytiquesPage() {
       const res = await fetch("/api/backoffice/calirex/ship", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: order.id }),
+        body: JSON.stringify({ orderId: order.id, resend }),
       });
       const data = (await res.json().catch(() => null)) as {
         error?: string;
@@ -473,16 +475,6 @@ export default function DashboardAnalytiquesPage() {
   const handleShipCalirex = (order: OrderRow, e: React.MouseEvent) => {
     e.stopPropagation();
     if (shippingId === order.id) return;
-    if (order.calirex_code_colis) {
-      setConfirmDialog({
-        kind: "info",
-        order,
-        title: "Déjà expédié",
-        description: `Cette commande a déjà un colis Calirex.`,
-        detail: order.calirex_code_colis,
-      });
-      return;
-    }
     const rounded = Math.round(Number(order.total_price) || 0);
     setConfirmDialog({
       kind: "ship",
@@ -490,6 +482,23 @@ export default function DashboardAnalytiquesPage() {
       title: "Expédier avec Calirex",
       description: `Commande #${order.id} · ${order.full_name}`,
       detail: `Prix COD envoyé à Calirex : ${rounded} DT · Ouverture colis autorisée · Statut → Out for delivery`,
+      resend: false,
+    });
+  };
+
+  const handleResendCalirex = (order: OrderRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (shippingId === order.id || !order.calirex_code_colis) return;
+    const rounded = Math.round(Number(order.total_price) || 0);
+    setConfirmDialog({
+      kind: "ship",
+      order,
+      title: "Renvoyer à Calirex",
+      description: `Commande #${order.id} · ${order.full_name}`,
+      detail: `Un nouveau colis sera créé (COD ${rounded} DT). Ancien code : ${order.calirex_code_colis}${
+        order.calirex_etat ? ` · ${order.calirex_etat}` : ""
+      }`,
+      resend: true,
     });
   };
 
@@ -1007,7 +1016,11 @@ export default function DashboardAnalytiquesPage() {
                     {confirmDialog.kind === "delete" ? (
                       <Trash2 className="h-5 w-5" />
                     ) : confirmDialog.kind === "ship" ? (
-                      <Truck className="h-5 w-5" />
+                      confirmDialog.resend ? (
+                        <RotateCcw className="h-5 w-5" />
+                      ) : (
+                        <Truck className="h-5 w-5" />
+                      )
                     ) : (
                       <AlertTriangle className="h-5 w-5" />
                     )}
@@ -1057,8 +1070,11 @@ export default function DashboardAnalytiquesPage() {
                         type="button"
                         disabled={shippingId != null || deletingId != null}
                         onClick={() => {
-                          if (confirmDialog.kind === "ship") void executeShipCalirex(confirmDialog.order);
-                          else if (confirmDialog.kind === "delete") void executeDeleteOrder(confirmDialog.order);
+                          if (confirmDialog.kind === "ship") {
+                            void executeShipCalirex(confirmDialog.order, Boolean(confirmDialog.resend));
+                          } else if (confirmDialog.kind === "delete") {
+                            void executeDeleteOrder(confirmDialog.order);
+                          }
                         }}
                         className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 ${
                           confirmDialog.kind === "delete"
@@ -1070,11 +1086,19 @@ export default function DashboardAnalytiquesPage() {
                         (confirmDialog.kind === "delete" && deletingId === confirmDialog.order.id) ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : confirmDialog.kind === "ship" ? (
-                          <Truck className="h-4 w-4" />
+                          confirmDialog.resend ? (
+                            <RotateCcw className="h-4 w-4" />
+                          ) : (
+                            <Truck className="h-4 w-4" />
+                          )
                         ) : (
                           <Trash2 className="h-4 w-4" />
                         )}
-                        {confirmDialog.kind === "ship" ? "Créer le colis" : "Supprimer"}
+                        {confirmDialog.kind === "ship"
+                          ? confirmDialog.resend
+                            ? "Créer un nouveau colis"
+                            : "Créer le colis"
+                          : "Supprimer"}
                       </button>
                     </>
                   )}
@@ -1507,6 +1531,19 @@ export default function DashboardAnalytiquesPage() {
                                 <FileText className="h-3.5 w-3.5" />
                                 Bon
                               </button>
+                              <button
+                                type="button"
+                                onClick={(e) => handleResendCalirex(o, e)}
+                                disabled={shippingId === o.id}
+                                className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-lg border border-blue-300 bg-white px-3 py-2.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                              >
+                                {shippingId === o.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                )}
+                                Renvoyer à Calirex
+                              </button>
                             </>
                           )}
                         </div>
@@ -1757,6 +1794,20 @@ export default function DashboardAnalytiquesPage() {
                                       <FileText className="h-3.5 w-3.5" />
                                       Bon de livraison
                                       <ExternalLink className="h-3 w-3 opacity-60" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleResendCalirex(o, e)}
+                                      disabled={shippingId === o.id}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                                      title="Créer un nouveau colis Calirex"
+                                    >
+                                      {shippingId === o.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                      )}
+                                      Renvoyer
                                     </button>
                                   </>
                                 )}

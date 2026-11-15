@@ -14,6 +14,7 @@ import {
   totalSizeStock,
   type SizeStock,
 } from "@/lib/productSizeStock";
+import { toCalirexGovernorate } from "@/lib/tunisiaGovernorates";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -76,11 +77,19 @@ export async function POST(req: NextRequest) {
     const phone2 = phone2Raw.length > 0 ? phone2Raw : "";
     const address = body.address?.trim() ?? "";
     const city = body.city?.trim() ?? "";
-    const governorate = body.governorate?.trim() ?? "";
+    const governorateRaw = body.governorate?.trim() ?? "";
+    const governorate = toCalirexGovernorate(governorateRaw) || "";
     const items = Array.isArray(body.items) ? body.items : [];
 
     if (!fullName || !phone || !address || !city || !governorate) {
-      return NextResponse.json({ error: "Champs client manquants." }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: !governorate && governorateRaw
+            ? `Gouvernorat invalide: "${governorateRaw}".`
+            : "Champs client manquants.",
+        },
+        { status: 400 }
+      );
     }
     if (!isValidTunisiaPhone(phone)) {
       return NextResponse.json({ error: TUNISIA_PHONE_ERROR }, { status: 400 });

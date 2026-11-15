@@ -23,7 +23,7 @@ import {
 } from "@/lib/phoneValidation";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { parseSizeStocks } from "@/lib/productSizeStock";
-import { TUNISIA_GOVERNORATES } from "@/lib/tunisiaGovernorates";
+import { governorateLabel, toCalirexGovernorate, TUNISIA_GOVERNORATES } from "@/lib/tunisiaGovernorates";
 import { shippingForOrder } from "@/lib/specialOffers";
 
 const SIZE_ORDER = ["S", "M", "L", "XL", "XXL", "3XL", "STANDARD"] as const;
@@ -208,7 +208,7 @@ export default function PanierClient() {
     }
     const em = emRaw;
     const ph = normalizeTunisiaPhoneDigits(phone);
-    const gov = governorate.trim();
+    const gov = toCalirexGovernorate(governorate);
     const ct = city.trim();
     const addr = address.trim();
     if (!fn || !ph || !gov || !ct || !addr) {
@@ -431,7 +431,13 @@ export default function PanierClient() {
                   <div className="relative">
                     <input
                       type="text"
-                      value={governorateOpen ? governorateQuery : governorate}
+                      value={
+                        governorateOpen
+                          ? governorateQuery
+                          : governorate
+                            ? governorateLabel(governorate)
+                            : ""
+                      }
                       onChange={(e) => {
                         setGovernorateQuery(e.target.value);
                         setGovernorateOpen(true);
@@ -448,9 +454,13 @@ export default function PanierClient() {
                   </div>
                   {governorateOpen ? (
                     <ul className="absolute z-10 mt-1 left-0 right-0 max-h-56 overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg">
-                      {TUNISIA_GOVERNORATES.filter((g) =>
-                        g.toLowerCase().includes(governorateQuery.toLowerCase().trim())
-                      ).map((g) => (
+                      {TUNISIA_GOVERNORATES.filter((g) => {
+                        const q = governorateQuery.toLowerCase().trim();
+                        return (
+                          g.toLowerCase().includes(q) ||
+                          governorateLabel(g).toLowerCase().includes(q)
+                        );
+                      }).map((g) => (
                         <li
                           key={g}
                           onClick={() => {
@@ -462,7 +472,7 @@ export default function PanierClient() {
                             governorate === g ? "bg-zinc-50 font-medium text-black" : "text-black"
                           }`}
                         >
-                          {g}
+                          {governorateLabel(g)}
                         </li>
                       ))}
                     </ul>
