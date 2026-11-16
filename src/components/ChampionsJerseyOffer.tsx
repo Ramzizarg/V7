@@ -122,7 +122,7 @@ export function ChampionsJerseyOfferCard({ compareAt }: { compareAt: number }) {
   return (
     <aside lang="ar" dir="rtl" className="font-arabic mt-5 border border-black bg-white">
       <div className="bg-red-600 px-4 py-1.5 text-center text-[11px] font-bold tracking-wide text-white">
-        ينتهي الليلة — آخر ساعات
+        ينتهي هذا اسبوع — آخر ساعات
       </div>
 
       <div className="px-4 py-4">
@@ -146,7 +146,7 @@ export function ChampionsJerseyOfferCard({ compareAt }: { compareAt: number }) {
         </div>
 
         <p className="mt-3 text-[14px] font-semibold leading-relaxed text-black">
-          تأهّل الإفريقي لدوري الأبطال
+          بمناسبة الدربي
         </p>
         <p className="mt-1 flex items-center gap-1.5 text-[13px] font-medium text-zinc-600">
           <Truck className="h-3.5 w-3.5 shrink-0 text-black" strokeWidth={2.2} aria-hidden />
@@ -173,7 +173,7 @@ export function FlashSaleBadge({ className = "" }: { className?: string }) {
       dir="rtl"
       className={`font-arabic inline-flex items-center rounded-md bg-red-600 px-2 py-1 text-[11px] font-bold text-white shadow-md ${className}`}
     >
-      ينتهي الليلة
+      ينتهي هذا اسبوع
     </span>
   );
 }

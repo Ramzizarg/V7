@@ -26,6 +26,7 @@ import { isProductListedForSale } from "@/lib/productListing";
 import type { Product } from "@/lib/types";
 import { useTranslations } from "@/i18n/SiteLocaleProvider";
 import { ChampionsJerseyOfferCard, useChampionsJerseyFlashSale } from "@/components/ChampionsJerseyOffer";
+import { CHAMPIONS_JERSEY_COMPARE_AT } from "@/lib/specialOffers";
 
 /** Client-only: the form pre-fills saved customer details from localStorage. */
 const ProductQuickOrder = dynamic(() => import("@/components/ProductQuickOrder"), { ssr: false });
@@ -1120,7 +1121,7 @@ export default function ProductDetailView({ product }: Props) {
             </div>
 
             {jerseyFlashSale ? (
-              <ChampionsJerseyOfferCard compareAt={compareAt ?? product.price} />
+              <ChampionsJerseyOfferCard compareAt={CHAMPIONS_JERSEY_COMPARE_AT} />
             ) : (
               <div className="mt-6 flex items-baseline justify-between gap-3 text-lg tabular-nums sm:text-xl">
                 <span className="font-semibold text-black">{formatMoney(displayPrice)}</span>

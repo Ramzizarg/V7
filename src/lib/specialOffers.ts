@@ -2,6 +2,8 @@
 
 export const CHAMPIONS_JERSEY_PRODUCT_ID = 1;
 export const CHAMPIONS_JERSEY_SALE_PRICE = 65;
+/** Strikethrough / “was” price shown on the flash-sale card. */
+export const CHAMPIONS_JERSEY_COMPARE_AT = 72;
 export const STANDARD_SHIPPING_FEE = 8;
 export const FREE_SHIPPING_FROM = 200;
 
