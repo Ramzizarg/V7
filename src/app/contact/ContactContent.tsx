@@ -5,8 +5,8 @@ import { useTranslations } from "@/i18n/SiteLocaleProvider";
 
 const INSTAGRAM_URL = "https://www.instagram.com/vero7.tn/";
 const CONTACT_EMAIL = "contact@vero-7.com";
-const CONTACT_PHONE = "+216 25 191 292";
-const CONTACT_PHONE_HREF = "tel:+21625191292";
+const CONTACT_PHONE = "+216 25 161 292";
+const CONTACT_PHONE_HREF = "tel:+21625161292";
 
 function ContactSection({
   title,
