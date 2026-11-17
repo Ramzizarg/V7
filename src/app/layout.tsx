@@ -14,7 +14,6 @@ import { AppBuildCacheGuard } from "@/components/AppBuildCacheGuard";
 import { MetaPixel } from "@/components/MetaPixel";
 import { PageLoadSplash } from "@/components/PageLoadSplash";
 import { PresenceBeacon } from "@/components/PresenceBeacon";
-import { WelcomeOfferModal } from "@/components/WelcomeOfferModal";
 import { SiteLocaleInit } from "@/components/SiteLocaleInit";
 import { SiteLocaleProvider } from "@/i18n/SiteLocaleProvider";
 import { brandIcons, siteMetadataBase } from "@/lib/siteIconsMeta";
@@ -112,7 +111,6 @@ export default function RootLayout({
           <AppBuildCacheGuard />
           <PresenceBeacon />
           {children}
-          <WelcomeOfferModal />
         </div>
         </SiteLocaleProvider>
         <Analytics />
